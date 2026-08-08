@@ -1,29 +1,18 @@
 # omp-mypai Agent Plugin
 
-Official **Agent Plugins 1.0.0** compliant plugin package for **`mypai`** and **`oh-my-pi` (omp)**.
+**Agent Plugins 1.0.0** compliant plugin package for **mypai** running on **oh-my-pi (omp)**.
 
 ## Package Structure
 
 ```
 omp-mypai/
-├── plugin.json             # Agent Plugins 1.0.0 root manifest
-├── mcp.json                # Agent Plugins 1.0.0 MCP server registry
+├── plugin.json             # Agent Plugins root manifest
+├── mcp.json                # Agent Plugins MCP server registry
 ├── skills/                 # Portable skills (agentskills.io format)
-│   ├── mypai-tools/
-│   ├── arbor/
-│   ├── hindsight-api/
-│   ├── sequential-thinking/
-│   └── openadapt/
-├── tools/                  # Python mypai_tools package & daemons
-│   └── mypai_tools/
-│       ├── chat_mcp.py
-│       ├── chat_bridge.py
-│       ├── cron_mcp.py
-│       ├── heartbeat.py
-│       ├── input_spooler.py
-│       └── speech_mcp.py
-├── agents/                 # Subagent prompt profiles (pai, reviewer, scout, etc.)
-├── rules/                  # Execution policies (verification.md)
+├── tools/                  
+│   └── mypai_tools/        # Python mypai_tools package & daemons
+├── agents/                 # Subagent prompt profiles
+├── rules/                  # Execution policies
 └── config/                 # Bank configs & templates
 ```
 
@@ -40,9 +29,9 @@ omp-mypai/
 
 - **heartbeat**: `python3 -m mypai_tools.heartbeat daemon`
   - Background cron runner & RPC poke engine for periodic work audits and Hindsight reflection sweeps (`daemon` or `once` mode).
-- **input_spooler**: `python3 -m mypai_tools.input_spooler watch`
-  - Inbox folder file watcher with 10s quiescence gating, SHA256 hashing, sidecar parsing, STT, and Hindsight retention (`watch` or `once` mode).
-- **chat_bridge**: `python3 -m mypai_tools.chat_bridge`
+- **input_spooler**: `python3 -m mypai_tools.input_spooler daemon`
+  - Inbox folder file watcher with 10s quiescence gating, SHA256 hashing, sidecar parsing, STT, and Hindsight retention (`daemon` or `once` mode).
+- **chat_bridge**: `python3 -m mypai_tools.chat_bridge daemon`
   - RPC poke bridge forwarding incoming Signal messages to persistent OMP daemon with Hindsight recall. |
 
 ## Skills

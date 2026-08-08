@@ -40,6 +40,23 @@
       "args": [
         "mcp"
       ]
+    },
+    "openadapt": {
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "-m",
+        "openadapt"
+      ],
+    },
+    "arbor": {
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "-m",
+        "arbor",
+        "mcp"
+      ],
     }
   }
 }
