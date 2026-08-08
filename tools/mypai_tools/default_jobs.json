@@ -1,0 +1,22 @@
+[
+  {
+    "id": "job_work_sweep",
+    "name": "Work Sweep Audit Poke",
+    "job_type": "rpc",
+    "job_action": "{\"method\": \"work_sweep\", \"params\": {\"audit\": true}}",
+    "cron_expression": "*/30 * * * *",
+    "prompt": "Periodic work audit sweep",
+    "target_channel": "signal",
+    "enabled": true
+  },
+  {
+    "id": "job_health_sync",
+    "name": "Hindsight Health Sync",
+    "job_type": "http",
+    "job_action": "{\"method\": \"POST\", \"url\": \"{HINDSIGHT_API_URL}/v1/default/banks/{HINDSIGHT_BANK_ID}/reflect\", \"payload\": {\"query\": \"Periodic health reflection sweep\", \"reason\": \"scheduled_health_sync\"}}",
+    "cron_expression": "0 */2 * * *",
+    "prompt": "Periodic Hindsight health reflection sweep",
+    "target_channel": "signal",
+    "enabled": true
+  }
+]

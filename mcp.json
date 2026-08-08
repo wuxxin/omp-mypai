@@ -1,0 +1,45 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "chat-channel": {
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "-m",
+        "mypai_tools.chat_mcp"
+      ],
+      "env": {
+        "PYTHONPATH": "${PLUGIN_ROOT}/tools"
+      }
+    },
+    "cron-scheduler": {
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "-m",
+        "mypai_tools.cron_mcp"
+      ],
+      "env": {
+        "PYTHONPATH": "${PLUGIN_ROOT}/tools"
+      }
+    },
+    "local-speech": {
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "-m",
+        "mypai_tools.speech_mcp"
+      ],
+      "env": {
+        "PYTHONPATH": "${PLUGIN_ROOT}/tools"
+      }
+    },
+    "arbor": {
+      "type": "stdio",
+      "command": "arbor",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

@@ -1,0 +1,4 @@
+.fresh
+scratch/
+__pycache__
+mypai_tools.egg-info

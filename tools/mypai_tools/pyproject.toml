@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mypai_tools"
+version = "0.1.0"
+description = "MyPAI agent tools package"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "apscheduler>=3.10.0,<4.0.0",
+    "sqlalchemy>=2.0.0",
+    "mcp>=1.2.0",
+    "httpx>=0.24.0",
+    "watchdog>=3.0.0",
+    "pyyaml>=6.0",
+]
+
+[tool.setuptools]
+packages = ["mypai_tools"]
+package-dir = {"mypai_tools" = "."}
