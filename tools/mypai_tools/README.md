@@ -14,9 +14,9 @@ Agent tools package and MCP servers for mypai / Oh-my-PI.
 
 ### Input Spooler (`input_spooler.py`)
 Inbox folder file ingestion pipeline watcher and STT / Hindsight retention.
-- **Invocation**: `python3 -m mypai_tools.input_spooler watch|once [--inbox <path>]`
+- **Invocation**: `python3 -m mypai_tools.input_spooler daemon|once [--inbox <path>]`
 - **Modes**:
-  - `watch`: Run continuous inbox directory polling loop.
+  - `daemon`: Run continuous inbox directory polling loop.
   - `once`: Execute a single scan pass over the inbox folder and exit.
 - **Options**: `--inbox <path>`, `--stt-url <url>`, `--hindsight-url <url>`, `--bank-id <id>`, `--quiescence-sec <sec>`, `--state-file <path>`, `-v` / `--verbose`.
 - **Behavior**: Monitors drop folder (`~/Recordings/Inbox`), applies 10s quiescence stability gating, SHA256 content hashing, sidecar markdown metadata parsing, STT transcription, and Hindsight memory bank retention.

@@ -480,7 +480,7 @@ class InputSpooler:
             poll_interval: Interval between directory polling scans in seconds.
         """
         logger.info(
-            "Starting Spooler Continuous Monitoring Loop (--watch) on %s (interval=%.1fs)...",
+            "Starting Spooler Continuous Monitoring Loop (--daemon) on %s (interval=%.1fs)...",
             self.inbox,
             poll_interval,
         )
@@ -489,7 +489,7 @@ class InputSpooler:
                 await self.scan_inbox()
                 await asyncio.sleep(poll_interval)
         except (KeyboardInterrupt, asyncio.CancelledError):
-            logger.info("Spooler watch loop stopped.")
+            logger.info("Spooler daemon loop stopped.")
 
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
@@ -503,13 +503,13 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser(
         description="OMP Spooler Ingestion Pipeline",
-        usage="python3 -m mypai_tools.input_spooler watch|once [options]",
+        usage="python3 -m mypai_tools.input_spooler daemon|once [options]",
     )
     parser.add_argument(
         "mode",
         nargs="?",
-        choices=["watch", "once"],
-        help="Execution mode: 'watch' (run continuous monitoring loop) or 'once' (execute single scan pass and exit)",
+        choices=["daemon", "once"],
+        help="Execution mode: 'daemon' (run continuous monitoring loop) or 'once' (execute single scan pass and exit)",
     )
     parser.add_argument(
         "--inbox",
