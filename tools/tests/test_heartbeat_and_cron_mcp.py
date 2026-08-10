@@ -403,18 +403,18 @@ class TestHeartbeatCliSubcommands(unittest.IsolatedAsyncioTestCase):
     def test_parse_args_subcommands(self) -> None:
         """Test CLI argument parsing for import, export, daemon, once."""
         p_import = parse_args(["import", DEFAULT_JOBS_FILE])
-        self.assertEqual(p_import.mode, "import")
+        self.assertEqual(p_import.subcommand, "import")
         self.assertEqual(p_import.file, DEFAULT_JOBS_FILE)
 
         p_export = parse_args(["export", "/tmp/out.json"])
-        self.assertEqual(p_export.mode, "export")
+        self.assertEqual(p_export.subcommand, "export")
         self.assertEqual(p_export.file, "/tmp/out.json")
 
         p_daemon = parse_args(["daemon"])
-        self.assertEqual(p_daemon.mode, "daemon")
+        self.assertEqual(p_daemon.subcommand, "daemon")
 
         p_once = parse_args(["once"])
-        self.assertEqual(p_once.mode, "once")
+        self.assertEqual(p_once.subcommand, "once")
 
     async def test_main_async_import_and_export(self) -> None:
         """Test main_async execution of import and export subcommands."""

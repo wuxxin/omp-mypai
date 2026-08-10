@@ -378,53 +378,81 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
 
 
 def parse_args(args: List[str] | None = None) -> argparse.Namespace:
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="OMP Background Service Heartbeat & Cron Runner",
-        usage="python3 -m mypai_tools.heartbeat daemon|once|import|export [FILE] [options]",
-    )
-    parser.add_argument(
-        "mode",
-        nargs="?",
-        choices=["daemon", "once", "import", "export"],
-        help="Execution mode: 'daemon' (run continuously), 'once' (single pass), 'import' (import jobs JSON), or 'export' (export jobs JSON)",
-    )
-    parser.add_argument(
-        "file",
-        nargs="?",
-        default="",
-        help="Target JSON file path for import or export subcommands",
-    )
-    parser.add_argument(
-        "--import",
-        dest="import_file",
-        help="Import cron jobs from a specified JSON file path into project SQLite database",
-    )
-    parser.add_argument(
-        "--export",
-        dest="export_file",
-        help="Export all registered cron jobs from project SQLite database to a specified JSON file path",
-    )
-    parser.add_argument(
+    """Parse command line arguments matching heartbeat.md spec."""
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument(
         "--project-dir",
         default="",
-        help="Project directory path (default: current directory)",
+        help="Project directory path (default: current workspace)",
     )
-    parser.add_argument(
+    parent_parser.add_argument(
         "--rpc-url",
         default=DEFAULT_RPC_URL,
         help=f"OMP RPC service endpoint URL (default: {DEFAULT_RPC_URL})",
     )
-    parser.add_argument(
+    parent_parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
         help="Enable verbose DEBUG logging",
     )
+
+    parser = argparse.ArgumentParser(
+        description="OMP Background Service Heartbeat & Cron Runner",
+        parents=[parent_parser],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Examples:
+  python3 -m mypai_tools.heartbeat daemon [--project-dir /path/to/project]
+  python3 -m mypai_tools.heartbeat once [--project-dir /path/to/project]
+  python3 -m mypai_tools.heartbeat import /path/to/jobs.json [--project-dir /path/to/project]
+  python3 -m mypai_tools.heartbeat export /path/to/jobs_export.json [--project-dir /path/to/project]
+""",
+    )
+
+    subparsers = parser.add_subparsers(dest="subcommand", help="Execution subcommand")
+
+    # 1. daemon subcommand
+    subparsers.add_parser(
+        "daemon",
+        parents=[parent_parser],
+        help="Run background heartbeat daemon continuously",
+    )
+
+    # 2. once subcommand
+    subparsers.add_parser(
+        "once",
+        parents=[parent_parser],
+        help="Execute single pass for active jobs and exit",
+    )
+
+    # 3. import subcommand
+    sub_import = subparsers.add_parser(
+        "import",
+        parents=[parent_parser],
+        help="Import cron jobs from specified JSON file path",
+    )
+    sub_import.add_argument(
+        "file",
+        help="Path to JSON file containing cron jobs to import",
+    )
+
+    # 4. export subcommand
+    sub_export = subparsers.add_parser(
+        "export",
+        parents=[parent_parser],
+        help="Export all registered cron jobs to specified JSON file path",
+    )
+    sub_export.add_argument(
+        "file",
+        help="Destination JSON file path",
+    )
+
     parsed = parser.parse_args(args)
-    if not parsed.mode and not parsed.import_file and not parsed.export_file:
+
+    if not parsed.subcommand:
         parser.print_help(sys.stderr)
         sys.exit(1)
+
     return parsed
 
 
@@ -434,23 +462,14 @@ async def main_async(cli_args: argparse.Namespace) -> int:
         logger.setLevel(logging.DEBUG)
 
     project_dir = cli_args.project_dir
+    subcommand = cli_args.subcommand
 
-    # Handle export subcommand / option
-    if cli_args.mode == "export" or cli_args.export_file:
-        export_target = cli_args.file or cli_args.export_file
-        if not export_target:
-            logger.error("Error: export requires a target JSON file path (e.g. 'heartbeat export /path/to/file.json')")
-            return 1
-        export_jobs_to_json(export_target, project_dir=project_dir)
+    if subcommand == "export":
+        export_jobs_to_json(cli_args.file, project_dir=project_dir)
         return 0
 
-    # Handle import subcommand / option
-    if cli_args.mode == "import" or cli_args.import_file:
-        import_target = cli_args.file or cli_args.import_file
-        if not import_target:
-            logger.error("Error: import requires a target JSON file path (e.g. 'heartbeat import /path/to/file.json')")
-            return 1
-        import_jobs_from_json(import_target, project_dir=project_dir)
+    if subcommand == "import":
+        import_jobs_from_json(cli_args.file, project_dir=project_dir)
         return 0
 
     session = get_db_session(project_dir)
@@ -460,13 +479,17 @@ async def main_async(cli_args: argparse.Namespace) -> int:
     finally:
         session.close()
 
-    if cli_args.mode == "once":
+    if subcommand == "once":
         logger.info(
             "Executing single pass (once) for %d active DB job(s)...", len(jobs_list)
         )
         for job in jobs_list:
-            res = await execute_job(job, default_rpc_url=cli_args.rpc_url, project_dir=project_dir)
-            logger.info("Single pass result for '%s': %s", job.get("name"), res.get("status"))
+            res = await execute_job(
+                job, default_rpc_url=cli_args.rpc_url, project_dir=project_dir
+            )
+            logger.info(
+                "Single pass result for '%s': %s", job.get("name"), res.get("status")
+            )
         return 0
 
     daemon = HeartbeatDaemon(
