@@ -36,8 +36,10 @@
     },
     "arbor": {
       "type": "stdio",
-      "command": "arbor",
+      "command": "python3",
       "args": [
+        "-m",
+        "arbor",
         "mcp"
       ]
     },
@@ -47,16 +49,8 @@
       "args": [
         "-m",
         "openadapt"
-      ],
-    },
-    "arbor": {
-      "type": "stdio",
-      "command": "python3",
-      "args": [
-        "-m",
-        "arbor",
-        "mcp"
-      ],
+      ]
     }
   }
 }
+

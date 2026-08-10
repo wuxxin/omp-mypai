@@ -3,97 +3,71 @@ name: mypai-tools
 description: Complete guide for using mypai_tools MCP services (cron-scheduler, chat-channel, local-speech) and background daemons (heartbeat, input_spooler, chat_bridge). Use when scheduling automated jobs, processing Signal messages, handling STT/TTS audio, or interacting with per-project cron entries.
 ---
 
-# `mypai_tools` MCP Services
+# `mypai_tools` MCP Services & Background Daemons
 
+`mypai_tools` provides a comprehensive suite of MCP tool servers, background daemons, and execution services.
 
-`mypai_tools` exposes three primary MCP servers configured in `config.yml`:
+---
 
-| MCP Server Name | Module Runner | Purpose | Key Tools |
-|---|---|---|---|
-| `cron-scheduler` | `python3 -m mypai_tools.cron_mcp` | Project task & cron scheduling via SQLite DB (`$HOME/.omp/cron/projects/<project_hash>/cron.db`). | `cron_add_job`, `cron_remove_job`, `cron_pause_job`, `cron_resume_job`, `cron_list_jobs`, `cron_modify_job`, `cron_import_jobs`, `cron_export_jobs` |
-| `chat-channel` | `python3 -m mypai_tools.chat_mcp` | Signal messaging interface via `signal-cli` and Nanobot Gateway. | `get_pending_signal_messages`, `send_signal_message`, `list_signal_chats` |
-| `local-speech` | `python3 -m mypai_tools.speech_mcp` | Local STT transcription and TTS synthesis | `transcribe_audio`, `synthesize_speech` |
+## 1. Documentation Index & Location Matrix
 
+| Component Type | Component Name | Implementation Module | Architectural Spec / File | Purpose |
+| :--- | :--- | :--- | :--- | :--- |
+| **MCP Server** | `cron-scheduler` | `mypai_tools.cron_mcp` | [mcp.json](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/mcp.json) | Cron schedule CRUD operations & job imports/exports |
+| **MCP Server** | `chat-channel` | `mypai_tools.chat_mcp` | [mcp.json](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/mcp.json) | Signal messaging interface (`signal-cli-rest-api`) |
+| **MCP Server** | `local-speech` | `mypai_tools.speech_mcp` | [mcp.json](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/mcp.json) | Local Speech-to-Text (Whisper) & Text-to-Speech synthesis |
+| **Daemon** | `heartbeat` | `mypai_tools.heartbeat` | [heartbeat.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/tools/mypai_tools/heartbeat.md) | Cron runner daemon, SQLite WAL manager, & RPC poke engine |
+| **Daemon** | `input_spooler` | `mypai_tools.input_spooler` | [input_spooler.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/tools/mypai_tools/input_spooler.md) | Inbox directory watcher, STT pipeline, & Hindsight retention |
+| **Daemon** | `chat_bridge` | `mypai_tools.chat_bridge` | [chat_bridge.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/tools/mypai_tools/chat_bridge.md) | Signal chat event listener & OMP session steering bridge |
 
-## 1. Task Scheduling (`cron-scheduler`)
+---
+
+## 2. Task Scheduling (`cron-scheduler`)
 
 Per-project cron tasks are stored in SQLite databases located at `$HOME/.omp/cron/projects/<project_hash>/cron.db`.
 
-### Supported Job Types
+### Crontab Standard & Version Normalization
+Always specify standard Unix crontab syntax where **`0` = Sunday** (or `7` = Sunday).
+`mypai_tools` transparently detects whether `apscheduler < 4.0` or `apscheduler >= 4.0` is installed and normalizes the day-of-week field automatically so `0` always means Sunday.
 
-- **`"rpc"`** *(default)*: Sends JSON-RPC pokes to the OMP agent service endpoint.
-- **`"command"`**: Executes local CLI shell commands.
-- **`"http"`**: Executes HTTP REST calls (`GET`, `POST`, `PUT`, `PATCH`) to specified URLs with JSON headers and body.
+### Distinctive `#[VARNAME]` Macro Delimiter & Standardized Internal Variables
+- **`#[VARNAME]` Macro Syntax**: All string attributes (`action`, `url`, `args`, `kwargs`, `output_prompt`) substitute `#[VARNAME]` placeholders (e.g. `#[HINDSIGHT_API_URL]`, `#[HINDSIGHT_BANK_ID]`, `#[HOME]`) before execution.
+- **Internal Execution Variables**: `output_prompt` supports standardized `_`-prefixed internal telemetry variables:
+  - `#[_RETURNCODE]`: Process exit status code
+  - `#[_STDOUT]`: Standard output text
+  - `#[_STDERR]`: Standard error text
+  - `#[_STDCOMBINED]`: Combined stdout + stderr text
+  - `#[_RESULT]`: Result object / string
+- **Environment Inheritance**: `shell` subprocesses explicitly inherit all active daemon environment variables (`PATH`, `VIRTUAL_ENV`, `PYTHONPATH`, etc.) via `env=os.environ.copy()`.
 
-### Common Usage Patterns
+### Unified Supported Job Types (`type`) & Field Matrix
 
-#### Adding a Scheduled Job
-```python
-# Schedule a recurring RPC work sweep every 30 minutes
-cron_add_job(
-    name="30m Work Sweep",
-    cron_expression="*/30 * * * *",
-    prompt="Audit active tasks and reflect on project progress",
-    job_type="rpc",
-    job_action='{"method": "work_sweep", "params": {"audit": true}}'
-)
+| Field | `rpc` | `http` | `shell` | `python` | Macro Substitution? | Exact Field Usage Explanation |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **`id`** | **Req** | **Req** | **Req** | **Req** | No | Unique job ID string. |
+| **`name`** | **Req** | **Req** | **Req** | **Req** | `#[VARNAME]` | Human-readable job name. |
+| **`cron_expression`** | **Req** | **Req** | **Req** | **Req** | No | Standard 5-field cron string (`0 8 * * 0` where `0` = Sun). |
+| **`type`** | **Req** | **Req** | **Req** | **Req** | No | Primary engine selection: `"rpc"`, `"http"`, `"shell"`, `"python"`. |
+| **`action`** | **Req** | **Req** | **Req** | **Req** | **`#[VARNAME]`** | **RPC**: RPC verb (`prompt`, `steer`, `followup`, `abort_and_prompt`, `switch_session`, `branch`).<br>**HTTP**: HTTP method (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`).<br>**Shell**: Base CLI executable (`python3`, `ls`, `echo`).<br>**Python**: Lambda expression (e.g. `lambda args, kwargs: ...`). |
+| **`url`** | N/A | **Req** | N/A | N/A | **`#[VARNAME]`** | Target REST API endpoint URL. |
+| **`args`** | Opt | Opt | Opt | Opt | **`#[VARNAME]`** | **RPC**: Positional args.<br>**HTTP**: Positional payload.<br>**Shell**: Positional argument list.<br>**Python**: Positional args passed to lambda. |
+| **`kwargs`** | **Req** | Opt | Opt | Opt | **`#[VARNAME]`** | **RPC**: Keyword args dict containing `"prompt"` text.<br>**HTTP**: Request body dict + `headers` dict.<br>**Shell**: CLI flag dict (`{"inbox": "#[HOME]/Inbox"}`).<br>**Python**: Keyword args passed to lambda. |
+| **`output_prompt`** | Opt | Opt | Opt | Opt | **`#[VARNAME]`** | Output context template supporting `#[_STDOUT]`, `#[_STDERR]`, `#[_RETURNCODE]`, `#[_RESULT]`. |
+| **`output_type`** | N/A | N/A | Opt | N/A | No | Stream capture mode: `"stdout"` (default), `"stderr"`, `"combined"`. |
+| **`output_action`** | N/A | N/A | Opt | N/A | No | Routing back to OMP: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`. |
 
-# Schedule a shell command execution every morning at 8 AM
-cron_add_job(
-    name="Daily Backup",
-    cron_expression="0 8 * * *",
-    prompt="Backup project state",
-    job_type="command",
-    job_action="tar -czf /tmp/backup.tar.gz ."
-)
-```
-
-> [!NOTE]
-> `cron_add_job` automatically checks if the `heartbeat.pid` daemon process is alive for the current project. If the heartbeat runner is offline, it returns status `"scheduled_heartbeat_offline"` with a helpful warning message.
-
-#### Managing & Exporting Jobs
-- **Listing**: Call `cron_list_jobs()` to inspect all active/paused jobs and next run times.
-- **Pausing / Resuming**: Call `cron_pause_job(job_id)` or `cron_resume_job(job_id)`.
-- **Import / Export**:
-  - Export: `cron_export_jobs(file_path="schedule_backup.json")`
-  - Import: `cron_import_jobs(file_path="schedule_backup.json")`
+### Telemetry Fields
+Every registered job tracks execution metrics:
+`last_start`, `last_stop`, `last_runtime` (seconds), `last_returncode`, `last_output`, and `total_calls`.
 
 ---
 
-## 2. Signal Messaging (`chat-channel`)
+## 3. Signal Messaging (`chat-channel`)
 
-Interacts with local `signal-cli` (port 50889) and Nanobot REST gateway (port 8790).
-
-### Fetching & Responding to Messages
-```python
-# 1. Fetch pending unread messages
-messages = get_pending_signal_messages(limit=1)
-
-# 2. Reply to recipient
-send_signal_message(
-    recipient="+1234567890",
-    message="Task completed successfully!"
-)
-```
+Interacts with local `signal-cli-rest-api` daemon to send and receive Signal messages.
 
 ---
 
-## 3. Audio & Speech Processing (`local-speech`)
+## 4. Audio & Speech Processing (`local-speech`)
 
-Processes audio files and voice synthesis using local OpenAI-compatible inference servers.
-
-### Audio Transcription & Speech Synthesis
-```python
-# Transcribe audio recording to text
-result = transcribe_audio(file_path="/path/to/voice_note.wav", language="en")
-transcript = result.get("text")
-
-# Synthesize text to WAV audio output
-speech_res = synthesize_speech(
-    text="Hello, your background task has completed.",
-    voice="serena",
-    output_file="~/.omp/scratch/response.wav"
-)
-audio_path = speech_res.get("file_path")
-```
-
+Processes audio transcription (`transcribe_audio`) via local Whisper (port 50090) and speech synthesis (`synthesize_speech`) via TTS server (port 50095).

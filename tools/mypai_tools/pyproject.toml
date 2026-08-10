@@ -17,6 +17,7 @@ dependencies = [
     # arbor-agent doesnt work with mcp >=2.x
     "mcp>=1.2.0,<2",
     "apscheduler>=3.10.0,<4.0.0",
+    "omp-rpc>=0.1.0",
     "openadapt[browser,capture]",
     "arbor-agent[mcp]",
 ]

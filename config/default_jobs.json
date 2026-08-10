@@ -1,21 +1,33 @@
 [
   {
     "id": "job_work_sweep",
-    "name": "Work Sweep Audit Poke",
-    "job_type": "rpc",
-    "job_action": "{\"method\": \"work_sweep\", \"params\": {\"audit\": true}}",
+    "name": "Periodic Work Sweep Audit",
+    "type": "rpc",
+    "action": "prompt",
+    "args": [],
+    "kwargs": {
+      "prompt": "Audit active project tasks, verify pending commitments, and reflect on progress."
+    },
     "cron_expression": "*/30 * * * *",
-    "prompt": "Periodic work audit sweep",
     "target_channel": "signal",
     "enabled": true
   },
   {
     "id": "job_health_sync",
-    "name": "Hindsight Health Sync",
-    "job_type": "http",
-    "job_action": "{\"method\": \"POST\", \"url\": \"{HINDSIGHT_API_URL}/v1/default/banks/{HINDSIGHT_BANK_ID}/reflect\", \"payload\": {\"query\": \"Periodic health reflection sweep\", \"reason\": \"scheduled_health_sync\"}}",
+    "name": "Hindsight Reflection Sweep",
+    "type": "http",
+    "action": "POST",
+    "url": "#[HINDSIGHT_API_URL]/v1/default/banks/#[HINDSIGHT_BANK_ID]/reflect",
+    "output_prompt": "Trigger Hindsight reflection sweep across project memory banks.",
+    "args": [],
+    "kwargs": {
+      "query": "Periodic health reflection sweep",
+      "reason": "scheduled_health_sync",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    },
     "cron_expression": "0 */2 * * *",
-    "prompt": "Periodic Hindsight health reflection sweep",
     "target_channel": "signal",
     "enabled": true
   }

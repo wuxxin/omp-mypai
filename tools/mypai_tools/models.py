@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""SQLAlchemy Database Models and Pydantic Schemas for MyPAI Cron Tasks."""
+
+import json
+from typing import Any
+
+from sqlalchemy import Boolean, Column, Float, Integer, String, Text
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
+
+
+class CronJobModel(Base):
+    """SQLAlchemy model for scheduled cron tasks with inlined attributes & telemetry."""
+
+    __tablename__ = "cron_jobs"
+
+    id = Column(String(64), primary_key=True)
+    name = Column(String(255), nullable=False)
+    cron_expression = Column(String(255), nullable=False)
+    output_prompt = Column(Text, nullable=True, default="")
+    target_channel = Column(String(64), default="signal")
+    type = Column(String(32), default="rpc")
+    action = Column(Text, nullable=True, default="prompt")
+    enabled = Column(Boolean, default=True)
+
+    # Inlined executor parameter columns
+    url = Column(Text, nullable=True, default="")
+    args = Column(Text, nullable=True, default="")
+    kwargs = Column(Text, nullable=True, default="")
+    output_type = Column(String(32), nullable=True, default="stdout")
+    output_action = Column(String(32), nullable=True, default="ignore")
+
+    # Execution telemetry fields
+    last_start = Column(String(64), nullable=True)
+    last_stop = Column(String(64), nullable=True)
+    last_runtime = Column(Float, nullable=True, default=0.0)
+    last_returncode = Column(Integer, nullable=True, default=0)
+    last_output = Column(Text, nullable=True, default="")
+    total_calls = Column(Integer, nullable=False, default=0)
+
+    created_at = Column(String(64), nullable=False)
+    updated_at = Column(String(64), nullable=False)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert model instance to dictionary representation with parsed JSON args and kwargs."""
+        args_data = self.args
+        if isinstance(args_data, str) and args_data.strip().startswith(("{", "[")):
+            try:
+                args_data = json.loads(args_data)
+            except Exception:
+                pass
+
+        kwargs_data = self.kwargs
+        if isinstance(kwargs_data, str) and kwargs_data.strip().startswith(("{", "[")):
+            try:
+                kwargs_data = json.loads(kwargs_data)
+            except Exception:
+                pass
+
+        return {
+            "id": self.id,
+            "name": self.name,
+            "cron_expression": self.cron_expression,
+            "type": self.type or "rpc",
+            "action": self.action or "prompt",
+            "output_prompt": self.output_prompt or "",
+            "target_channel": self.target_channel or "signal",
+            "enabled": bool(self.enabled),
+            "url": self.url or "",
+            "args": args_data or "",
+            "kwargs": kwargs_data or {},
+            "output_type": self.output_type or "stdout",
+            "output_action": self.output_action or "ignore",
+            "last_start": self.last_start or "",
+            "last_stop": self.last_stop or "",
+            "last_runtime": float(self.last_runtime or 0.0),
+            "last_returncode": int(self.last_returncode or 0),
+            "last_output": self.last_output or "",
+            "total_calls": int(self.total_calls or 0),
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }

@@ -2,9 +2,10 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "omp-mypai",
   "version": "0.1.0",
-  "description": "Core skills, MCP tool servers, daemons, and agent profiles for mypai",
+  "description": "Core agent plugin for MyPAI and Oh-my-PI (omp): provides per-project cron scheduling, Signal messaging channel bridge, inbox audio/file ingestion spooler, Whisper STT & neural TTS speech synthesis, multi-bank Hindsight long-term vector memory integration, arbor AST code intelligence, and specialized multi-agent profiles.",
   "author": {
-    "name": "wuxxin <wuxxin@gmail.com>"
+    "name": "wuxxin",
+    "email": "wuxxin@gmail.com"
   },
   "license": "MIT",
   "keywords": [
@@ -13,6 +14,17 @@
     "hindsight",
     "signal",
     "cron",
-    "speech"
-  ]
+    "heartbeat",
+    "spooler",
+    "speech",
+    "stt",
+    "tts",
+    "arbor",
+    "mcp",
+    "agent-plugin"
+  ],
+  "mcp": "mcp.json",
+  "env": {
+    "PYTHONPATH": "${PLUGIN_ROOT}/tools"
+  }
 }

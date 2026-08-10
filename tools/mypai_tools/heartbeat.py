@@ -3,8 +3,8 @@
 
 Implements an AsyncIOScheduler background daemon connected to the per-project
 SQLite database ($HOME/.omp/cron/projects/<project_hash>/cron.db).
-Manages heartbeat.pid lifecycle, periodic DB job sync, and generic job execution
-(RPC pokes, HTTP requests, and CLI shell commands).
+Manages heartbeat.pid lifecycle, periodic DB job sync, inlined attribute execution telemetry,
+CLI JSON import/export, and simplified job execution (rpc, http, shell, python).
 """
 
 import argparse
@@ -16,38 +16,29 @@ import os
 import signal
 import sys
 import time
-from typing import Any, Dict, Set
-
-import httpx
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from datetime import datetime, timezone
+from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-try:
-    from mypai_tools.cron_mcp import (
-        Base,
-        CronJobModel,
-        _get_db_session,
-        get_heartbeat_pid_path,
-        get_project_db_path,
-        import_default_jobs_if_needed,
-    )
-except ImportError:
-    from cron_mcp import (
-        Base,
-        CronJobModel,
-        _get_db_session,
-        get_heartbeat_pid_path,
-        get_project_db_path,
-        import_default_jobs_if_needed,
-    )
+from mypai_tools.db import (
+    _get_db_session,
+    get_heartbeat_pid_path,
+    get_project_db_path,
+    normalize_cron_expression,
+    substitute_env_vars,
+)
+from mypai_tools.executors import (
+    execute_http_job,
+    execute_python_job,
+    execute_rpc_job,
+    execute_shell_job,
+)
+from mypai_tools.models import CronJobModel
 
 DEFAULT_RPC_URL = os.getenv("OMP_RPC_URL", "http://localhost:51080/v1/rpc")
-DEFAULT_HINDSIGHT_URL = os.getenv("HINDSIGHT_API_URL", "http://localhost:8888")
-DEFAULT_BANK_ID = os.getenv("HINDSIGHT_BANK_ID", "omp-orchestrator")
 DEFAULT_DB_SYNC_INTERVAL_SEC = 10.0
 
 logging.basicConfig(
@@ -76,132 +67,80 @@ def remove_pid_file(pid_path: str) -> None:
 
 
 async def execute_job(
-    job: Dict[str, Any], default_rpc_url: str = DEFAULT_RPC_URL
+    job: Dict[str, Any], default_rpc_url: str = DEFAULT_RPC_URL, project_dir: str = ""
 ) -> Dict[str, Any]:
-    """Generic job executor supporting command, rpc, and http job types."""
-    job_type = job.get("job_type", "rpc")
+    """Execute job using inlined attributes and update telemetry stats in DB."""
+    job = substitute_env_vars(job)
+    job_type = str(job.get("type") or job.get("job_type") or "rpc").lower()
     job_id = job.get("id", "unknown")
     name = job.get("name", "Unnamed Job")
+
+    start_iso = datetime.now(timezone.utc).isoformat()
+    start_time = time.time()
     logger.info("Executing job '%s' (ID: %s, type: %s)...", name, job_id, job_type)
 
-    start_time = time.time()
-    result: Dict[str, Any] = {"job_id": job_id, "name": name, "job_type": job_type}
+    result: dict[str, Any] = {"job_id": job_id, "name": name, "type": job_type}
+    returncode = 0
+    output_summary = ""
 
     try:
-        if job_type == "command":
-            cmd = job.get("job_action") or job.get("prompt") or ""
-            if not cmd:
-                raise ValueError("No CLI command specified in job_action or prompt.")
-            proc = await asyncio.create_subprocess_shell(
-                cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await proc.communicate()
-            exit_code = proc.returncode
-            stdout_str = stdout.decode("utf-8", errors="replace").strip()
-            stderr_str = stderr.decode("utf-8", errors="replace").strip()
-            logger.info("Command job '%s' completed with exit code %d", name, exit_code)
-            result.update(
-                {
-                    "status": "success" if exit_code == 0 else "error",
-                    "exit_code": exit_code,
-                    "stdout": stdout_str,
-                    "stderr": stderr_str,
-                }
-            )
+        if job_type in ("rpc", "command"):
+            res = await execute_rpc_job(job, default_rpc_url=default_rpc_url)
+            result.update(res)
+            returncode = 0 if res.get("status") == "success" else 1
+            output_summary = res.get("output") or res.get("error") or ""
 
-        elif job_type == "rpc":
-            action_data: Dict[str, Any] = {}
-            raw_action = job.get("job_action", "")
-            if raw_action:
-                try:
-                    action_data = json.loads(raw_action) if isinstance(raw_action, str) else raw_action
-                except Exception:
-                    pass
+        elif job_type.startswith("http"):
+            res = await execute_http_job(job)
+            result.update(res)
+            returncode = 0 if res.get("status") == "success" else 1
+            output_summary = res.get("output") or res.get("error") or ""
 
-            method = action_data.get("method") or "cron_trigger"
-            params = action_data.get("params") or {
-                "job_id": job_id,
-                "name": name,
-                "prompt": job.get("prompt", ""),
-                "target_channel": job.get("target_channel", "signal"),
-                "timestamp": start_time,
-            }
-            rpc_endpoint = action_data.get("rpc_url") or default_rpc_url
+        elif job_type == "shell":
+            res = await execute_shell_job(job)
+            result.update(res)
+            returncode = res.get("exit_code", 0)
+            output_summary = res.get("output") or res.get("stderr") or ""
 
-            payload = {
-                "jsonrpc": "2.0",
-                "method": method,
-                "params": params,
-                "id": f"cron-{job_id}-{int(start_time)}",
-            }
-            headers = {"Content-Type": "application/json"}
-
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(rpc_endpoint, json=payload, headers=headers)
-                resp.raise_for_status()
-                try:
-                    res_json = resp.json()
-                except Exception:
-                    res_json = {"raw": resp.text}
-                logger.info("RPC job '%s' returned HTTP %d", name, resp.status_code)
-                result.update(
-                    {"status": "success", "http_code": resp.status_code, "data": res_json}
-                )
-
-        elif job_type == "http":
-            action_data: Dict[str, Any] = {}
-            raw_action = job.get("job_action", "")
-            if raw_action:
-                try:
-                    action_data = json.loads(raw_action) if isinstance(raw_action, str) else raw_action
-                except Exception:
-                    pass
-
-            method = (action_data.get("method") or "POST").upper()
-            url = action_data.get("url") or ""
-
-            hindsight_url = os.getenv("HINDSIGHT_API_URL", "http://localhost:8888")
-            hindsight_bank = os.getenv("HINDSIGHT_BANK_ID", "omp-orchestrator")
-            omp_rpc_url = os.getenv("OMP_RPC_URL", "http://localhost:51080/v1/rpc")
-
-            url = url.replace("{HINDSIGHT_API_URL}", hindsight_url)
-            url = url.replace("{HINDSIGHT_BANK_ID}", hindsight_bank)
-            url = url.replace("{OMP_RPC_URL}", omp_rpc_url)
-
-            headers = action_data.get("headers") or {"Content-Type": "application/json"}
-            payload = action_data.get("payload")
-
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.request(
-                    method, url, json=payload if payload else None, headers=headers
-                )
-                resp.raise_for_status()
-                try:
-                    res_json = resp.json()
-                except Exception:
-                    res_json = {"raw": resp.text}
-                logger.info(
-                    "HTTP job '%s' (%s %s) returned HTTP %d",
-                    name,
-                    method,
-                    url,
-                    resp.status_code,
-                )
-                result.update(
-                    {"status": "success", "http_code": resp.status_code, "data": res_json}
-                )
+        elif job_type == "python":
+            res = await execute_python_job(job)
+            result.update(res)
+            returncode = 0 if res.get("status") == "success" else 1
+            output_summary = res.get("output") or res.get("error") or ""
 
         else:
-            raise ValueError(f"Unsupported job_type '{job_type}'")
+            raise ValueError(f"Unsupported job type '{job_type}'")
 
     except Exception as exc:
         logger.error("Execution error for job '%s': %s", name, exc)
-        result.update({"status": "error", "error": str(exc)})
+        returncode = 1
+        output_summary = str(exc)
+        result.update({"status": "error", "error": output_summary})
 
-    duration_ms = round((time.time() - start_time) * 1000, 2)
-    result["duration_ms"] = duration_ms
+    end_time = time.time()
+    end_iso = datetime.now(timezone.utc).isoformat()
+    duration_sec = round(end_time - start_time, 3)
+
+    result["duration_sec"] = duration_sec
+
+    # Update execution telemetry in DB
+    session = _get_db_session(project_dir)
+    try:
+        db_job = session.query(CronJobModel).filter_by(id=job_id).first()
+        if db_job:
+            db_job.last_start = start_iso
+            db_job.last_stop = end_iso
+            db_job.last_runtime = duration_sec
+            db_job.last_returncode = returncode
+            db_job.last_output = output_summary[:2048]
+            db_job.total_calls = (db_job.total_calls or 0) + 1
+            session.commit()
+    except Exception as db_exc:
+        logger.warning("Failed to update telemetry for job %s: %s", job_id, db_exc)
+        session.rollback()
+    finally:
+        session.close()
+
     return result
 
 
@@ -219,14 +158,14 @@ class HeartbeatDaemon:
         self.pid_path = get_heartbeat_pid_path(project_dir)
 
         self.scheduler = AsyncIOScheduler()
-        self.scheduled_job_ids: Set[str] = set()
+        self.scheduled_job_ids: set[str] = set()
 
     def sync_jobs_from_db(self) -> None:
         """Query DB for active cron jobs and synchronize AsyncIOScheduler tasks."""
         session = _get_db_session(self.project_dir)
         try:
             db_jobs = session.query(CronJobModel).filter_by(enabled=True).all()
-            current_active_ids: Set[str] = set()
+            current_active_ids: set[str] = set()
 
             for job in db_jobs:
                 job_dict = job.to_dict()
@@ -236,11 +175,12 @@ class HeartbeatDaemon:
 
                 if aps_job_id not in self.scheduled_job_ids:
                     try:
-                        trigger = CronTrigger.from_crontab(job.cron_expression)
+                        normalized_expr = normalize_cron_expression(job.cron_expression)
+                        trigger = CronTrigger.from_crontab(normalized_expr)
                         self.scheduler.add_job(
                             execute_job,
                             trigger=trigger,
-                            args=[job_dict, self.rpc_url],
+                            args=[job_dict, self.rpc_url, self.project_dir],
                             id=aps_job_id,
                             name=job.name,
                             replace_existing=True,
@@ -250,7 +190,7 @@ class HeartbeatDaemon:
                             "Scheduled DB cron job '%s' (ID: %s, type: %s, schedule: '%s')",
                             job.name,
                             job_id,
-                            job.job_type,
+                            job.type,
                             job.cron_expression,
                         )
                     except Exception as exc:
@@ -258,7 +198,7 @@ class HeartbeatDaemon:
                             "Failed to parse cron trigger for job %s: %s", job_id, exc
                         )
 
-            # Remove obsolete jobs no longer enabled or present in DB
+            # Remove obsolete jobs no longer active or present in DB
             to_remove = set()
             for aps_job_id in self.scheduled_job_ids:
                 raw_id = aps_job_id.replace("cron_db_", "")
@@ -311,17 +251,130 @@ class HeartbeatDaemon:
             remove_pid_file(self.pid_path)
 
 
+def export_jobs_to_json(file_path: str, project_dir: str = "") -> None:
+    """Export all registered cron jobs from project DB to a JSON file."""
+    abs_path = os.path.abspath(os.path.expanduser(file_path))
+    session = _get_db_session(project_dir)
+    try:
+        db_jobs = session.query(CronJobModel).all()
+        jobs_list = [j.to_dict() for j in db_jobs]
+        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+        with open(abs_path, "w", encoding="utf-8") as f:
+            json.dump({"jobs": jobs_list}, f, indent=2)
+        logger.info("Exported %d job(s) to %s", len(jobs_list), abs_path)
+    finally:
+        session.close()
+
+
+def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
+    """Import cron jobs with inlined attributes from a JSON file into project DB."""
+    abs_path = os.path.abspath(os.path.expanduser(file_path))
+    if not os.path.isfile(abs_path):
+        logger.error("Import file '%s' not found.", abs_path)
+        sys.exit(1)
+
+    with open(abs_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    jobs_data = data.get("jobs", data) if isinstance(data, dict) else data
+    if not isinstance(jobs_data, list):
+        logger.error("Invalid JSON format: expected list of jobs under 'jobs' key.")
+        sys.exit(1)
+
+    session = _get_db_session(project_dir)
+    imported_count = 0
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    try:
+        for item in jobs_data:
+            job_id = item.get("id") or item.get("name", "job")[:8]
+
+            args_val = item.get("args", "")
+            if isinstance(args_val, (dict, list)):
+                args_val = json.dumps(args_val)
+
+            kwargs_val = item.get("kwargs", {})
+            if isinstance(kwargs_val, str) and kwargs_val.strip().startswith("{"):
+                try:
+                    kwargs_val = json.loads(kwargs_val)
+                except Exception:
+                    kwargs_val = {}
+            if item.get("headers") and isinstance(kwargs_val, dict) and "headers" not in kwargs_val:
+                kwargs_val["headers"] = item["headers"]
+            if isinstance(kwargs_val, (dict, list)):
+                kwargs_val = json.dumps(kwargs_val)
+
+            job_type_val = item.get("type") or item.get("job_type") or "rpc"
+            action_val = item.get("action") or item.get("command") or item.get("code") or "prompt"
+            out_prompt_val = item.get("output_prompt") or item.get("prompt") or ""
+
+            existing = session.query(CronJobModel).filter_by(id=job_id).first()
+            if existing:
+                existing.name = item.get("name", existing.name)
+                existing.cron_expression = item.get("cron_expression", existing.cron_expression)
+                existing.output_prompt = out_prompt_val
+                existing.target_channel = item.get("target_channel", existing.target_channel)
+                existing.type = job_type_val
+                existing.action = action_val
+                existing.url = item.get("url", existing.url)
+                existing.args = args_val
+                existing.kwargs = kwargs_val
+                existing.output_type = item.get("output_type", existing.output_type)
+                existing.output_action = item.get("output_action", existing.output_action)
+                existing.enabled = item.get("enabled", existing.enabled)
+                existing.updated_at = now_iso
+            else:
+                job = CronJobModel(
+                    id=job_id,
+                    name=item.get("name", "Imported Job"),
+                    cron_expression=item.get("cron_expression", "* * * * *"),
+                    output_prompt=out_prompt_val,
+                    target_channel=item.get("target_channel", "signal"),
+                    type=job_type_val,
+                    action=action_val,
+                    url=item.get("url", ""),
+                    args=args_val,
+                    kwargs=kwargs_val,
+                    output_type=item.get("output_type", "stdout"),
+                    output_action=item.get("output_action", "ignore"),
+                    enabled=item.get("enabled", True),
+                    created_at=now_iso,
+                    updated_at=now_iso,
+                )
+                session.add(job)
+            imported_count += 1
+
+        session.commit()
+        logger.info("Successfully imported %d job(s) from %s", imported_count, abs_path)
+    except Exception as exc:
+        logger.error("Failed to import jobs: %s", exc)
+        session.rollback()
+        sys.exit(1)
+    finally:
+        session.close()
+
+
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="OMP Background Service Heartbeat & Cron Runner",
-        usage="python3 -m mypai_tools.heartbeat daemon|once [options]",
+        usage="python3 -m mypai_tools.heartbeat daemon|once [--import FILE] [--export FILE] [options]",
     )
     parser.add_argument(
         "mode",
         nargs="?",
         choices=["daemon", "once"],
         help="Execution mode: 'daemon' (run continuously) or 'once' (execute single pass and exit)",
+    )
+    parser.add_argument(
+        "--import",
+        dest="import_file",
+        help="Import cron jobs from a JSON file into project SQLite database",
+    )
+    parser.add_argument(
+        "--export",
+        dest="export_file",
+        help="Export all registered cron jobs from project SQLite database to a JSON file",
     )
     parser.add_argument(
         "--project-dir",
@@ -340,7 +393,7 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         help="Enable verbose DEBUG logging",
     )
     parsed = parser.parse_args(args)
-    if not parsed.mode:
+    if not parsed.mode and not parsed.import_file and not parsed.export_file:
         parser.print_help(sys.stderr)
         sys.exit(1)
     return parsed
@@ -352,8 +405,18 @@ async def main_async(cli_args: argparse.Namespace) -> int:
         logger.setLevel(logging.DEBUG)
 
     project_dir = cli_args.project_dir
-    session = _get_db_session(project_dir)
 
+    if cli_args.export_file:
+        export_jobs_to_json(cli_args.export_file, project_dir=project_dir)
+        if not cli_args.mode:
+            return 0
+
+    if cli_args.import_file:
+        import_jobs_from_json(cli_args.import_file, project_dir=project_dir)
+        if not cli_args.mode:
+            return 0
+
+    session = _get_db_session(project_dir)
     try:
         db_jobs = session.query(CronJobModel).filter_by(enabled=True).all()
         jobs_list = [j.to_dict() for j in db_jobs]
@@ -365,7 +428,7 @@ async def main_async(cli_args: argparse.Namespace) -> int:
             "Executing single pass (once) for %d active DB job(s)...", len(jobs_list)
         )
         for job in jobs_list:
-            res = await execute_job(job, default_rpc_url=cli_args.rpc_url)
+            res = await execute_job(job, default_rpc_url=cli_args.rpc_url, project_dir=project_dir)
             logger.info("Single pass result for '%s': %s", job.get("name"), res.get("status"))
         return 0
 
