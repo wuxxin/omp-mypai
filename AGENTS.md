@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Repository Structure
+
+- `plugin.json` — Plugin root manifest
+- `mcp.json` — MCP server registry configuration
+- `skills/` — Portable skills definitions
+- `tools/mypai_tools/` — Python package (`mypai_tools`), MCP services, and background daemons
+- `agents/` — Custom subagent prompt profiles
+- `rules/` — Execution policies and guidelines
+- `config/` — Hindsight bank configurations and templates
+
 ## Code Style & Commands
 
 - **Style:** dont use long visual lines for comment sections, eg. "# -----------"

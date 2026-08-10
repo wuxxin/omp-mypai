@@ -2,19 +2,15 @@
 
 Personal Artificial Intelligence (PAI) agent plugin based on **Oh-my-PI** and **Hindsight** adding Cron, Chat, Inbound Spooler and speech tools
 
-## Package Structure
+## Repository Structure
 
-```
-omp-mypai/
-├── plugin.json             # root manifest
-├── mcp.json                # MCP server registry
-├── skills/                 # Portable skills (agentskills.io format)
-├── tools/                  
-│   └── mypai_tools/        # Python mypai_tools package & daemons
-├── agents/                 # Subagent prompt profiles
-├── rules/                  # Execution policies
-└── config/                 # Bank configs & templates
-```
+- `plugin.json` — Plugin root manifest
+- `mcp.json` — MCP server registry configuration
+- `skills/` — Portable skills definitions
+- `tools/mypai_tools/` — Python package (`mypai_tools`), MCP services, and background daemons
+- `agents/` — Custom subagent prompt profiles
+- `rules/` — Execution policies and guidelines
+- `config/` — Hindsight bank configurations and templates
 
 ## Configured MCP Servers (`mcp.json`)
 
