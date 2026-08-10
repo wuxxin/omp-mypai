@@ -10,16 +10,16 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 
 1. **Per-Project SQLite Database Sync**:
    - Manages cron job definitions stored in `$HOME/.omp/cron/projects/<project_hash>/cron.db`.
-   - Uses `AsyncIOScheduler` to trigger jobs based on standard 5-field cron syntax (`cron` field, e.g. `0 8 * * 0`) or immediate one-shot execution (`cron: "now"`).
+   - SQLite DB session helper is `get_db_session(project_dir: str)`.
+   - Requires `cron` field for each job (e.g., standard 5-field syntax `"0 8 * * 0"` or immediate one-shot `"now"` trigger keyword; `cron` has no default value).
    - Dynamically syncs DB changes into memory every 10 seconds without requiring daemon restarts.
 
 2. **APScheduler Version-Aware Crontab Normalization & One-Shot DateTriggers**:
-   - **Recurring Crontabs**: Standard Unix crontab syntax where `0` = Sunday (or `7` = Sunday).
+   - **Recurring Crontabs**: Standard Unix crontab syntax where `0` = Sunday (or `7` = Sunday), e.g. `0 8 * * 0` or `* * * * *`.
    - **One-Shot Jobs (`cron: "now"`)**: When `cron` is `"now"`, `@now`, or `@once`, `heartbeat` uses APScheduler's `DateTrigger(run_date=datetime.now(timezone.utc))` with `misfire_grace_time=3600`. Upon execution completion, `heartbeat` automatically updates telemetry stats and sets `enabled=False` in SQLite so the task retains its history without repeating automatically.
 
 3. **Distinctive `#[VARNAME]` Macro & Env Variable Substitution**:
    - Uses the unambiguous **`#[VARNAME]`** delimiter format for macro substitution across all string attributes (`url`, `action`, `args`, `kwargs`, `output_prompt`, `name`).
-   - **Why `#[VARNAME]`?**: Never collides with JSON objects (`{"key": "val"}`), Python string format braces (`{}`), or shell variable syntax (`$VAR`/`${VAR}`).
 
 4. **Standardized Internal Execution Variables**:
    - Automatically populates standardized `_`-prefixed internal execution telemetry variables for result formatting in `output_prompt`:
@@ -27,25 +27,17 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
      - **`#[_STDOUT]`**: Captured standard output text stream.
      - **`#[_STDERR]`**: Captured standard error text stream.
      - **`#[_STDCOMBINED]`**: Combined STDOUT + STDERR stream output.
-     - **`#[_RESULT]`** / **`#[_OUTPUT]`**: Executed return result value/string.
+     - **`#[_RESULT]`**: Executed return result value/string.
 
 5. **Output Action Processing (`output_action`) & Delivery Channels (`output_channel`)**:
-   - **`output_action`**: Specifies the action to perform with `output_prompt` when `output_action != "ignore"` (`"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`). Evaluated using `output_prompt`.
-   - **`output_channel`**: Target delivery channel (`""` / `None` for default no additional output, or `"signal"` for Signal messaging).
+   - **`output_action`**: Action with `output_prompt` when evaluated (`"ignore"`, `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`).
+   - **`output_channel`**: Target delivery channel (`""` for default no extra output, or `"signal"` for Signal messaging).
 
-6. **Environment Variable Inheritance for Subprocesses**:
-   - Subprocesses spawned by `shell` job types explicitly inherit the complete set of environment variables active in the `heartbeat` daemon process via `env=os.environ.copy()`.
-   - Python in-process jobs natively access `os.environ` and `omp.env` exports (`PATH`, `VIRTUAL_ENV`, `PYTHONPATH`, etc.).
-
-7. **SQLite WAL Mode & Concurrency Safety**:
-   - Configures SQLite with Write-Ahead Logging (`PRAGMA journal_mode=WAL;`) and `PRAGMA busy_timeout=30000;`.
-   - Guarantees non-blocking concurrent writes between the MCP server (`cron_mcp`) and the Heartbeat background daemon.
-
-8. **Unified 4-Type Job Execution Engine**:
-   - **`rpc`**: Inter-process RPC triggering into `omp` via mandatory `omp_rpc.RpcClient`. `action` specifies RPC method (`prompt`, `steer`, `followup`, `abort_and_prompt`, `switch_session`, `branch`). Prompt text is supplied in `kwargs.prompt`.
-   - **`http`**: Asynchronous HTTP client execution via `httpx.AsyncClient`. `action` specifies HTTP method verb (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`). URL in `url`, request body & headers in `kwargs`.
-   - **`shell`**: Subprocess CLI execution. `action` specifies base binary/script executable (e.g. `python3`, `ls`, `echo`). Positional args in `args`, flags in `kwargs`.
-   - **`python`**: In-process async Python execution. `action` specifies a Python **lambda expression** or code snippet to execute.
+6. **Unified 4-Type Job Execution Engine**:
+   - **`rpc`**: Inter-process RPC triggering into `omp` via mandatory `omp_rpc.RpcClient`.
+   - **`http`**: Asynchronous HTTP client execution via `httpx.AsyncClient`.
+   - **`shell`**: Subprocess CLI execution. Positional args in `args`, flags in `kwargs`.
+   - **`python`**: In-process async Python execution via lambda or code snippet.
 
 ---
 
@@ -67,9 +59,9 @@ python3 -m mypai_tools.heartbeat daemon [--project-dir /path/to/project]
 # Execute single-pass for all active jobs and exit
 python3 -m mypai_tools.heartbeat once [--project-dir /path/to/project]
 
-# Import default jobs from default_jobs.json
-python3 -m mypai_tools.heartbeat --import default [--project-dir /path/to/project]
+# Import cron jobs from specified JSON file path
+python3 -m mypai_tools.heartbeat import /path/to/jobs.json [--project-dir /path/to/project]
 
-# Export all registered jobs to JSON file
-python3 -m mypai_tools.heartbeat --export /tmp/jobs_backup.json
+# Export all registered jobs to specified JSON file path
+python3 -m mypai_tools.heartbeat export /path/to/jobs_export.json [--project-dir /path/to/project]
 ```

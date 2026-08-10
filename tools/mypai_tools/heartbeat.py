@@ -25,7 +25,7 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from mypai_tools.db import (
-    _get_db_session,
+    get_db_session,
     get_heartbeat_pid_path,
     get_project_db_path,
     normalize_cron_expression,
@@ -72,7 +72,7 @@ async def execute_job(
 ) -> Dict[str, Any]:
     """Execute job using inlined attributes and update telemetry stats in DB."""
     job = substitute_env_vars(job)
-    job_type = str(job.get("type") or job.get("job_type") or "rpc").lower()
+    job_type = str(job.get("type", "rpc")).lower()
     job_id = job.get("id", "unknown")
     name = job.get("name", "Unnamed Job")
 
@@ -125,7 +125,7 @@ async def execute_job(
     result["duration_sec"] = duration_sec
 
     # Update execution telemetry in DB and disable if one-shot ('now'/'@once')
-    session = _get_db_session(project_dir)
+    session = get_db_session(project_dir)
     try:
         db_job = session.query(CronJobModel).filter_by(id=job_id).first()
         if db_job:
@@ -167,7 +167,7 @@ class HeartbeatDaemon:
 
     def sync_jobs_from_db(self) -> None:
         """Query DB for active cron jobs and synchronize AsyncIOScheduler tasks."""
-        session = _get_db_session(self.project_dir)
+        session = get_db_session(self.project_dir)
         try:
             db_jobs = session.query(CronJobModel).filter_by(enabled=True).all()
             current_active_ids: Set[str] = set()
@@ -271,7 +271,7 @@ def export_jobs_to_json(file_path: str, project_dir: str = "") -> None:
         sys.exit(1)
 
     abs_path = os.path.abspath(os.path.expanduser(file_path))
-    session = _get_db_session(project_dir)
+    session = get_db_session(project_dir)
     try:
         db_jobs = session.query(CronJobModel).all()
         jobs_list = [j.to_dict() for j in db_jobs]
@@ -284,7 +284,7 @@ def export_jobs_to_json(file_path: str, project_dir: str = "") -> None:
 
 
 def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
-    """Import cron jobs with inlined attributes from a specified JSON file path into project DB."""
+    """Import cron jobs from specified JSON file path into project DB."""
     if not file_path:
         logger.error("Import JSON file path is required.")
         sys.exit(1)
@@ -303,7 +303,7 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
         logger.error("Invalid JSON format: expected list of jobs under 'jobs' key.")
         sys.exit(1)
 
-    session = _get_db_session(project_dir)
+    session = get_db_session(project_dir)
     imported_count = 0
     now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -321,16 +321,17 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
                     kwargs_val = json.loads(kwargs_val)
                 except Exception:
                     kwargs_val = {}
-            if item.get("headers") and isinstance(kwargs_val, dict) and "headers" not in kwargs_val:
-                kwargs_val["headers"] = item["headers"]
             if isinstance(kwargs_val, (dict, list)):
                 kwargs_val = json.dumps(kwargs_val)
 
-            job_type_val = item.get("type") or item.get("job_type") or "rpc"
-            action_val = item.get("action") or item.get("command") or item.get("code") or "prompt"
-            out_prompt_val = item.get("output_prompt") or item.get("prompt") or ""
-            cron_val = item.get("cron") or item.get("cron_expression") or "* * * * *"
-            out_channel_val = item.get("output_channel") or item.get("target_channel") or ""
+            job_type_val = item.get("type", "rpc")
+            action_val = item.get("action", "prompt")
+            out_prompt_val = item.get("output_prompt", "")
+            cron_val = item.get("cron")
+            if not cron_val:
+                logger.error("Job '%s' (ID: %s) missing required 'cron' field.", item.get("name"), job_id)
+                continue
+            out_channel_val = item.get("output_channel", "")
 
             existing = session.query(CronJobModel).filter_by(id=job_id).first()
             if existing:
@@ -452,7 +453,7 @@ async def main_async(cli_args: argparse.Namespace) -> int:
         import_jobs_from_json(import_target, project_dir=project_dir)
         return 0
 
-    session = _get_db_session(project_dir)
+    session = get_db_session(project_dir)
     try:
         db_jobs = session.query(CronJobModel).filter_by(enabled=True).all()
         jobs_list = [j.to_dict() for j in db_jobs]

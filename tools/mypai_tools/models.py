@@ -16,11 +16,11 @@ class CronJobModel(Base):
 
     id = Column(String(64), primary_key=True)
     name = Column(String(255), nullable=False)
-    cron = Column(String(255), nullable=False, default="* * * * *")
+    cron = Column(String(255), nullable=False)
+    type = Column(String(32), nullable=False, default="rpc")
+    action = Column(Text, nullable=False, default="prompt")
     output_prompt = Column(Text, nullable=True, default="")
     output_channel = Column(String(64), nullable=True, default="")
-    type = Column(String(32), default="rpc")
-    action = Column(Text, nullable=True, default="prompt")
     enabled = Column(Boolean, default=True)
 
     # Inlined executor parameter columns
@@ -50,7 +50,7 @@ class CronJobModel(Base):
                 pass
 
         kwargs_data = self.kwargs
-        if isinstance(kwargs_data, str) and kwargs_data.strip().startswith(("{", "[")):
+        if isinstance(kwargs_data, str) and kwargs_data.strip().startswith("{"):
             try:
                 kwargs_data = json.loads(kwargs_data)
             except Exception:
@@ -59,9 +59,9 @@ class CronJobModel(Base):
         return {
             "id": self.id,
             "name": self.name,
-            "cron": self.cron or "* * * * *",
-            "type": self.type or "rpc",
-            "action": self.action or "prompt",
+            "cron": self.cron,
+            "type": self.type,
+            "action": self.action,
             "output_prompt": self.output_prompt or "",
             "output_channel": self.output_channel or "",
             "enabled": bool(self.enabled),

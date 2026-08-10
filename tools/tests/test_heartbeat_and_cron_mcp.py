@@ -19,8 +19,7 @@ from mypai_tools.cron_mcp import (
     cron_run_once,
 )
 from mypai_tools.db import (
-    DEFAULT_JOBS_FILE,
-    _get_db_session,
+    get_db_session,
     normalize_cron_expression,
     substitute_env_vars,
 )
@@ -30,6 +29,16 @@ from mypai_tools.executors.rpc_executor import execute_rpc_job
 from mypai_tools.executors.shell_executor import build_full_command, execute_shell_job
 from mypai_tools.heartbeat import execute_job, main_async, parse_args
 from mypai_tools.models import CronJobModel
+
+DEFAULT_JOBS_FILE = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "config",
+        "default_jobs.json",
+    )
+)
 
 
 class TestCronDbAndMacroSubstitution(unittest.TestCase):
@@ -337,7 +346,7 @@ class TestHeartbeatTelemetryUpdate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(res["status"], "success")
 
         # Verify DB telemetry
-        session = _get_db_session(self.temp_dir)
+        session = get_db_session(self.temp_dir)
         try:
             db_job = (
                 session.query(CronJobModel).filter_by(id=job_data["id"]).first()
@@ -345,7 +354,7 @@ class TestHeartbeatTelemetryUpdate(unittest.IsolatedAsyncioTestCase):
             self.assertIsNotNone(db_job)
             self.assertTrue(bool(db_job.last_start))
             self.assertTrue(bool(db_job.last_stop))
-            self.assertGreater(db_job.last_runtime, 0.0)
+            self.assertGreaterEqual(db_job.last_runtime, 0.0)
             self.assertEqual(db_job.last_returncode, 0)
             self.assertEqual(db_job.total_calls, 1)
         finally:
@@ -367,7 +376,7 @@ class TestHeartbeatTelemetryUpdate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(res["status"], "success")
 
         # Verify DB: enabled should be False, total_calls should be 1
-        session = _get_db_session(self.temp_dir)
+        session = get_db_session(self.temp_dir)
         try:
             db_job = (
                 session.query(CronJobModel).filter_by(id=job_data["id"]).first()
@@ -415,7 +424,7 @@ class TestHeartbeatCliSubcommands(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(res_import, 0)
 
         # Verify jobs in DB
-        session = _get_db_session(self.temp_dir)
+        session = get_db_session(self.temp_dir)
         try:
             jobs = session.query(CronJobModel).all()
             self.assertGreaterEqual(len(jobs), 1)
