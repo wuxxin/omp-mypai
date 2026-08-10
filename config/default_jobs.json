@@ -9,7 +9,7 @@
       "prompt": "Audit active project tasks, verify pending commitments, and reflect on progress."
     },
     "cron": "*/30 * * * *",
-    "output_channel": "",
+    "result_channel": "",
     "enabled": true
   },
   {
@@ -18,9 +18,9 @@
     "type": "http",
     "action": "POST",
     "url": "#[HINDSIGHT_API_URL]/v1/default/banks/#[HINDSIGHT_BANK_ID]/reflect",
-    "output_prompt": "Trigger Hindsight reflection sweep across project memory banks.",
-    "output_action": "ignore",
-    "output_channel": "",
+    "result_prompt": "Trigger Hindsight reflection sweep across project memory banks.",
+    "result_action": "ignore",
+    "result_channel": "",
     "args": [],
     "kwargs": {
       "query": "Periodic health reflection sweep",

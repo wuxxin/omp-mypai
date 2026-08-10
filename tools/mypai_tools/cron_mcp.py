@@ -52,9 +52,10 @@ def cron_add_job(
     url: str = "",
     args: Any = None,
     kwargs: Any = None,
-    output_prompt: str = "",
-    output_action: str = "ignore",
-    output_channel: str = "",
+    result_prompt: str = "",
+    result_error_prompt: str = "",
+    result_action: str = "ignore",
+    result_channel: str = "",
     project_dir: str = "",
 ) -> dict[str, Any]:
     """Register a new scheduled task in the project SQLite database.
@@ -67,9 +68,10 @@ def cron_add_job(
         url: Target HTTP URL for http job types
         args: Command positional arguments (list or space-separated string)
         kwargs: Command options / request headers / RPC payload parameters
-        output_prompt: Prompt template formatted with #[_STDOUT], #[_STDERR], #[_RETURNCODE], #[_RESULT]
-        output_action: Action on execution ('ignore', 'prompt', 'steer', 'followup', 'abort_and_prompt')
-        output_channel: Delivery channel (e.g. '' for none, 'signal' for Signal messaging)
+        result_prompt: Prompt template formatted with #[_STDOUT], #[_STDERR], #[_RETURNCODE], #[_RESULT]
+        result_error_prompt: Error prompt template evaluated on exitlevel != 0
+        result_action: Action on execution ('ignore', 'prompt', 'steer', 'followup', 'abort_and_prompt')
+        result_channel: Delivery channel (e.g. '' for none, 'signal' for Signal messaging)
         project_dir: Target workspace directory path
     """
     validate_cron_expression(cron)
@@ -92,9 +94,10 @@ def cron_add_job(
         url=url,
         args=args_str,
         kwargs=kwargs_str,
-        output_prompt=output_prompt,
-        output_action=output_action,
-        output_channel=output_channel,
+        result_prompt=result_prompt,
+        result_error_prompt=result_error_prompt,
+        result_action=result_action,
+        result_channel=result_channel,
         enabled=True,
         created_at=now_iso,
         updated_at=now_iso,
@@ -135,9 +138,10 @@ def cron_run_once(
     url: str = "",
     args: Any = None,
     kwargs: Any = None,
-    output_prompt: str = "",
-    output_action: str = "ignore",
-    output_channel: str = "",
+    result_prompt: str = "",
+    result_error_prompt: str = "",
+    result_action: str = "ignore",
+    result_channel: str = "",
     project_dir: str = "",
 ) -> dict[str, Any]:
     """Queue or reschedule an immediate one-shot task ('now') in the project SQLite database.
@@ -152,9 +156,10 @@ def cron_run_once(
         url: Target HTTP URL for http job types
         args: Command positional arguments
         kwargs: Command options / payload parameters
-        output_prompt: Result prompt template
-        output_action: Action on execution ('ignore', 'prompt', 'steer', 'followup', 'abort_and_prompt')
-        output_channel: Delivery channel ('', 'signal')
+        result_prompt: Result prompt template
+        result_error_prompt: Error prompt template evaluated on exitlevel != 0
+        result_action: Action on execution ('ignore', 'prompt', 'steer', 'followup', 'abort_and_prompt')
+        result_channel: Delivery channel ('', 'signal')
         project_dir: Target workspace directory path
     """
     session = get_db_session(project_dir)
@@ -183,11 +188,12 @@ def cron_run_once(
         if matching_job:
             matching_job.cron = "now"
             matching_job.enabled = True
-            matching_job.output_prompt = output_prompt or matching_job.output_prompt
-            matching_job.output_action = output_action or matching_job.output_action
-            matching_job.output_channel = (
-                output_channel or matching_job.output_channel
+            matching_job.result_prompt = result_prompt or matching_job.result_prompt
+            matching_job.result_error_prompt = (
+                result_error_prompt or matching_job.result_error_prompt
             )
+            matching_job.result_action = result_action or matching_job.result_action
+            matching_job.result_channel = result_channel or matching_job.result_channel
             matching_job.url = url or matching_job.url
             matching_job.updated_at = now_iso
             session.commit()
@@ -195,7 +201,9 @@ def cron_run_once(
             running = is_heartbeat_running(project_dir)
             status_msg = "rescheduled" if running else "rescheduled_heartbeat_offline"
 
-            logger.info("Rescheduled one-shot task '%s' (ID: %s)", name, matching_job.id)
+            logger.info(
+                "Rescheduled one-shot task '%s' (ID: %s)", name, matching_job.id
+            )
             return {
                 "status": status_msg,
                 "job": matching_job.to_dict(),
@@ -213,9 +221,10 @@ def cron_run_once(
             url=url,
             args=args_str,
             kwargs=kwargs_str,
-            output_prompt=output_prompt,
-            output_action=output_action,
-            output_channel=output_channel,
+            result_prompt=result_prompt,
+            result_error_prompt=result_error_prompt,
+            result_action=result_action,
+            result_channel=result_channel,
             enabled=True,
             created_at=now_iso,
             updated_at=now_iso,
@@ -317,9 +326,10 @@ def cron_modify_job(
     url: str | None = None,
     args: Any = None,
     kwargs: Any = None,
-    output_prompt: str | None = None,
-    output_action: str | None = None,
-    output_channel: str | None = None,
+    result_prompt: str | None = None,
+    result_error_prompt: str | None = None,
+    result_action: str | None = None,
+    result_channel: str | None = None,
     enabled: bool | None = None,
     project_dir: str = "",
 ) -> dict[str, Any]:
@@ -349,12 +359,14 @@ def cron_modify_job(
             db_job.kwargs = (
                 json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs)
             )
-        if output_prompt is not None:
-            db_job.output_prompt = output_prompt
-        if output_action is not None:
-            db_job.output_action = output_action
-        if output_channel is not None:
-            db_job.output_channel = output_channel
+        if result_prompt is not None:
+            db_job.result_prompt = result_prompt
+        if result_error_prompt is not None:
+            db_job.result_error_prompt = result_error_prompt
+        if result_action is not None:
+            db_job.result_action = result_action
+        if result_channel is not None:
+            db_job.result_channel = result_channel
         if enabled is not None:
             db_job.enabled = enabled
 
@@ -414,7 +426,10 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
             job_id = item.get("id") or item.get("name", "job")[:8]
             cron_val = item.get("cron")
             if not cron_val:
-                logger.warning("Skipping job '%s': missing required 'cron' field.", item.get("name"))
+                logger.warning(
+                    "Skipping job '%s': missing required 'cron' field.",
+                    item.get("name"),
+                )
                 continue
 
             args_val = item.get("args", "")
@@ -429,29 +444,39 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
             if existing:
                 existing.name = item.get("name", existing.name)
                 existing.cron = cron_val
-                existing.output_prompt = item.get("output_prompt", existing.output_prompt)
-                existing.output_channel = item.get("output_channel", existing.output_channel)
                 existing.type = item.get("type", existing.type)
+                existing.enabled = item.get("enabled", existing.enabled)
                 existing.action = item.get("action", existing.action)
                 existing.url = item.get("url", existing.url)
                 existing.args = args_val
                 existing.kwargs = kwargs_val
-                existing.output_action = item.get("output_action", existing.output_action)
-                existing.enabled = item.get("enabled", existing.enabled)
+                existing.result_action = item.get(
+                    "result_action", existing.result_action
+                )
+                existing.result_prompt = item.get(
+                    "result_prompt", existing.result_prompt
+                )
+                existing.result_error_prompt = item.get(
+                    "result_error_prompt", existing.result_error_prompt
+                )
+                existing.result_channel = item.get(
+                    "result_channel", existing.result_channel
+                )
                 existing.updated_at = now_iso
             else:
                 job = CronJobModel(
                     id=job_id,
                     name=item.get("name", "Imported Job"),
                     cron=cron_val,
-                    output_prompt=item.get("output_prompt", ""),
-                    output_channel=item.get("output_channel", ""),
                     type=item.get("type", "rpc"),
                     action=item.get("action", "prompt"),
                     url=item.get("url", ""),
                     args=args_val,
                     kwargs=kwargs_val,
-                    output_action=item.get("output_action", "ignore"),
+                    result_action=item.get("result_action", "ignore"),
+                    result_prompt=item.get("result_prompt", ""),
+                    result_error_prompt=item.get("result_error_prompt", ""),
+                    result_channel=item.get("result_channel", ""),
                     enabled=item.get("enabled", True),
                     created_at=now_iso,
                     updated_at=now_iso,

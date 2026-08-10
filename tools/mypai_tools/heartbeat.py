@@ -326,25 +326,27 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
 
             job_type_val = item.get("type", "rpc")
             action_val = item.get("action", "prompt")
-            out_prompt_val = item.get("output_prompt", "")
+            res_prompt_val = item.get("result_prompt", "")
+            res_err_prompt_val = item.get("result_error_prompt", "")
             cron_val = item.get("cron")
             if not cron_val:
                 logger.error("Job '%s' (ID: %s) missing required 'cron' field.", item.get("name"), job_id)
                 continue
-            out_channel_val = item.get("output_channel", "")
+            res_channel_val = item.get("result_channel", "")
 
             existing = session.query(CronJobModel).filter_by(id=job_id).first()
             if existing:
                 existing.name = item.get("name", existing.name)
                 existing.cron = cron_val
-                existing.output_prompt = out_prompt_val
-                existing.output_channel = out_channel_val
+                existing.result_prompt = res_prompt_val
+                existing.result_error_prompt = res_err_prompt_val
+                existing.result_channel = res_channel_val
                 existing.type = job_type_val
                 existing.action = action_val
                 existing.url = item.get("url", existing.url)
                 existing.args = args_val
                 existing.kwargs = kwargs_val
-                existing.output_action = item.get("output_action", existing.output_action)
+                existing.result_action = item.get("result_action", existing.result_action)
                 existing.enabled = item.get("enabled", existing.enabled)
                 existing.updated_at = now_iso
             else:
@@ -352,14 +354,15 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
                     id=job_id,
                     name=item.get("name", "Imported Job"),
                     cron=cron_val,
-                    output_prompt=out_prompt_val,
-                    output_channel=out_channel_val,
+                    result_prompt=res_prompt_val,
+                    result_error_prompt=res_err_prompt_val,
+                    result_channel=res_channel_val,
                     type=job_type_val,
                     action=action_val,
                     url=item.get("url", ""),
                     args=args_val,
                     kwargs=kwargs_val,
-                    output_action=item.get("output_action", "ignore"),
+                    result_action=item.get("result_action", "ignore"),
                     enabled=item.get("enabled", True),
                     created_at=now_iso,
                     updated_at=now_iso,

@@ -37,16 +37,38 @@ Always specify standard Unix crontab syntax where **`0` = Sunday** (or `7` = Sun
 `mypai_tools` transparently detects whether `apscheduler < 4.0` or `apscheduler >= 4.0` is installed and normalizes the day-of-week field automatically so `0` always means Sunday.
 
 ### Distinctive `#[VARNAME]` Macro Delimiter & Standardized Internal Variables
-- **`#[VARNAME]` Macro Syntax**: All string attributes (`action`, `url`, `args`, `kwargs`, `output_prompt`) substitute `#[VARNAME]` placeholders (e.g. `#[HINDSIGHT_API_URL]`, `#[HINDSIGHT_BANK_ID]`, `#[HOME]`) before execution.
-- **Internal Execution Variables**: `output_prompt` supports standardized `_`-prefixed internal telemetry variables:
+- **`#[VARNAME]` Macro Syntax**: All string attributes (`action`, `url`, `args`, `kwargs`, `result_prompt`, `result_error_prompt`) substitute `#[VARNAME]` placeholders (e.g. `#[HINDSIGHT_API_URL]`, `#[HINDSIGHT_BANK_ID]`, `#[HOME]`) before execution.
+- **Internal Execution Variables**: `result_prompt` and `result_error_prompt` support standardized `_`-prefixed internal telemetry variables:
   - `#[_RETURNCODE]`: Process exit status code
   - `#[_STDOUT]`: Standard output text
   - `#[_STDERR]`: Standard error text
   - `#[_STDCOMBINED]`: Combined stdout + stderr text
   - `#[_RESULT]`: Result object / string
-- **Output Action & Channel**:
-  - `output_action`: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`.
-  - `output_channel`: `""` / `None` (default no extra output), or `"signal"` for Signal messaging.
+- **Result Prompts, Action & Channel**:
+  - `result_prompt`: Template used on `exitlevel == 0`.
+  - `result_error_prompt`: Template used on `exitlevel != 0` (falls back to `result_prompt` if empty).
+  - `result_action`: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`.
+  - `result_channel`: `""` / `None` (default no extra output), or `"signal"` for Signal messaging.
+
+  ```python
+  # Example: Automatic Error Notification & Fixer Agent Delegation
+  cron_add_job(
+      name="Nightly Database Audit",
+      cron="0 3 * * *",
+      type="shell",
+      action="python3",
+      args=["scripts/db_audit.py"],
+      result_action="prompt",
+      result_prompt="Nightly Database Audit completed successfully:\n#[_STDOUT]",
+      result_error_prompt=(
+          "ALERT: Cron entry 'Nightly Database Audit' failed!\n"
+          "Exit Code: #[_RETURNCODE]\n\n"
+          "STDERR:\n#[_STDERR]\n\n"
+          "STDOUT:\n#[_STDOUT]\n\n"
+          "Please inspect the mypai-tools skill and spawn a @fixer agent to resolve the issue."
+      ),
+  )
+  ```
 
 ### MCP Tools List
 - `cron_add_job`: Add a recurring crontab task.

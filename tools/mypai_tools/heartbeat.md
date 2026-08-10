@@ -19,19 +19,41 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
    - **One-Shot Jobs (`cron: "now"`)**: When `cron` is `"now"`, `@now`, or `@once`, `heartbeat` uses APScheduler's `DateTrigger(run_date=datetime.now(timezone.utc))` with `misfire_grace_time=3600`. Upon execution completion, `heartbeat` automatically updates telemetry stats and sets `enabled=False` in SQLite so the task retains its history without repeating automatically.
 
 3. **Distinctive `#[VARNAME]` Macro & Env Variable Substitution**:
-   - Uses the unambiguous **`#[VARNAME]`** delimiter format for macro substitution across all string attributes (`url`, `action`, `args`, `kwargs`, `output_prompt`, `name`).
+   - Uses the unambiguous **`#[VARNAME]`** delimiter format for macro substitution across all string attributes (`url`, `action`, `args`, `kwargs`, `result_prompt`, `result_error_prompt`, `name`).
 
 4. **Standardized Internal Execution Variables**:
-   - Automatically populates standardized `_`-prefixed internal execution telemetry variables for result formatting in `output_prompt`:
+   - Automatically populates standardized `_`-prefixed internal execution telemetry variables for result formatting in `result_prompt` / `result_error_prompt`:
      - **`#[_RETURNCODE]`**: Process exit status code (0 for success, non-zero for error).
      - **`#[_STDOUT]`**: Captured standard output text stream.
      - **`#[_STDERR]`**: Captured standard error text stream.
      - **`#[_STDCOMBINED]`**: Combined STDOUT + STDERR stream output.
      - **`#[_RESULT]`**: Executed return result value/string.
 
-5. **Output Action Processing (`output_action`) & Delivery Channels (`output_channel`)**:
-   - **`output_action`**: Action with `output_prompt` when evaluated (`"ignore"`, `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`).
-   - **`output_channel`**: Target delivery channel (`""` for default no extra output, or `"signal"` for Signal messaging).
+5. **Result Action Processing (`result_action`), Prompts & Delivery Channels (`result_channel`)**:
+   - **`result_prompt`**: Template used on `exitlevel == 0`.
+   - **`result_error_prompt`**: Template used on `exitlevel != 0` (falls back to `result_prompt` if empty).
+   - **`result_action`**: Action with formatted result prompt when evaluated (`"ignore"`, `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`).
+   - **`result_channel`**: Target delivery channel (`""` for default no extra output, or `"signal"` for Signal messaging).
+
+   *Example Error Handling Configuration*:
+   ```python
+   cron_add_job(
+       name="Nightly Database Audit",
+       cron="0 3 * * *",
+       type="shell",
+       action="python3",
+       args=["scripts/db_audit.py"],
+       result_action="prompt",
+       result_prompt="Nightly Database Audit completed successfully:\n#[_STDOUT]",
+       result_error_prompt=(
+           "ALERT: Cron entry 'Nightly Database Audit' failed!\n"
+           "Exit Code: #[_RETURNCODE]\n\n"
+           "STDERR:\n#[_STDERR]\n\n"
+           "STDOUT:\n#[_STDOUT]\n\n"
+           "Please inspect the mypai-tools skill and spawn a @fixer agent to resolve the issue."
+       ),
+   )
+   ```
 
 6. **Unified 4-Type Job Execution Engine**:
    - **`rpc`**: Inter-process RPC triggering into `omp` via mandatory `omp_rpc.RpcClient`.

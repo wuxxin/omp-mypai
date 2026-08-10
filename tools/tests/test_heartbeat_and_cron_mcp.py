@@ -102,18 +102,33 @@ class TestShellExecutor(unittest.IsolatedAsyncioTestCase):
         self.assertIn("--verbose", cmd)
 
     async def test_execute_shell_job_success(self) -> None:
-        """Test executing shell job with #[_RETURNCODE] and #[_STDOUT] in output_prompt."""
+        """Test executing shell job with #[_RETURNCODE] and #[_STDOUT] in result_prompt."""
         job = {
             "name": "Shell Test Job",
             "type": "shell",
             "action": "echo",
             "args": ["Hello Unit Test"],
-            "output_prompt": "Output (code #[_RETURNCODE]): #[_STDOUT]",
+            "result_prompt": "Output (code #[_RETURNCODE]): #[_STDOUT]",
         }
         res = await execute_shell_job(job)
         self.assertEqual(res["status"], "success")
         self.assertEqual(res["exit_code"], 0)
         self.assertIn("Output (code 0): Hello Unit Test", res["output"])
+
+    async def test_execute_shell_job_error_prompt(self) -> None:
+        """Test executing failing shell job uses result_error_prompt when exitlevel != 0."""
+        job = {
+            "name": "Shell Error Test Job",
+            "type": "shell",
+            "action": "ls /non_existent_directory_mypai_test_12345",
+            "result_prompt": "Success output: #[_STDOUT]",
+            "result_error_prompt": "Command Failed (code #[_RETURNCODE]): #[_STDERR]",
+        }
+        res = await execute_shell_job(job)
+        self.assertEqual(res["status"], "error")
+        self.assertNotEqual(res["exit_code"], 0)
+        self.assertIn("Command Failed (code ", res["output"])
+        self.assertIn("non_existent_directory_mypai_test_12345", res["output"])
 
 
 class TestPythonExecutor(unittest.IsolatedAsyncioTestCase):
@@ -127,7 +142,7 @@ class TestPythonExecutor(unittest.IsolatedAsyncioTestCase):
             "action": "lambda args, kwargs: {'status': 'ok', 'count': len(args), 'env': kwargs.get('env')}",
             "args": ["a", "b", "c"],
             "kwargs": {"env": "test"},
-            "output_prompt": "Lambda Result: #[_RESULT]",
+            "result_prompt": "Lambda Result: #[_RESULT]",
         }
         res = await execute_python_job(job)
         self.assertEqual(res["status"], "success")
@@ -136,6 +151,19 @@ class TestPythonExecutor(unittest.IsolatedAsyncioTestCase):
             'Lambda Result: {"status": "ok", "count": 3, "env": "test"}',
             res["output"],
         )
+
+    async def test_execute_python_error_prompt(self) -> None:
+        """Test executing failing Python job uses result_error_prompt when exitlevel != 0."""
+        job = {
+            "name": "Python Error Test Job",
+            "type": "python",
+            "action": "lambda args, kwargs: 1 / 0",
+            "result_prompt": "Success result: #[_RESULT]",
+            "result_error_prompt": "Python Failed (code #[_RETURNCODE]): #[_STDERR]",
+        }
+        res = await execute_python_job(job)
+        self.assertEqual(res["status"], "error")
+        self.assertIn("Python Failed (code 1): division by zero", res["output"])
 
 
 class TestHttpAndRpcExecutors(unittest.IsolatedAsyncioTestCase):
@@ -208,7 +236,7 @@ class TestFastMcpCronTools(unittest.TestCase):
             type="rpc",
             action="prompt",
             kwargs={"prompt": "Sunday morning audit"},
-            output_channel="signal",
+            result_channel="signal",
             project_dir=self.temp_dir,
         )
         self.assertIn(
@@ -217,7 +245,7 @@ class TestFastMcpCronTools(unittest.TestCase):
         job_data = add_res["job"]
         job_id = job_data["id"]
         self.assertEqual(job_data["cron"], "0 8 * * 0")
-        self.assertEqual(job_data["output_channel"], "signal")
+        self.assertEqual(job_data["result_channel"], "signal")
 
         # 2. List jobs
         jobs = cron_list_jobs(project_dir=self.temp_dir)
@@ -237,12 +265,14 @@ class TestFastMcpCronTools(unittest.TestCase):
         mod_res = cron_modify_job(
             job_id=job_id,
             name="Modified Schedule Job",
-            output_prompt="Output context header:",
+            result_prompt="Output context header:",
+            result_error_prompt="Error context header:",
             project_dir=self.temp_dir,
         )
         self.assertEqual(mod_res["status"], "modified")
         self.assertEqual(mod_res["job"]["name"], "Modified Schedule Job")
-        self.assertEqual(mod_res["job"]["output_prompt"], "Output context header:")
+        self.assertEqual(mod_res["job"]["result_prompt"], "Output context header:")
+        self.assertEqual(mod_res["job"]["result_error_prompt"], "Error context header:")
 
         # 6. Delete job
         rem_res = cron_remove_job(job_id=job_id, project_dir=self.temp_dir)

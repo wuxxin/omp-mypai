@@ -19,13 +19,13 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
     - url: target API endpoint URL
     - kwargs: dictionary containing body parameters and optional 'headers' dictionary
     - args: optional positional body payload dictionary or raw string
-    - output_prompt: optional human-readable task description
+    - result_prompt: optional human-readable task description
     """
     name = job.get("name", "Unnamed HTTP Job")
     action = job.get("action") or "GET"
     method = str(action).upper()
 
-    url = job.get("url") or job.get("output_prompt") or ""
+    url = job.get("url") or job.get("result_prompt") or ""
     if not url:
         raise ValueError("No target URL specified in 'url' attribute.")
 

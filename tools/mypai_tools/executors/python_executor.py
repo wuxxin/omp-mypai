@@ -22,11 +22,17 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
     - action: Python lambda expression (e.g. 'lambda args, kwargs: {"status": "ok", "count": len(args)}') or code block
     - args: positional args list passed to lambda/code
     - kwargs: keyword args dictionary passed to lambda/code
-    - output_prompt: optional output header template supporting #[_RESULT], #[_STDOUT], #[_RETURNCODE] placeholders
-    - output_action: 'ignore' (default), 'prompt', 'steer', 'followup', 'abort_and_prompt'
+    - result_prompt: optional result header template supporting #[_RESULT], #[_STDOUT], #[_RETURNCODE] placeholders
+    - result_error_prompt: optional error result template used on exitlevel != 0
+    - result_action: 'ignore' (default), 'prompt', 'steer', 'followup', 'abort_and_prompt'
     """
     name = job.get("name", "Unnamed Python Job")
-    code = job.get("action") or job.get("code") or job.get("output_prompt") or ""
+    code = (
+        job.get("action")
+        or job.get("code")
+        or job.get("result_prompt")
+        or ""
+    )
 
     if not code:
         raise ValueError("No Python code specified in 'action' or 'code' attributes.")
@@ -45,7 +51,7 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
         except Exception:  # noqa: BLE001, S110
             pass
 
-    output_action = (job.get("output_action") or "ignore").lower()
+    result_action = (job.get("result_action") or "ignore").lower()
 
     logger.info("Executing Python job '%s'...", name)
 
@@ -90,27 +96,27 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
             "_OUTPUT": res_str,
         }
 
-        output_prompt_template = job.get("output_prompt") or ""
-        if output_prompt_template:
-            if "#[" in output_prompt_template:
-                final_output = substitute_env_vars(output_prompt_template, extra_vars=internal_vars)
+        result_prompt_template = job.get("result_prompt") or ""
+        if result_prompt_template:
+            if "#[" in result_prompt_template:
+                final_output = substitute_env_vars(result_prompt_template, extra_vars=internal_vars)
             else:
-                final_output = f"{output_prompt_template}\n{res_str}"
+                final_output = f"{result_prompt_template}\n{res_str}"
         else:
             final_output = res_str
 
-        # Route output_prompt to OMP via omp_rpc using output_action if output_action != ignore
-        if output_action != "ignore" and RpcClient is not None and final_output:
+        # Route result_prompt to OMP via omp_rpc using result_action if result_action != ignore
+        if result_action != "ignore" and RpcClient is not None and final_output:
             try:
                 with RpcClient() as client:
                     client.install_headless_ui()
-                    if output_action in ("prompt", "prompt_and_wait"):
+                    if result_action in ("prompt", "prompt_and_wait"):
                         client.prompt(final_output)
-                    elif output_action == "steer":
+                    elif result_action == "steer":
                         client.steer(final_output)
-                    elif output_action in ("followup", "follow_up"):
+                    elif result_action in ("followup", "follow_up"):
                         client.follow_up(final_output)
-                    elif output_action == "abort_and_prompt":
+                    elif result_action == "abort_and_prompt":
                         client.abort_and_prompt(final_output)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Failed to route python output to OMP via RpcClient: %s", exc)
@@ -119,4 +125,40 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
 
     except Exception as exc:  # noqa: BLE001
         logger.error("Python execution error for job '%s': %s", name, exc)
-        return {"status": "error", "error": str(exc)}
+        err_str = str(exc)
+        internal_vars = {
+            "_RETURNCODE": 1,
+            "_STDOUT": "",
+            "_STDERR": err_str,
+            "_STDCOMBINED": err_str,
+            "_RESULT": err_str,
+            "_OUTPUT": err_str,
+        }
+
+        result_prompt_template = (
+            job.get("result_error_prompt") or job.get("result_prompt") or ""
+        )
+        if result_prompt_template:
+            if "#[" in result_prompt_template:
+                final_output = substitute_env_vars(result_prompt_template, extra_vars=internal_vars)
+            else:
+                final_output = f"{result_prompt_template}\n{err_str}"
+        else:
+            final_output = err_str
+
+        if result_action != "ignore" and RpcClient is not None and final_output:
+            try:
+                with RpcClient() as client:
+                    client.install_headless_ui()
+                    if result_action in ("prompt", "prompt_and_wait"):
+                        client.prompt(final_output)
+                    elif result_action == "steer":
+                        client.steer(final_output)
+                    elif result_action in ("followup", "follow_up"):
+                        client.follow_up(final_output)
+                    elif result_action == "abort_and_prompt":
+                        client.abort_and_prompt(final_output)
+            except Exception as rpc_exc:  # noqa: BLE001
+                logger.warning("Failed to route python error output to OMP via RpcClient: %s", rpc_exc)
+
+        return {"status": "error", "error": err_str, "output": final_output}

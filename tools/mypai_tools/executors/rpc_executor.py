@@ -19,7 +19,7 @@ async def execute_rpc_job(job: dict[str, Any], default_rpc_url: str = "") -> dic
     - action: RPC operation verb ('prompt' / 'prompt_and_wait', 'steer', 'followup', 'abort_and_prompt', 'switch_session', 'branch')
     - kwargs: keyword arguments dictionary containing 'prompt' string (e.g. kwargs: {"prompt": "..."})
     - args: positional argument list/tuple for custom RPC requests
-    - output_prompt: optional fallback prompt text context
+    - result_prompt: optional fallback prompt text context
     """
     name = job.get("name", "Unnamed RPC Job")
     action = (job.get("action") or "prompt").lower()
@@ -44,14 +44,18 @@ async def execute_rpc_job(job: dict[str, Any], default_rpc_url: str = "") -> dic
     elif isinstance(args_raw, list):
         rpc_args = args_raw
 
-    # Extract RPC prompt from kwargs["prompt"], args[0], or output_prompt
+    # Extract RPC prompt from kwargs["prompt"], args[0], or result_prompt
     prompt = ""
     if isinstance(rpc_kwargs, dict) and "prompt" in rpc_kwargs:
         prompt = str(rpc_kwargs.pop("prompt"))
     elif rpc_args and isinstance(rpc_args[0], str):
         prompt = rpc_args[0]
     else:
-        prompt = job.get("output_prompt") or job.get("prompt") or ""
+        prompt = (
+            job.get("result_prompt")
+            or job.get("prompt")
+            or ""
+        )
 
     logger.info("Executing RPC job '%s' (action: %s)...", name, action)
 

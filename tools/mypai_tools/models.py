@@ -19,15 +19,16 @@ class CronJobModel(Base):
     cron = Column(String(255), nullable=False)
     type = Column(String(32), nullable=False, default="rpc")
     action = Column(Text, nullable=False, default="prompt")
-    output_prompt = Column(Text, nullable=True, default="")
-    output_channel = Column(String(64), nullable=True, default="")
+    result_action = Column(String(32), nullable=True, default="ignore")
+    result_prompt = Column(Text, nullable=True, default="")
+    result_error_prompt = Column(Text, nullable=True, default="")
+    result_channel = Column(String(64), nullable=True, default="")
     enabled = Column(Boolean, default=True)
 
     # Inlined executor parameter columns
     url = Column(Text, nullable=True, default="")
     args = Column(Text, nullable=True, default="")
     kwargs = Column(Text, nullable=True, default="")
-    output_action = Column(String(32), nullable=True, default="ignore")
 
     # Execution telemetry fields
     last_start = Column(String(64), nullable=True)
@@ -62,13 +63,14 @@ class CronJobModel(Base):
             "cron": self.cron,
             "type": self.type,
             "action": self.action,
-            "output_prompt": self.output_prompt or "",
-            "output_channel": self.output_channel or "",
+            "result_prompt": self.result_prompt or "",
+            "result_error_prompt": self.result_error_prompt or "",
+            "result_channel": self.result_channel or "",
             "enabled": bool(self.enabled),
             "url": self.url or "",
             "args": args_data or "",
             "kwargs": kwargs_data or {},
-            "output_action": self.output_action or "ignore",
+            "result_action": self.result_action or "ignore",
             "last_start": self.last_start or "",
             "last_stop": self.last_stop or "",
             "last_runtime": float(self.last_runtime or 0.0),

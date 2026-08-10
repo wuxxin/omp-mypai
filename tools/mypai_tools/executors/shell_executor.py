@@ -63,11 +63,17 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
     - action: base CLI binary or script executable string (e.g. 'python3', 'ls', 'echo')
     - args: positional argument list or string
     - kwargs: dictionary of flag parameters
-    - output_prompt: optional output context template supporting #[_STDOUT], #[_STDERR], #[_RETURNCODE], #[_STDCOMBINED]
-    - output_action: 'ignore' (default), 'prompt', 'steer', 'followup', 'abort_and_prompt'
+    - result_prompt: optional result context template supporting #[_STDOUT], #[_STDERR], #[_RETURNCODE], #[_STDCOMBINED]
+    - result_error_prompt: optional error result template used on exitlevel != 0
+    - result_action: 'ignore' (default), 'prompt', 'steer', 'followup', 'abort_and_prompt'
     """
     name = job.get("name", "Unnamed Shell Job")
-    raw_cmd = job.get("action") or job.get("command") or job.get("output_prompt") or ""
+    raw_cmd = (
+        job.get("action")
+        or job.get("command")
+        or job.get("result_prompt")
+        or ""
+    )
     if not raw_cmd:
         raise ValueError("No CLI shell command specified in 'action' or 'command' attributes.")
 
@@ -75,7 +81,7 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
     kwargs_val = job.get("kwargs")
     cmd = build_full_command(raw_cmd, args_val, kwargs_val)
 
-    output_action = (job.get("output_action") or "ignore").lower()
+    result_action = (job.get("result_action") or "ignore").lower()
 
     logger.info("Executing shell command '%s' for job '%s'...", cmd, name)
 
@@ -102,29 +108,36 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
         "_OUTPUT": stdout_str,
     }
 
-    output_prompt_template = job.get("output_prompt") or ""
-    if output_prompt_template:
-        if "#[" in output_prompt_template:
-            final_output = substitute_env_vars(output_prompt_template, extra_vars=internal_vars)
+    if exit_code != 0:
+        result_prompt_template = (
+            job.get("result_error_prompt") or job.get("result_prompt") or ""
+        )
+    else:
+        result_prompt_template = job.get("result_prompt") or ""
+
+    if result_prompt_template:
+        if "#[" in result_prompt_template:
+            final_output = substitute_env_vars(result_prompt_template, extra_vars=internal_vars)
         else:
-            final_output = f"{output_prompt_template}\n{stdout_str}"
+            out_body = stdout_str if exit_code == 0 else (stderr_str or stdout_str)
+            final_output = f"{result_prompt_template}\n{out_body}"
     else:
         final_output = stdout_str
 
     logger.info("Shell job '%s' exited with code %d", name, exit_code)
 
-    # Route output_prompt to OMP via omp_rpc using output_action if output_action != ignore
-    if output_action != "ignore" and RpcClient is not None and final_output:
+    # Route result_prompt to OMP via omp_rpc using result_action if result_action != ignore
+    if result_action != "ignore" and RpcClient is not None and final_output:
         try:
             with RpcClient() as client:
                 client.install_headless_ui()
-                if output_action in ("prompt", "prompt_and_wait"):
+                if result_action in ("prompt", "prompt_and_wait"):
                     client.prompt(final_output)
-                elif output_action == "steer":
+                elif result_action == "steer":
                     client.steer(final_output)
-                elif output_action in ("followup", "follow_up"):
+                elif result_action in ("followup", "follow_up"):
                     client.follow_up(final_output)
-                elif output_action == "abort_and_prompt":
+                elif result_action == "abort_and_prompt":
                     client.abort_and_prompt(final_output)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to route shell output to OMP via RpcClient: %s", exc)
