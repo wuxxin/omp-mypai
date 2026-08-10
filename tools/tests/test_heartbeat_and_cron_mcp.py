@@ -19,6 +19,7 @@ from mypai_tools.cron_mcp import (
     cron_run_once,
 )
 from mypai_tools.db import (
+    DEFAULT_JOBS_FILE,
     _get_db_session,
     normalize_cron_expression,
     substitute_env_vars,
@@ -27,7 +28,7 @@ from mypai_tools.executors.http_executor import execute_http_job
 from mypai_tools.executors.python_executor import execute_python_job
 from mypai_tools.executors.rpc_executor import execute_rpc_job
 from mypai_tools.executors.shell_executor import build_full_command, execute_shell_job
-from mypai_tools.heartbeat import execute_job
+from mypai_tools.heartbeat import execute_job, main_async, parse_args
 from mypai_tools.models import CronJobModel
 
 
@@ -377,6 +378,61 @@ class TestHeartbeatTelemetryUpdate(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(db_job.last_returncode, 0)
         finally:
             session.close()
+
+
+class TestHeartbeatCliSubcommands(unittest.IsolatedAsyncioTestCase):
+    """Test Heartbeat CLI subcommand parsing (import, export, once, daemon)."""
+
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.mkdtemp(prefix="mypai_cli_test_")
+
+    def tearDown(self) -> None:
+        import shutil
+
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_parse_args_subcommands(self) -> None:
+        """Test CLI argument parsing for import, export, daemon, once."""
+        p_import = parse_args(["import", DEFAULT_JOBS_FILE])
+        self.assertEqual(p_import.mode, "import")
+        self.assertEqual(p_import.file, DEFAULT_JOBS_FILE)
+
+        p_export = parse_args(["export", "/tmp/out.json"])
+        self.assertEqual(p_export.mode, "export")
+        self.assertEqual(p_export.file, "/tmp/out.json")
+
+        p_daemon = parse_args(["daemon"])
+        self.assertEqual(p_daemon.mode, "daemon")
+
+        p_once = parse_args(["once"])
+        self.assertEqual(p_once.mode, "once")
+
+    async def test_main_async_import_and_export(self) -> None:
+        """Test main_async execution of import and export subcommands."""
+        # 1. Import default jobs
+        args_import = parse_args(["import", DEFAULT_JOBS_FILE, "--project-dir", self.temp_dir])
+        res_import = await main_async(args_import)
+        self.assertEqual(res_import, 0)
+
+        # Verify jobs in DB
+        session = _get_db_session(self.temp_dir)
+        try:
+            jobs = session.query(CronJobModel).all()
+            self.assertGreaterEqual(len(jobs), 1)
+        finally:
+            session.close()
+
+        # 2. Export jobs to file
+        export_file = os.path.join(self.temp_dir, "exported.json")
+        args_export = parse_args(["export", export_file, "--project-dir", self.temp_dir])
+        res_export = await main_async(args_export)
+        self.assertEqual(res_export, 0)
+        self.assertTrue(os.path.isfile(export_file))
+
+        with open(export_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        self.assertIn("jobs", data)
+        self.assertGreaterEqual(len(data["jobs"]), 1)
 
 
 if __name__ == "__main__":
