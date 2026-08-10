@@ -26,7 +26,7 @@
 
 
 ### Workspace & Documentation
-- **Workspace Isolation:** Use `scratch/` in repo root for temporary files, research, and git checkouts (`scratch/*-sources`).
+- **Workspace Isolation:** Use `scratch/` for temporary files, research, and git checkouts (`scratch/*-sources`). Always use the top-level repository root `scratch/`: if checked out independently, use its own root `scratch/`; if checked out as a git submodule, use the parent repository's root `scratch/`.
 - create and activate an venv for testing the mypai_tools, dont try to pip install with break system packages.
 
 ### Sandboxing & Bubblewrap (`bwrap`) Discipline
