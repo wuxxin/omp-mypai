@@ -27,15 +27,9 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
     - result_action: 'ignore' (default), 'prompt', 'steer', 'followup', 'abort_and_prompt'
     """
     name = job.get("name", "Unnamed Python Job")
-    code = (
-        job.get("action")
-        or job.get("code")
-        or job.get("result_prompt")
-        or ""
-    )
-
+    code = job.get("action") or ""
     if not code:
-        raise ValueError("No Python code specified in 'action' or 'code' attributes.")
+        raise ValueError("No Python code specified in 'action' attribute.")
 
     args_val = job.get("args") or []
     if isinstance(args_val, str) and args_val.strip().startswith(("[", "{")):

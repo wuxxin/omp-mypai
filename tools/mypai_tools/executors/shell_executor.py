@@ -68,14 +68,9 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
     - result_action: 'ignore' (default), 'prompt', 'steer', 'followup', 'abort_and_prompt'
     """
     name = job.get("name", "Unnamed Shell Job")
-    raw_cmd = (
-        job.get("action")
-        or job.get("command")
-        or job.get("result_prompt")
-        or ""
-    )
+    raw_cmd = job.get("action") or ""
     if not raw_cmd:
-        raise ValueError("No CLI shell command specified in 'action' or 'command' attributes.")
+        raise ValueError("No CLI shell command specified in 'action' attribute.")
 
     args_val = job.get("args")
     kwargs_val = job.get("kwargs")

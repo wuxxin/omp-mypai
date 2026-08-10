@@ -105,7 +105,7 @@ class TestShellExecutor(unittest.IsolatedAsyncioTestCase):
         """Test executing shell job with #[_RETURNCODE] and #[_STDOUT] in result_prompt."""
         job = {
             "name": "Shell Test Job",
-            "type": "shell",
+            "kind": "shell",
             "action": "echo",
             "args": ["Hello Unit Test"],
             "result_prompt": "Output (code #[_RETURNCODE]): #[_STDOUT]",
@@ -119,7 +119,7 @@ class TestShellExecutor(unittest.IsolatedAsyncioTestCase):
         """Test executing failing shell job uses result_error_prompt when exitlevel != 0."""
         job = {
             "name": "Shell Error Test Job",
-            "type": "shell",
+            "kind": "shell",
             "action": "ls /non_existent_directory_mypai_test_12345",
             "result_prompt": "Success output: #[_STDOUT]",
             "result_error_prompt": "Command Failed (code #[_RETURNCODE]): #[_STDERR]",
@@ -138,7 +138,7 @@ class TestPythonExecutor(unittest.IsolatedAsyncioTestCase):
         """Test executing Python lambda expression."""
         job = {
             "name": "Python Lambda Test",
-            "type": "python",
+            "kind": "python",
             "action": "lambda args, kwargs: {'status': 'ok', 'count': len(args), 'env': kwargs.get('env')}",
             "args": ["a", "b", "c"],
             "kwargs": {"env": "test"},
@@ -156,7 +156,7 @@ class TestPythonExecutor(unittest.IsolatedAsyncioTestCase):
         """Test executing failing Python job uses result_error_prompt when exitlevel != 0."""
         job = {
             "name": "Python Error Test Job",
-            "type": "python",
+            "kind": "python",
             "action": "lambda args, kwargs: 1 / 0",
             "result_prompt": "Success result: #[_RESULT]",
             "result_error_prompt": "Python Failed (code #[_RETURNCODE]): #[_STDERR]",
@@ -179,7 +179,7 @@ class TestHttpAndRpcExecutors(unittest.IsolatedAsyncioTestCase):
 
         job = {
             "name": "HTTP Test Job",
-            "type": "http",
+            "kind": "http",
             "action": "POST",
             "url": "http://localhost:8888/v1/reflect",
             "kwargs": {
@@ -196,7 +196,7 @@ class TestHttpAndRpcExecutors(unittest.IsolatedAsyncioTestCase):
         """Test RPC prompt extraction from kwargs.prompt."""
         job = {
             "name": "RPC Test Job",
-            "type": "rpc",
+            "kind": "omp",
             "action": "prompt",
             "kwargs": {"prompt": "Perform work sweep audit"},
         }
@@ -233,7 +233,7 @@ class TestFastMcpCronTools(unittest.TestCase):
         add_res = cron_add_job(
             name="Unit Test Schedule Job",
             cron="0 8 * * 0",
-            type="rpc",
+            kind="omp",
             action="prompt",
             kwargs={"prompt": "Sunday morning audit"},
             result_channel="signal",
@@ -287,7 +287,7 @@ class TestFastMcpCronTools(unittest.TestCase):
         # 1. Create run_once job
         run1 = cron_run_once(
             name="One-shot Task",
-            type="python",
+            kind="python",
             action="lambda args, kwargs: 100",
             args=["arg1"],
             kwargs={"k": "v"},
@@ -301,7 +301,7 @@ class TestFastMcpCronTools(unittest.TestCase):
         # 2. Re-trigger exact same cron_run_once -> should reschedule existing job
         run2 = cron_run_once(
             name="One-shot Task",
-            type="python",
+            kind="python",
             action="lambda args, kwargs: 100",
             args=["arg1"],
             kwargs={"k": "v"},
@@ -317,7 +317,7 @@ class TestFastMcpCronTools(unittest.TestCase):
         cron_add_job(
             name="Export Test Job",
             cron="*/15 * * * *",
-            type="shell",
+            kind="shell",
             action="echo",
             args=["export test"],
             project_dir=self.temp_dir,
@@ -365,7 +365,7 @@ class TestHeartbeatTelemetryUpdate(unittest.IsolatedAsyncioTestCase):
         add_res = cron_add_job(
             name="Telemetry Test Job",
             cron="* * * * *",
-            type="python",
+            kind="python",
             action="lambda args, kwargs: 42",
             project_dir=self.temp_dir,
         )
@@ -394,7 +394,7 @@ class TestHeartbeatTelemetryUpdate(unittest.IsolatedAsyncioTestCase):
         """Test executing a 'now' job sets enabled=False and increments total_calls upon completion."""
         run_res = cron_run_once(
             name="One-shot Disabling Job",
-            type="python",
+            kind="python",
             action="lambda args, kwargs: 'done'",
             project_dir=self.temp_dir,
         )

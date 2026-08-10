@@ -17,7 +17,7 @@ class CronJobModel(Base):
     id = Column(String(64), primary_key=True)
     name = Column(String(255), nullable=False)
     cron = Column(String(255), nullable=False)
-    type = Column(String(32), nullable=False, default="rpc")
+    kind = Column(String(32), nullable=False, default="omp")
     action = Column(Text, nullable=False, default="prompt")
     result_action = Column(String(32), nullable=True, default="ignore")
     result_prompt = Column(Text, nullable=True, default="")
@@ -61,7 +61,7 @@ class CronJobModel(Base):
             "id": self.id,
             "name": self.name,
             "cron": self.cron,
-            "type": self.type,
+            "kind": self.kind,
             "action": self.action,
             "result_prompt": self.result_prompt or "",
             "result_error_prompt": self.result_error_prompt or "",

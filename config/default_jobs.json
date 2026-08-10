@@ -2,7 +2,7 @@
   {
     "id": "job_work_sweep",
     "name": "Periodic Work Sweep Audit",
-    "type": "rpc",
+    "kind": "omp",
     "action": "prompt",
     "args": [],
     "kwargs": {
@@ -15,7 +15,7 @@
   {
     "id": "job_health_sync",
     "name": "Hindsight Reflection Sweep",
-    "type": "http",
+    "kind": "http",
     "action": "POST",
     "url": "#[HINDSIGHT_API_URL]/v1/default/banks/#[HINDSIGHT_BANK_ID]/reflect",
     "result_prompt": "Trigger Hindsight reflection sweep across project memory banks.",

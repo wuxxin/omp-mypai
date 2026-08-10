@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execution and lifecycle engine for **MyPAI**. It maintains periodic triggers, executes 4 primary job types (`rpc`, `http`, `shell`, `python`), monitors process health via PID lockfiles, updates execution statistics in SQLite, and bridges external events directly into active or new **OMP** (oh-my-pi) sessions via the official `omp_rpc` Python SDK.
+The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execution and lifecycle engine for **MyPAI**. It maintains periodic triggers, executes 4 primary job types (`omp`, `http`, `shell`, `python`), monitors process health via PID lockfiles, updates execution statistics in SQLite, and bridges external events directly into active or new **OMP** (oh-my-pi) sessions via the official `omp_rpc` Python SDK.
 
 ---
 
@@ -40,7 +40,7 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
    cron_add_job(
        name="Nightly Database Audit",
        cron="0 3 * * *",
-       type="shell",
+       kind="shell",
        action="python3",
        args=["scripts/db_audit.py"],
        result_action="prompt",
@@ -56,7 +56,7 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
    ```
 
 6. **Unified 4-Type Job Execution Engine**:
-   - **`rpc`**: Inter-process RPC triggering into `omp` via mandatory `omp_rpc.RpcClient`.
+   - **`omp`**: Inter-process RPC into `omp` via `omp_rpc.RpcClient`.
    - **`http`**: Asynchronous HTTP client execution via `httpx.AsyncClient`.
    - **`shell`**: Subprocess CLI execution. Positional args in `args`, flags in `kwargs`.
    - **`python`**: In-process async Python execution via lambda or code snippet.
@@ -67,7 +67,7 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 
 The `cron-scheduler` FastMCP server exposes `cron_run_once(...)`:
 - **Immediate One-Shot Execution**: Schedules a task with `cron="now"`.
-- **Signature Deduplication & Rescheduling**: If a job with matching `(name, type, action, args, kwargs)` exists, `cron_run_once` updates its `cron` to `"now"`, sets `enabled=True`, and reschedules it rather than creating a duplicate row.
+- **Signature Deduplication & Rescheduling**: If a job with matching `(name, kind, action, args, kwargs)` exists, `cron_run_once` updates its `cron` to `"now"`, sets `enabled=True`, and reschedules it rather than creating a duplicate row.
 - **Telemetry Update**: Upon execution, `heartbeat` increments `total_calls`, updates `last_start`, `last_stop`, `last_runtime`, `last_returncode`, `last_output`, and marks `enabled=False`.
 
 ---

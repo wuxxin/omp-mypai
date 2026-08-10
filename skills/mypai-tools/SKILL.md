@@ -27,9 +27,9 @@ description: Complete guide for using mypai_tools MCP services (cron-scheduler, 
 Per-project cron tasks are stored in SQLite databases located at `$HOME/.omp/cron/projects/<project_hash>/cron.db`.
 
 ### FastMCP `cron_run_once` & Immediate One-Shot Execution
-- Use **`cron_run_once(name, type, action, args, kwargs, ...)`** to queue a task for immediate execution (`cron="now"`).
+- Use **`cron_run_once(name, kind, action, args, kwargs, ...)`** to queue a task for immediate execution (`cron="now"`).
 - Uses APScheduler `DateTrigger(run_date=now)` with `misfire_grace_time=3600`.
-- If an exact matching job `(name, type, action, args, kwargs)` exists, it reschedules the job (`cron="now"`, `enabled=True`).
+- If an exact matching job `(name, kind, action, args, kwargs)` exists, it reschedules the job (`cron="now"`, `enabled=True`).
 - Upon execution, `heartbeat` records telemetry and sets `enabled=False` so it retains history without repeating.
 
 ### Recurring Crontab Standard & Version Normalization
@@ -55,7 +55,7 @@ Always specify standard Unix crontab syntax where **`0` = Sunday** (or `7` = Sun
   cron_add_job(
       name="Nightly Database Audit",
       cron="0 3 * * *",
-      type="shell",
+      kind="shell",
       action="python3",
       args=["scripts/db_audit.py"],
       result_action="prompt",
@@ -90,3 +90,10 @@ Interacts with local `signal-cli-rest-api` daemon to send and receive Signal mes
 ## 4. Audio & Speech Processing (`local-speech`)
 
 Processes audio transcription (`transcribe_audio`) via local Whisper (port 50090) and speech synthesis (`synthesize_speech`) via TTS server (port 50095).
+
+---
+
+## 5. References & Technical Guides
+
+- [Autofix Cron Entries Guide](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/skills/mypai-tools/references/autofix-cron-entries.md): Detailed guide for configuring `result_error_prompt` to capture error telemetry and automatically delegate fixes to a `@fixer` subagent.
+

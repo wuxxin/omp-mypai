@@ -72,45 +72,45 @@ async def execute_job(
 ) -> dict[str, Any]:
     """Execute job using inlined attributes and update telemetry stats in DB."""
     job = substitute_env_vars(job)
-    job_type = str(job.get("type", "rpc")).lower()
+    kind = str(job.get("kind", "omp")).lower()
     job_id = job.get("id", "unknown")
     name = job.get("name", "Unnamed Job")
 
     start_iso = datetime.now(timezone.utc).isoformat()
     start_time = time.time()
-    logger.info("Executing job '%s' (ID: %s, type: %s)...", name, job_id, job_type)
+    logger.info("Executing job '%s' (ID: %s, kind: %s)...", name, job_id, kind)
 
-    result: dict[str, Any] = {"job_id": job_id, "name": name, "type": job_type}
+    result: dict[str, Any] = {"job_id": job_id, "name": name, "kind": kind}
     returncode = 0
     output_summary = ""
 
     try:
-        if job_type in ("rpc", "command"):
+        if kind in ("omp", "command"):
             res = await execute_rpc_job(job, default_rpc_url=default_rpc_url)
             result.update(res)
             returncode = 0 if res.get("status") == "success" else 1
             output_summary = res.get("output") or res.get("error") or ""
 
-        elif job_type.startswith("http"):
+        elif kind.startswith("http"):
             res = await execute_http_job(job)
             result.update(res)
             returncode = 0 if res.get("status") == "success" else 1
             output_summary = res.get("output") or res.get("error") or ""
 
-        elif job_type == "shell":
+        elif kind == "shell":
             res = await execute_shell_job(job)
             result.update(res)
             returncode = res.get("exit_code", 0)
             output_summary = res.get("output") or res.get("stderr") or ""
 
-        elif job_type == "python":
+        elif kind == "python":
             res = await execute_python_job(job)
             result.update(res)
             returncode = 0 if res.get("status") == "success" else 1
             output_summary = res.get("output") or res.get("error") or ""
 
         else:
-            raise ValueError(f"Unsupported job type '{job_type}'")
+            raise ValueError(f"Unsupported job kind '{kind}'")
 
     except Exception as exc:  # noqa: BLE001
         logger.error("Execution error for job '%s': %s", name, exc)
@@ -324,7 +324,7 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
             if isinstance(kwargs_val, (dict, list)):
                 kwargs_val = json.dumps(kwargs_val)
 
-            job_type_val = item.get("type", "rpc")
+            kind_val = item.get("kind", "omp")
             action_val = item.get("action", "prompt")
             res_prompt_val = item.get("result_prompt", "")
             res_err_prompt_val = item.get("result_error_prompt", "")
@@ -341,7 +341,7 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
                 existing.result_prompt = res_prompt_val
                 existing.result_error_prompt = res_err_prompt_val
                 existing.result_channel = res_channel_val
-                existing.type = job_type_val
+                existing.kind = kind_val
                 existing.action = action_val
                 existing.url = item.get("url", existing.url)
                 existing.args = args_val
@@ -357,7 +357,7 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
                     result_prompt=res_prompt_val,
                     result_error_prompt=res_err_prompt_val,
                     result_channel=res_channel_val,
-                    type=job_type_val,
+                    kind=kind_val,
                     action=action_val,
                     url=item.get("url", ""),
                     args=args_val,

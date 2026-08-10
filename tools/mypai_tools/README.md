@@ -37,7 +37,7 @@ RPC bridge for forwarding incoming Signal messages to the persistent OMP daemon 
 MCP server for project cron task management (`"cron-scheduler"`).
 - **Runner**: `python3 -m mypai_tools.cron_mcp`
 - **Database**: Per-project SQLite DB at `$HOME/.omp/cron/projects/<project_hash>/cron.db`.
-- **Tools Exposed**: `cron_add_job`, `cron_remove_job`, `cron_pause_job`, `cron_resume_job`, `cron_list_jobs`, `cron_modify_job`, `cron_import_jobs`, `cron_export_jobs`.
+- **Tools Exposed**: `cron_add_job`, `cron_remove_job`, `cron_disable_job`, `cron_enable_job`, `cron_list_jobs`, `cron_modify_job`, `cron_import_jobs`, `cron_export_jobs`.
 
 ### `chat_mcp`
 MCP server for Nanobot Signal messaging integration (`"chat-channel"`).

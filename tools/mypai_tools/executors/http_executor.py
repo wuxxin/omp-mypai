@@ -25,7 +25,7 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
     action = job.get("action") or "GET"
     method = str(action).upper()
 
-    url = job.get("url") or job.get("result_prompt") or ""
+    url = job.get("url") or ""
     if not url:
         raise ValueError("No target URL specified in 'url' attribute.")
 

@@ -47,7 +47,7 @@ def validate_cron_expression(cron_str: str) -> None:
 def cron_add_job(
     name: str,
     cron: str,
-    type: str = "rpc",
+    kind: str = "omp",
     action: str = "prompt",
     url: str = "",
     args: Any = None,
@@ -63,7 +63,7 @@ def cron_add_job(
     Args:
         name: Human-readable task name (e.g. 'Sunday Reflection Sweep')
         cron: Standard 5-field cron expression (e.g. '0 8 * * 0') or 'now' for immediate one-shot execution
-        type: Task type ('rpc', 'http', 'shell', 'python')
+        kind: Task kind ('omp', 'http', 'shell', 'python')
         action: Command/verb/code to execute (e.g. 'prompt', 'GET', 'echo', lambda snippet)
         url: Target HTTP URL for http job types
         args: Command positional arguments (list or space-separated string)
@@ -89,7 +89,7 @@ def cron_add_job(
         id=job_id,
         name=name,
         cron=cron,
-        type=type,
+        kind=kind,
         action=action,
         url=url,
         args=args_str,
@@ -133,7 +133,7 @@ def cron_add_job(
 @mcp.tool()
 def cron_run_once(
     name: str,
-    type: str = "rpc",
+    kind: str = "omp",
     action: str = "prompt",
     url: str = "",
     args: Any = None,
@@ -146,12 +146,12 @@ def cron_run_once(
 ) -> dict[str, Any]:
     """Queue or reschedule an immediate one-shot task ('now') in the project SQLite database.
 
-    If an exact matching task (matching name, type, action, args, kwargs) exists,
+    If an exact matching task (matching name, kind, action, args, kwargs) exists,
     it updates the existing entry (setting cron='now' and enabled=True) to reschedule it.
 
     Args:
         name: Human-readable task name
-        type: Task type ('rpc', 'http', 'shell', 'python')
+        kind: Task kind ('omp', 'http', 'shell', 'python')
         action: Command/verb/code to execute
         url: Target HTTP URL for http job types
         args: Command positional arguments
@@ -174,7 +174,7 @@ def cron_run_once(
         # Deduplication search
         existing = (
             session.query(CronJobModel)
-            .filter_by(name=name, type=type, action=action)
+            .filter_by(name=name, kind=kind, action=action)
             .all()
         )
         matching_job = None
@@ -216,7 +216,7 @@ def cron_run_once(
             id=job_id,
             name=name,
             cron="now",
-            type=type,
+            kind=kind,
             action=action,
             url=url,
             args=args_str,
@@ -303,25 +303,13 @@ def cron_enable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
         session.close()
 
 
-# Alias functions for backward compatibility
-@mcp.tool()
-def cron_pause_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
-    """Alias for cron_disable_job."""
-    return cron_disable_job(job_id=job_id, project_dir=project_dir)
-
-
-@mcp.tool()
-def cron_resume_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
-    """Alias for cron_enable_job."""
-    return cron_enable_job(job_id=job_id, project_dir=project_dir)
-
 
 @mcp.tool()
 def cron_modify_job(
     job_id: str,
     name: str | None = None,
     cron: str | None = None,
-    type: str | None = None,
+    kind: str | None = None,
     action: str | None = None,
     url: str | None = None,
     args: Any = None,
@@ -345,8 +333,8 @@ def cron_modify_job(
             db_job.cron = cron
         if name is not None:
             db_job.name = name
-        if type is not None:
-            db_job.type = type
+        if kind is not None:
+            db_job.kind = kind
         if action is not None:
             db_job.action = action
         if url is not None:
@@ -444,7 +432,7 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
             if existing:
                 existing.name = item.get("name", existing.name)
                 existing.cron = cron_val
-                existing.type = item.get("type", existing.type)
+                existing.kind = item.get("kind", existing.kind)
                 existing.enabled = item.get("enabled", existing.enabled)
                 existing.action = item.get("action", existing.action)
                 existing.url = item.get("url", existing.url)
@@ -468,7 +456,7 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
                     id=job_id,
                     name=item.get("name", "Imported Job"),
                     cron=cron_val,
-                    type=item.get("type", "rpc"),
+                    kind=item.get("kind", "omp"),
                     action=item.get("action", "prompt"),
                     url=item.get("url", ""),
                     args=args_val,

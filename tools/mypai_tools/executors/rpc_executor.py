@@ -51,11 +51,7 @@ async def execute_rpc_job(job: dict[str, Any], default_rpc_url: str = "") -> dic
     elif rpc_args and isinstance(rpc_args[0], str):
         prompt = rpc_args[0]
     else:
-        prompt = (
-            job.get("result_prompt")
-            or job.get("prompt")
-            or ""
-        )
+        prompt = job.get("result_prompt") or ""
 
     logger.info("Executing RPC job '%s' (action: %s)...", name, action)
 
