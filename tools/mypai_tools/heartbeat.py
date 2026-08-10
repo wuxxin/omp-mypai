@@ -10,20 +10,21 @@ CLI JSON import/export, and simplified job execution (rpc, http, shell, python).
 import argparse
 import asyncio
 import atexit
+from datetime import datetime, timezone
 import json
 import logging
 import os
 import signal
 import sys
 import time
-from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict, List, Set
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from mypai_tools.db import (
+    DEFAULT_JOBS_FILE,
     _get_db_session,
     get_heartbeat_pid_path,
     get_project_db_path,
@@ -79,7 +80,7 @@ async def execute_job(
     start_time = time.time()
     logger.info("Executing job '%s' (ID: %s, type: %s)...", name, job_id, job_type)
 
-    result: dict[str, Any] = {"job_id": job_id, "name": name, "type": job_type}
+    result: Dict[str, Any] = {"job_id": job_id, "name": name, "type": job_type}
     returncode = 0
     output_summary = ""
 
@@ -158,14 +159,14 @@ class HeartbeatDaemon:
         self.pid_path = get_heartbeat_pid_path(project_dir)
 
         self.scheduler = AsyncIOScheduler()
-        self.scheduled_job_ids: set[str] = set()
+        self.scheduled_job_ids: Set[str] = set()
 
     def sync_jobs_from_db(self) -> None:
         """Query DB for active cron jobs and synchronize AsyncIOScheduler tasks."""
         session = _get_db_session(self.project_dir)
         try:
             db_jobs = session.query(CronJobModel).filter_by(enabled=True).all()
-            current_active_ids: set[str] = set()
+            current_active_ids: Set[str] = set()
 
             for job in db_jobs:
                 job_dict = job.to_dict()
@@ -175,7 +176,7 @@ class HeartbeatDaemon:
 
                 if aps_job_id not in self.scheduled_job_ids:
                     try:
-                        normalized_expr = normalize_cron_expression(job.cron_expression)
+                        normalized_expr = normalize_cron_expression(job.cron)
                         trigger = CronTrigger.from_crontab(normalized_expr)
                         self.scheduler.add_job(
                             execute_job,
@@ -187,11 +188,11 @@ class HeartbeatDaemon:
                         )
                         self.scheduled_job_ids.add(aps_job_id)
                         logger.info(
-                            "Scheduled DB cron job '%s' (ID: %s, type: %s, schedule: '%s')",
+                            "Scheduled DB cron job '%s' (ID: %s, type: %s, cron: '%s')",
                             job.name,
                             job_id,
                             job.type,
-                            job.cron_expression,
+                            job.cron,
                         )
                     except Exception as exc:
                         logger.error(
@@ -267,8 +268,12 @@ def export_jobs_to_json(file_path: str, project_dir: str = "") -> None:
 
 
 def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
-    """Import cron jobs with inlined attributes from a JSON file into project DB."""
-    abs_path = os.path.abspath(os.path.expanduser(file_path))
+    """Import cron jobs with inlined attributes from a JSON file (or 'default') into project DB."""
+    if file_path.lower() in ("default", "defaults"):
+        abs_path = DEFAULT_JOBS_FILE
+    else:
+        abs_path = os.path.abspath(os.path.expanduser(file_path))
+
     if not os.path.isfile(abs_path):
         logger.error("Import file '%s' not found.", abs_path)
         sys.exit(1)
@@ -307,19 +312,20 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
             job_type_val = item.get("type") or item.get("job_type") or "rpc"
             action_val = item.get("action") or item.get("command") or item.get("code") or "prompt"
             out_prompt_val = item.get("output_prompt") or item.get("prompt") or ""
+            cron_val = item.get("cron") or item.get("cron_expression") or "* * * * *"
+            out_channel_val = item.get("output_channel") or item.get("target_channel") or ""
 
             existing = session.query(CronJobModel).filter_by(id=job_id).first()
             if existing:
                 existing.name = item.get("name", existing.name)
-                existing.cron_expression = item.get("cron_expression", existing.cron_expression)
+                existing.cron = cron_val
                 existing.output_prompt = out_prompt_val
-                existing.target_channel = item.get("target_channel", existing.target_channel)
+                existing.output_channel = out_channel_val
                 existing.type = job_type_val
                 existing.action = action_val
                 existing.url = item.get("url", existing.url)
                 existing.args = args_val
                 existing.kwargs = kwargs_val
-                existing.output_type = item.get("output_type", existing.output_type)
                 existing.output_action = item.get("output_action", existing.output_action)
                 existing.enabled = item.get("enabled", existing.enabled)
                 existing.updated_at = now_iso
@@ -327,15 +333,14 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
                 job = CronJobModel(
                     id=job_id,
                     name=item.get("name", "Imported Job"),
-                    cron_expression=item.get("cron_expression", "* * * * *"),
+                    cron=cron_val,
                     output_prompt=out_prompt_val,
-                    target_channel=item.get("target_channel", "signal"),
+                    output_channel=out_channel_val,
                     type=job_type_val,
                     action=action_val,
                     url=item.get("url", ""),
                     args=args_val,
                     kwargs=kwargs_val,
-                    output_type=item.get("output_type", "stdout"),
                     output_action=item.get("output_action", "ignore"),
                     enabled=item.get("enabled", True),
                     created_at=now_iso,
@@ -354,11 +359,11 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
         session.close()
 
 
-def parse_args(args: list[str] | None = None) -> argparse.Namespace:
+def parse_args(args: List[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="OMP Background Service Heartbeat & Cron Runner",
-        usage="python3 -m mypai_tools.heartbeat daemon|once [--import FILE] [--export FILE] [options]",
+        usage="python3 -m mypai_tools.heartbeat daemon|once [--import FILE|default] [--export FILE] [options]",
     )
     parser.add_argument(
         "mode",
@@ -369,7 +374,7 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--import",
         dest="import_file",
-        help="Import cron jobs from a JSON file into project SQLite database",
+        help="Import cron jobs from a JSON file (or 'default') into project SQLite database",
     )
     parser.add_argument(
         "--export",

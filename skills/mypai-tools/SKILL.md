@@ -38,7 +38,9 @@ Always specify standard Unix crontab syntax where **`0` = Sunday** (or `7` = Sun
   - `#[_STDERR]`: Standard error text
   - `#[_STDCOMBINED]`: Combined stdout + stderr text
   - `#[_RESULT]`: Result object / string
-- **Environment Inheritance**: `shell` subprocesses explicitly inherit all active daemon environment variables (`PATH`, `VIRTUAL_ENV`, `PYTHONPATH`, etc.) via `env=os.environ.copy()`.
+- **Output Action & Channel**:
+  - `output_action`: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`.
+  - `output_channel`: `""` / `None` (default no extra output), or `"signal"` for Signal messaging.
 
 ### Unified Supported Job Types (`type`) & Field Matrix
 
@@ -46,15 +48,15 @@ Always specify standard Unix crontab syntax where **`0` = Sunday** (or `7` = Sun
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | **`id`** | **Req** | **Req** | **Req** | **Req** | No | Unique job ID string. |
 | **`name`** | **Req** | **Req** | **Req** | **Req** | `#[VARNAME]` | Human-readable job name. |
-| **`cron_expression`** | **Req** | **Req** | **Req** | **Req** | No | Standard 5-field cron string (`0 8 * * 0` where `0` = Sun). |
+| **`cron`** | **Req** | **Req** | **Req** | **Req** | No | Standard 5-field cron string (`0 8 * * 0` where `0` = Sun). |
 | **`type`** | **Req** | **Req** | **Req** | **Req** | No | Primary engine selection: `"rpc"`, `"http"`, `"shell"`, `"python"`. |
 | **`action`** | **Req** | **Req** | **Req** | **Req** | **`#[VARNAME]`** | **RPC**: RPC verb (`prompt`, `steer`, `followup`, `abort_and_prompt`, `switch_session`, `branch`).<br>**HTTP**: HTTP method (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`).<br>**Shell**: Base CLI executable (`python3`, `ls`, `echo`).<br>**Python**: Lambda expression (e.g. `lambda args, kwargs: ...`). |
 | **`url`** | N/A | **Req** | N/A | N/A | **`#[VARNAME]`** | Target REST API endpoint URL. |
 | **`args`** | Opt | Opt | Opt | Opt | **`#[VARNAME]`** | **RPC**: Positional args.<br>**HTTP**: Positional payload.<br>**Shell**: Positional argument list.<br>**Python**: Positional args passed to lambda. |
 | **`kwargs`** | **Req** | Opt | Opt | Opt | **`#[VARNAME]`** | **RPC**: Keyword args dict containing `"prompt"` text.<br>**HTTP**: Request body dict + `headers` dict.<br>**Shell**: CLI flag dict (`{"inbox": "#[HOME]/Inbox"}`).<br>**Python**: Keyword args passed to lambda. |
 | **`output_prompt`** | Opt | Opt | Opt | Opt | **`#[VARNAME]`** | Output context template supporting `#[_STDOUT]`, `#[_STDERR]`, `#[_RETURNCODE]`, `#[_RESULT]`. |
-| **`output_type`** | N/A | N/A | Opt | N/A | No | Stream capture mode: `"stdout"` (default), `"stderr"`, `"combined"`. |
-| **`output_action`** | N/A | N/A | Opt | N/A | No | Routing back to OMP: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`. |
+| **`output_action`** | Opt | Opt | Opt | Opt | No | Routing back to OMP: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`. |
+| **`output_channel`** | Opt | Opt | Opt | Opt | No | Delivery channel: `""` / `None` (default no extra output), or `"signal"`. |
 
 ### Telemetry Fields
 Every registered job tracks execution metrics:

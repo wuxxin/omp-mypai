@@ -2,8 +2,7 @@
 """SQLAlchemy Database Models and Pydantic Schemas for MyPAI Cron Tasks."""
 
 import json
-from typing import Any
-
+from typing import Any, Dict
 from sqlalchemy import Boolean, Column, Float, Integer, String, Text
 from sqlalchemy.orm import declarative_base
 
@@ -17,9 +16,9 @@ class CronJobModel(Base):
 
     id = Column(String(64), primary_key=True)
     name = Column(String(255), nullable=False)
-    cron_expression = Column(String(255), nullable=False)
+    cron = Column(String(255), nullable=False, default="* * * * *")
     output_prompt = Column(Text, nullable=True, default="")
-    target_channel = Column(String(64), default="signal")
+    output_channel = Column(String(64), nullable=True, default="")
     type = Column(String(32), default="rpc")
     action = Column(Text, nullable=True, default="prompt")
     enabled = Column(Boolean, default=True)
@@ -28,7 +27,6 @@ class CronJobModel(Base):
     url = Column(Text, nullable=True, default="")
     args = Column(Text, nullable=True, default="")
     kwargs = Column(Text, nullable=True, default="")
-    output_type = Column(String(32), nullable=True, default="stdout")
     output_action = Column(String(32), nullable=True, default="ignore")
 
     # Execution telemetry fields
@@ -42,7 +40,7 @@ class CronJobModel(Base):
     created_at = Column(String(64), nullable=False)
     updated_at = Column(String(64), nullable=False)
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert model instance to dictionary representation with parsed JSON args and kwargs."""
         args_data = self.args
         if isinstance(args_data, str) and args_data.strip().startswith(("{", "[")):
@@ -61,16 +59,15 @@ class CronJobModel(Base):
         return {
             "id": self.id,
             "name": self.name,
-            "cron_expression": self.cron_expression,
+            "cron": self.cron or "* * * * *",
             "type": self.type or "rpc",
             "action": self.action or "prompt",
             "output_prompt": self.output_prompt or "",
-            "target_channel": self.target_channel or "signal",
+            "output_channel": self.output_channel or "",
             "enabled": bool(self.enabled),
             "url": self.url or "",
             "args": args_data or "",
             "kwargs": kwargs_data or {},
-            "output_type": self.output_type or "stdout",
             "output_action": self.output_action or "ignore",
             "last_start": self.last_start or "",
             "last_stop": self.last_stop or "",

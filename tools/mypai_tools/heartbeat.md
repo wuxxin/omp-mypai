@@ -10,7 +10,7 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 
 1. **Per-Project SQLite Database Sync**:
    - Manages cron job definitions stored in `$HOME/.omp/cron/projects/<project_hash>/cron.db`.
-   - Uses `AsyncIOScheduler` to trigger jobs based on standard 5-field cron syntax (e.g. `0 8 * * 0`).
+   - Uses `AsyncIOScheduler` to trigger jobs based on standard 5-field cron syntax (`cron` field, e.g. `0 8 * * 0`).
    - Dynamically syncs DB changes into memory every 10 seconds without requiring daemon restarts.
 
 2. **APScheduler Version-Aware Crontab Normalization**:
@@ -29,15 +29,19 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
      - **`#[_STDCOMBINED]`**: Combined STDOUT + STDERR stream output.
      - **`#[_RESULT]`** / **`#[_OUTPUT]`**: Executed return result value/string.
 
-5. **Environment Variable Inheritance for Subprocesses**:
+5. **Output Action Processing (`output_action`) & Delivery Channels (`output_channel`)**:
+   - **`output_action`**: Specifies the action to perform with `output_prompt` when `output_action != "ignore"` (`"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`). Evaluated using `output_prompt`.
+   - **`output_channel`**: Target delivery channel (`""` / `None` for default no additional output, or `"signal"` for Signal messaging).
+
+6. **Environment Variable Inheritance for Subprocesses**:
    - Subprocesses spawned by `shell` job types explicitly inherit the complete set of environment variables active in the `heartbeat` daemon process via `env=os.environ.copy()`.
    - Python in-process jobs natively access `os.environ` and `omp.env` exports (`PATH`, `VIRTUAL_ENV`, `PYTHONPATH`, etc.).
 
-6. **SQLite WAL Mode & Concurrency Safety**:
+7. **SQLite WAL Mode & Concurrency Safety**:
    - Configures SQLite with Write-Ahead Logging (`PRAGMA journal_mode=WAL;`) and `PRAGMA busy_timeout=30000;`.
    - Guarantees non-blocking concurrent writes between the MCP server (`cron_mcp`) and the Heartbeat background daemon.
 
-7. **Unified 4-Type Job Execution Engine**:
+8. **Unified 4-Type Job Execution Engine**:
    - **`rpc`**: Inter-process RPC triggering into `omp` via mandatory `omp_rpc.RpcClient`. `action` specifies RPC method (`prompt`, `steer`, `followup`, `abort_and_prompt`, `switch_session`, `branch`). Prompt text is supplied in `kwargs.prompt`.
    - **`http`**: Asynchronous HTTP client execution via `httpx.AsyncClient`. `action` specifies HTTP method verb (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`). URL in `url`, request body & headers in `kwargs`.
    - **`shell`**: Subprocess CLI execution. `action` specifies base binary/script executable (e.g. `python3`, `ls`, `echo`). Positional args in `args`, flags in `kwargs`.
@@ -53,12 +57,13 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 | :--- | :--- | :--- | :---: | :--- |
 | **`id`** | `str` | **Required** | No | Unique job identifier string (e.g. `"job_work_sweep"`). |
 | **`name`** | `str` | **Required** | `#[VARNAME]` | Human-readable job name. |
-| **`cron_expression`** | `str` | **Required** | No | Standard 5-field cron string (e.g. `"0 8 * * 0"` where `0` = Sunday). |
+| **`cron`** | `str` | **Required** | No | Standard 5-field cron string (e.g. `"0 8 * * 0"` where `0` = Sunday). |
 | **`type`** | `str` | **Required** | No | Primary engine selection: `"rpc"`, `"http"`, `"shell"`, or `"python"`. |
 | **`action`** | `str` | **Required** | **`#[VARNAME]`** | Primary executable / verb for **ALL** job types (RPC verb, HTTP method, Shell binary, Python lambda/code). |
 | **`enabled`** | `bool` | **Required** | No | Task schedule status (`true` / `false`). |
-| **`target_channel`** | `str` | **Optional** | No | Notification output channel (defaults to `"signal"`). |
+| **`output_channel`** | `str` | **Optional** | No | Notification delivery channel (`""` / `None` for default no extra output, or `"signal"`). |
 | **`output_prompt`** | `str` | **Optional** | **`#[VARNAME]`** | Output context template supporting `#[_STDOUT]`, `#[_STDERR]`, `#[_RETURNCODE]`, `#[_RESULT]`. |
+| **`output_action`** | `str` | **Optional** | No | Action to perform with `output_prompt`: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`. |
 
 ---
 
@@ -71,8 +76,7 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 | **`args`** | Opt | Opt | Opt | Opt | **`#[VARNAME]`** | **RPC**: Positional argument list.<br>**HTTP**: Positional body payload.<br>**Shell**: Positional argument list (e.g. `["-m", "mypai_tools.input_spooler"]`).<br>**Python**: Positional arguments list passed to lambda/code. |
 | **`kwargs`** | **Req** | Opt | Opt | Opt | **`#[VARNAME]`** | **RPC**: Keyword arguments dictionary containing `"prompt"` text string (`{"prompt": "Audit active tasks"}`).<br>**HTTP**: Request body JSON dictionary + optional merged `"headers"` dict.<br>**Shell**: CLI flag dictionary (e.g. `{"inbox": "#[HOME]/Inbox", "quiescence-sec": 10}`).<br>**Python**: Keyword arguments dictionary passed to lambda/code. |
 | **`output_prompt`** | Opt | Opt | Opt | Opt | **`#[VARNAME]`** | Context template supporting `#[_STDOUT]`, `#[_STDERR]`, `#[_RETURNCODE]`, `#[_RESULT]` interpolation (e.g. `"Exit code #[_RETURNCODE]: #[_STDOUT]"`). |
-| **`output_type`** | N/A | N/A | Opt | N/A | No | **Shell**: Stream capture mode: `"stdout"` (default), `"stderr"`, or `"combined"`. |
-| **`output_action`** | N/A | N/A | Opt | N/A | No | **Shell**: Event routing back to OMP: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, or `"abort_and_prompt"`. |
+| **`output_action`** | Opt | Opt | Opt | Opt | No | Action to perform with `output_prompt`: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, or `"abort_and_prompt"`. |
 
 ---
 
@@ -83,12 +87,13 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 {
   "id": "job_work_sweep",
   "name": "Periodic Work Sweep Audit",
-  "cron_expression": "*/30 * * * *",
+  "cron": "*/30 * * * *",
   "type": "rpc",
   "action": "prompt",
   "kwargs": {
     "prompt": "Audit active project tasks in bank #[HINDSIGHT_BANK_ID]."
   },
+  "output_channel": "",
   "enabled": true
 }
 ```
@@ -98,11 +103,13 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 {
   "id": "job_health_sync",
   "name": "Hindsight Reflection Sweep",
-  "cron_expression": "0 */2 * * *",
+  "cron": "0 */2 * * *",
   "type": "http",
   "action": "POST",
   "url": "#[HINDSIGHT_API_URL]/v1/default/banks/#[HINDSIGHT_BANK_ID]/reflect",
   "output_prompt": "Hindsight reflection result: #[_RESULT]",
+  "output_action": "ignore",
+  "output_channel": "",
   "kwargs": {
     "query": "Periodic health reflection sweep",
     "reason": "scheduled_health_sync",
@@ -119,7 +126,7 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 {
   "id": "job_spooler_check",
   "name": "Inbox Spooler One-shot Check",
-  "cron_expression": "0 * * * *",
+  "cron": "0 * * * *",
   "type": "shell",
   "action": "python3",
   "args": ["-m", "mypai_tools.input_spooler"],
@@ -128,8 +135,8 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
     "quiescence-sec": 10
   },
   "output_prompt": "Spooler process exited with code #[_RETURNCODE]. Output:\n#[_STDOUT]",
-  "output_type": "stdout",
   "output_action": "ignore",
+  "output_channel": "",
   "enabled": true
 }
 ```
@@ -139,12 +146,14 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 {
   "id": "job_custom_calc",
   "name": "In-process Python Lambda Audit",
-  "cron_expression": "0 12 * * *",
+  "cron": "0 12 * * *",
   "type": "python",
   "action": "lambda args, kwargs: {'status': 'ok', 'count': len(args)}",
   "args": ["task1", "task2"],
   "kwargs": {"env": "prod"},
   "output_prompt": "Python lambda evaluation result: #[_RESULT]",
+  "output_action": "ignore",
+  "output_channel": "",
   "enabled": true
 }
 ```

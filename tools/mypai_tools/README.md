@@ -2,33 +2,36 @@
 
 Agent tools package and MCP servers for mypai / Oh-my-PI.
 
-## Background Daemons
+---
+
+## 1. Background Daemons
 
 ### Heartbeat Daemon (`heartbeat.py`)
-- **Invocation**: `python3 -m mypai_tools.heartbeat daemon|once [--project-dir <path>]`
+- **Invocation**: `python3 -m mypai_tools.heartbeat daemon|once [--project-dir <path>] [--import FILE|default] [--export FILE]`
 - **Modes**:
   - `daemon`: Run continuous background scheduler loop.
   - `once`: Execute a single pass over all active database jobs and exit.
-- **Options**: `--project-dir <path>`, `--project-db <path>`, `--rpc-url <url>`, `-v` / `--verbose`.
-- **Behavior**: Manages `heartbeat.pid` in the project DB directory, loads jobs from `cron.db` (auto-seeding `default_jobs.json` if absent), and executes triggers via APScheduler `AsyncIOScheduler`.
+- **Options**: `--project-dir <path>`, `--import FILE|default`, `--export FILE`, `--rpc-url <url>`, `-v` / `--verbose`.
+- **Behavior**: Manages `heartbeat.pid` in the project DB directory, loads jobs from SQLite `cron.db`, imports default entries via `--import default` (or JSON file path), and executes triggers via APScheduler `AsyncIOScheduler`.
 
 ### Input Spooler (`input_spooler.py`)
 Inbox folder file ingestion pipeline watcher and STT / Hindsight retention.
-- **Invocation**: `python3 -m mypai_tools.input_spooler daemon|once [--inbox <path>]`
+- **Invocation**: `python3 -m mypai_tools.input_spooler daemon|once [--inbox <path>] [--project-dir <path>]`
 - **Modes**:
   - `daemon`: Run continuous inbox directory polling loop.
   - `once`: Execute a single scan pass over the inbox folder and exit.
-- **Options**: `--inbox <path>`, `--stt-url <url>`, `--hindsight-url <url>`, `--bank-id <id>`, `--quiescence-sec <sec>`, `--state-file <path>`, `-v` / `--verbose`.
+- **Options**: `--inbox <path>`, `--project-dir <path>`, `--stt-url <url>`, `--hindsight-url <url>`, `--bank-id <id>`, `--quiescence-sec <sec>`, `--state-file <path>`, `-v` / `--verbose`.
 - **Behavior**: Monitors drop folder (`~/Recordings/Inbox`), applies 10s quiescence stability gating, SHA256 content hashing, sidecar markdown metadata parsing, STT transcription, and Hindsight memory bank retention.
 
 ### Chat Bridge (`chat_bridge.py`)
 RPC bridge for forwarding incoming Signal messages to the persistent OMP daemon with Hindsight recall.
-- **Invocation**: `python3 -m mypai_tools.chat_bridge [options]`
-- **Options**: `--poll-interval <sec>`, `--once`.
+- **Invocation**: `python3 -m mypai_tools.chat_bridge daemon|once [--project-dir <path>]`
+- **Options**: `--poll-interval <sec>`, `--once`, `--project-dir <path>`.
 - **Behavior**: Background RPC bridge listening for incoming Signal messages, recalling sender/global context from Hindsight REST API (`http://localhost:8888`), poking the persistent OMP daemon (`http://localhost:51080/v1/rpc`), and dispatching responses back via Signal.
 
+---
 
-## MCP Services
+## 2. MCP Services
 
 ### `cron_mcp`
 MCP server for project cron task management (`"cron-scheduler"`).

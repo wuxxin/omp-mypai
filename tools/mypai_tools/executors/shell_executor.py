@@ -64,8 +64,7 @@ async def execute_shell_job(job: Dict[str, Any]) -> Dict[str, Any]:
     - action: base CLI binary or script executable string (e.g. 'python3', 'ls', 'echo')
     - args: positional argument list or string
     - kwargs: dictionary of flag parameters
-    - output_prompt: optional output header template supporting #[_STDOUT], #[_STDERR], #[_RETURNCODE], #[_STDCOMBINED]
-    - output_type: 'stdout' (default), 'stderr', 'combined'
+    - output_prompt: optional output context template supporting #[_STDOUT], #[_STDERR], #[_RETURNCODE], #[_STDCOMBINED]
     - output_action: 'ignore' (default), 'prompt', 'steer', 'followup', 'abort_and_prompt'
     """
     name = job.get("name", "Unnamed Shell Job")
@@ -77,7 +76,6 @@ async def execute_shell_job(job: Dict[str, Any]) -> Dict[str, Any]:
     kwargs_val = job.get("kwargs")
     cmd = build_full_command(raw_cmd, args_val, kwargs_val)
 
-    output_type = (job.get("output_type") or "stdout").lower()
     output_action = (job.get("output_action") or "ignore").lower()
 
     logger.info("Executing shell command '%s' for job '%s'...", cmd, name)
@@ -96,20 +94,13 @@ async def execute_shell_job(job: Dict[str, Any]) -> Dict[str, Any]:
     stderr_str = stderr.decode("utf-8", errors="replace").strip()
     combined_str = f"STDOUT:\n{stdout_str}\n\nSTDERR:\n{stderr_str}".strip()
 
-    if output_type == "stderr":
-        selected_output = stderr_str
-    elif output_type == "combined":
-        selected_output = combined_str
-    else:
-        selected_output = stdout_str
-
     internal_vars = {
         "_RETURNCODE": exit_code,
         "_STDOUT": stdout_str,
         "_STDERR": stderr_str,
         "_STDCOMBINED": combined_str,
-        "_RESULT": selected_output,
-        "_OUTPUT": selected_output,
+        "_RESULT": stdout_str,
+        "_OUTPUT": stdout_str,
     }
 
     output_prompt_template = job.get("output_prompt") or ""
@@ -117,14 +108,14 @@ async def execute_shell_job(job: Dict[str, Any]) -> Dict[str, Any]:
         if "#[" in output_prompt_template:
             final_output = substitute_env_vars(output_prompt_template, extra_vars=internal_vars)
         else:
-            final_output = f"{output_prompt_template}\n{selected_output}"
+            final_output = f"{output_prompt_template}\n{stdout_str}"
     else:
-        final_output = selected_output
+        final_output = stdout_str
 
     logger.info("Shell job '%s' exited with code %d", name, exit_code)
 
-    # Route output to OMP via omp_rpc if requested
-    if output_action != "ignore" and RpcClient is not None and selected_output:
+    # Route output_prompt to OMP via omp_rpc using output_action if output_action != ignore
+    if output_action != "ignore" and RpcClient is not None and final_output:
         try:
             with RpcClient() as client:
                 client.install_headless_ui()

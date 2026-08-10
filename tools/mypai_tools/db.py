@@ -159,11 +159,12 @@ def is_heartbeat_running(project_dir: str = "") -> bool:
         return False
 
 
-def import_default_jobs_if_needed(session) -> None:
-    """Import default jobs from default_jobs.json if missing from DB."""
+def import_default_jobs_if_needed(session) -> int:
+    """Explicitly import default jobs from default_jobs.json if missing from DB."""
     if not os.path.isfile(DEFAULT_JOBS_FILE):
-        return
+        return 0
 
+    imported_count = 0
     try:
         with open(DEFAULT_JOBS_FILE, "r", encoding="utf-8") as f:
             content = f.read()
@@ -193,32 +194,40 @@ def import_default_jobs_if_needed(session) -> None:
                 job_type_val = item.get("type") or item.get("job_type") or "rpc"
                 action_val = item.get("action") or item.get("command") or item.get("code") or "prompt"
                 out_prompt_val = item.get("output_prompt") or item.get("prompt") or ""
+                cron_val = item.get("cron") or item.get("cron_expression") or "* * * * *"
+                out_channel_val = item.get("output_channel") or item.get("target_channel") or ""
 
                 job = CronJobModel(
                     id=job_id,
                     name=item.get("name", "Default Job"),
-                    cron_expression=item.get("cron_expression", "* * * * *"),
+                    cron=cron_val,
                     output_prompt=out_prompt_val,
-                    target_channel=item.get("target_channel", "signal"),
+                    output_channel=out_channel_val,
                     type=job_type_val,
                     action=action_val,
                     url=item.get("url", ""),
                     args=args_val,
                     kwargs=kwargs_val,
-                    output_type=item.get("output_type", "stdout"),
                     output_action=item.get("output_action", "ignore"),
                     enabled=item.get("enabled", True),
                     created_at=now_iso,
                     updated_at=now_iso,
                 )
                 session.add(job)
+                imported_count += 1
         session.commit()
+        return imported_count
     except Exception:
         session.rollback()
+        return 0
 
 
 def _get_db_session(project_dir: str = ""):
-    """Create engine with SQLite WAL mode, run schema migrations, and return Session."""
+    """Create engine with SQLite WAL mode, run schema migrations, and return Session.
+
+    Note: default_jobs.json is NOT automatically imported on session creation.
+    Use heartbeat CLI --import-defaults or explicit import functions to load default jobs.
+    """
     db_path = get_project_db_path(project_dir)
     engine = create_engine(f"sqlite:///{db_path}", echo=False)
 
@@ -232,6 +241,18 @@ def _get_db_session(project_dir: str = ""):
 
     # Schema migration checks for renamed columns
     with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE cron_jobs RENAME COLUMN cron_expression TO cron"))
+            conn.commit()
+        except Exception:
+            pass
+
+        try:
+            conn.execute(text("ALTER TABLE cron_jobs RENAME COLUMN target_channel TO output_channel"))
+            conn.commit()
+        except Exception:
+            pass
+
         try:
             conn.execute(text("ALTER TABLE cron_jobs RENAME COLUMN job_action TO action"))
             conn.commit()
@@ -259,11 +280,12 @@ def _get_db_session(project_dir: str = ""):
         columns_to_add = [
             ("type", "VARCHAR(32) DEFAULT 'rpc'"),
             ("action", "TEXT DEFAULT 'prompt'"),
+            ("cron", "VARCHAR(255) DEFAULT '* * * * *'"),
             ("output_prompt", "TEXT DEFAULT ''"),
+            ("output_channel", "VARCHAR(64) DEFAULT ''"),
             ("url", "TEXT DEFAULT ''"),
             ("args", "TEXT DEFAULT ''"),
             ("kwargs", "TEXT DEFAULT ''"),
-            ("output_type", "VARCHAR(32) DEFAULT 'stdout'"),
             ("output_action", "VARCHAR(32) DEFAULT 'ignore'"),
             ("last_start", "VARCHAR(64)"),
             ("last_stop", "VARCHAR(64)"),
@@ -283,6 +305,4 @@ def _get_db_session(project_dir: str = ""):
                     pass
 
     Session = sessionmaker(bind=engine)
-    session = Session()
-    import_default_jobs_if_needed(session)
-    return session
+    return Session()

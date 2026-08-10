@@ -193,10 +193,11 @@ class TestFastMcpCronTools(unittest.TestCase):
         # 1. Add job
         add_res = cron_add_job(
             name="Unit Test Schedule Job",
-            cron_expression="0 8 * * 0",
+            cron="0 8 * * 0",
             type="rpc",
             action="prompt",
             kwargs={"prompt": "Sunday morning audit"},
+            output_channel="signal",
             project_dir=self.temp_dir,
         )
         self.assertIn(
@@ -204,6 +205,8 @@ class TestFastMcpCronTools(unittest.TestCase):
         )
         job_data = add_res["job"]
         job_id = job_data["id"]
+        self.assertEqual(job_data["cron"], "0 8 * * 0")
+        self.assertEqual(job_data["output_channel"], "signal")
 
         # 2. List jobs
         jobs = cron_list_jobs(project_dir=self.temp_dir)
@@ -243,7 +246,7 @@ class TestFastMcpCronTools(unittest.TestCase):
         # Add job
         cron_add_job(
             name="Export Test Job",
-            cron_expression="*/15 * * * *",
+            cron="*/15 * * * *",
             type="shell",
             action="echo",
             args=["export test"],
@@ -291,7 +294,7 @@ class TestHeartbeatTelemetryUpdate(unittest.IsolatedAsyncioTestCase):
         """Test executing job updates last_start, last_stop, last_runtime, last_returncode, total_calls."""
         add_res = cron_add_job(
             name="Telemetry Test Job",
-            cron_expression="* * * * *",
+            cron="* * * * *",
             type="python",
             action="lambda args, kwargs: 42",
             project_dir=self.temp_dir,

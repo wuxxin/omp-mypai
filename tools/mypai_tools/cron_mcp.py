@@ -5,21 +5,21 @@ Uses SQLAlchemy backed SQLite databases per project at:
 $HOME/.omp/cron/projects/<project_hash>/cron.db
 """
 
+from datetime import datetime, timezone
 import json
 import os
+from typing import Any, Dict, List, Optional
 import uuid
-from datetime import datetime, timezone
-from typing import Any
 
-from apscheduler.triggers.cron import CronTrigger
 from mcp.server.fastmcp import FastMCP
+from apscheduler.triggers.cron import CronTrigger
 
 from mypai_tools.db import (
     _get_db_session,
     is_heartbeat_running,
     normalize_cron_expression,
 )
-from mypai_tools.models import CronJobModel
+from mypai_tools.models import Base, CronJobModel
 
 mcp = FastMCP("cron-scheduler")
 
@@ -43,7 +43,8 @@ def validate_cron_expression(expr: str) -> bool:
 @mcp.tool()
 def cron_add_job(
     name: str,
-    cron_expression: str,
+    cron: str = "",
+    cron_expression: str = "",
     output_prompt: str = "",
     prompt: str = "",
     type: str = "rpc",
@@ -54,15 +55,16 @@ def cron_add_job(
     code: str = "",
     args: Any = "",
     kwargs: Any = "",
-    output_type: str = "stdout",
     output_action: str = "ignore",
-    target_channel: str = "signal",
+    output_channel: str = "",
+    target_channel: str = "",
     project_dir: str = "",
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """Add a new scheduled cron task with inlined parameters backed by per-project SQLite database."""
-    if not validate_cron_expression(cron_expression):
+    actual_cron = cron or cron_expression or "* * * * *"
+    if not validate_cron_expression(actual_cron):
         return {
-            "error": f"Invalid cron expression '{cron_expression}'. Standard 5-field format expected (e.g. '0 8 * * 0')."
+            "error": f"Invalid cron expression '{actual_cron}'. Standard 5-field format expected (e.g. '0 8 * * 0')."
         }
     actual_type = (job_type or type or "rpc").lower()
     if actual_type not in VALID_JOB_TYPES:
@@ -72,6 +74,7 @@ def cron_add_job(
 
     actual_action = action or command or code or "prompt"
     actual_output_prompt = output_prompt or prompt or ""
+    actual_output_channel = output_channel or target_channel or ""
 
     args_str = args if isinstance(args, str) else json.dumps(args) if args else ""
     kwargs_str = kwargs if isinstance(kwargs, str) else json.dumps(kwargs) if kwargs else ""
@@ -83,15 +86,14 @@ def cron_add_job(
         job = CronJobModel(
             id=job_id,
             name=name,
-            cron_expression=cron_expression,
+            cron=actual_cron,
             output_prompt=actual_output_prompt,
-            target_channel=target_channel,
+            output_channel=actual_output_channel,
             type=actual_type,
             action=actual_action,
             url=url,
             args=args_str,
             kwargs=kwargs_str,
-            output_type=output_type,
             output_action=output_action,
             enabled=True,
             created_at=now_iso,
@@ -115,7 +117,8 @@ def cron_add_job(
 @mcp.tool()
 def cron_schedule(
     name: str,
-    cron_expression: str,
+    cron: str = "",
+    cron_expression: str = "",
     output_prompt: str = "",
     prompt: str = "",
     type: str = "rpc",
@@ -126,14 +129,15 @@ def cron_schedule(
     code: str = "",
     args: Any = "",
     kwargs: Any = "",
-    output_type: str = "stdout",
     output_action: str = "ignore",
-    target_channel: str = "signal",
+    output_channel: str = "",
+    target_channel: str = "",
     project_dir: str = "",
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """Alias for cron_add_job."""
     return cron_add_job(
         name=name,
+        cron=cron,
         cron_expression=cron_expression,
         output_prompt=output_prompt,
         prompt=prompt,
@@ -145,15 +149,15 @@ def cron_schedule(
         code=code,
         args=args,
         kwargs=kwargs,
-        output_type=output_type,
         output_action=output_action,
+        output_channel=output_channel,
         target_channel=target_channel,
         project_dir=project_dir,
     )
 
 
 @mcp.tool()
-def cron_remove_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
+def cron_remove_job(job_id: str, project_dir: str = "") -> Dict[str, Any]:
     """Remove and delete a scheduled cron task by ID."""
     session = _get_db_session(project_dir)
     try:
@@ -169,13 +173,13 @@ def cron_remove_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_cancel(job_id: str, project_dir: str = "") -> dict[str, Any]:
+def cron_cancel(job_id: str, project_dir: str = "") -> Dict[str, Any]:
     """Alias for cron_remove_job."""
     return cron_remove_job(job_id=job_id, project_dir=project_dir)
 
 
 @mcp.tool()
-def cron_pause_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
+def cron_pause_job(job_id: str, project_dir: str = "") -> Dict[str, Any]:
     """Pause an active scheduled cron task."""
     session = _get_db_session(project_dir)
     try:
@@ -191,7 +195,7 @@ def cron_pause_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_resume_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
+def cron_resume_job(job_id: str, project_dir: str = "") -> Dict[str, Any]:
     """Resume a paused scheduled cron task."""
     session = _get_db_session(project_dir)
     try:
@@ -207,7 +211,7 @@ def cron_resume_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_list_jobs(project_dir: str = "") -> list[dict[str, Any]]:
+def cron_list_jobs(project_dir: str = "") -> List[Dict[str, Any]]:
     """List all scheduled cron tasks with inlined attributes and telemetry in project SQLite DB."""
     session = _get_db_session(project_dir)
     try:
@@ -218,7 +222,7 @@ def cron_list_jobs(project_dir: str = "") -> list[dict[str, Any]]:
 
 
 @mcp.tool()
-def cron_list(project_dir: str = "") -> list[dict[str, Any]]:
+def cron_list(project_dir: str = "") -> List[Dict[str, Any]]:
     """Alias for cron_list_jobs."""
     return cron_list_jobs(project_dir=project_dir)
 
@@ -227,6 +231,7 @@ def cron_list(project_dir: str = "") -> list[dict[str, Any]]:
 def cron_modify_job(
     job_id: str,
     name: str = "",
+    cron: str = "",
     cron_expression: str = "",
     output_prompt: str = "",
     prompt: str = "",
@@ -238,14 +243,15 @@ def cron_modify_job(
     code: str = "",
     args: Any = None,
     kwargs: Any = None,
-    output_type: str = "",
     output_action: str = "",
+    output_channel: str = "",
     target_channel: str = "",
     project_dir: str = "",
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """Modify parameters of an existing scheduled cron task."""
-    if cron_expression and not validate_cron_expression(cron_expression):
-        return {"error": f"Invalid cron expression '{cron_expression}'."}
+    actual_cron = cron or cron_expression or ""
+    if actual_cron and not validate_cron_expression(actual_cron):
+        return {"error": f"Invalid cron expression '{actual_cron}'."}
     actual_type = (job_type or type or "").lower()
     if actual_type and actual_type not in VALID_JOB_TYPES:
         return {
@@ -260,12 +266,12 @@ def cron_modify_job(
 
         if name:
             job.name = name
-        if cron_expression:
-            job.cron_expression = cron_expression
+        if actual_cron:
+            job.cron = actual_cron
         if output_prompt or prompt:
             job.output_prompt = output_prompt or prompt
-        if target_channel:
-            job.target_channel = target_channel
+        if output_channel or target_channel:
+            job.output_channel = output_channel or target_channel
         if actual_type:
             job.type = actual_type
         if action or command or code:
@@ -276,8 +282,6 @@ def cron_modify_job(
             job.args = args if isinstance(args, str) else json.dumps(args)
         if kwargs is not None:
             job.kwargs = kwargs if isinstance(kwargs, str) else json.dumps(kwargs)
-        if output_type:
-            job.output_type = output_type
         if output_action:
             job.output_action = output_action
 
@@ -289,7 +293,7 @@ def cron_modify_job(
 
 
 @mcp.tool()
-def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
+def cron_import_jobs(file_path: str, project_dir: str = "") -> Dict[str, Any]:
     """Import scheduled cron jobs from JSON file into project SQLite database."""
     abs_file = os.path.abspath(os.path.expanduser(file_path))
     if not os.path.isfile(abs_file):
@@ -301,7 +305,7 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
     except Exception as exc:
         return {"error": f"Failed to parse JSON file: {exc}"}
 
-    job_list: list[dict[str, Any]] = []
+    job_list: List[Dict[str, Any]] = []
     if isinstance(data, list):
         job_list = data
     elif isinstance(data, dict):
@@ -321,9 +325,9 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
             if not isinstance(item, dict):
                 continue
             name = item.get("name") or "Imported Job"
-            cron_expr = item.get("cron_expression") or item.get("schedule") or "* * * * *"
+            cron_val = item.get("cron") or item.get("cron_expression") or item.get("schedule") or "* * * * *"
             out_prompt = item.get("output_prompt") or item.get("prompt") or ""
-            target_channel = item.get("target_channel") or "signal"
+            out_channel = item.get("output_channel") or item.get("target_channel") or ""
             job_type = str(item.get("type") or item.get("job_type") or "rpc").lower()
             action = item.get("action") or item.get("command") or item.get("code") or "prompt"
 
@@ -348,15 +352,14 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
             existing = session.query(CronJobModel).filter_by(id=job_id).first()
             if existing:
                 existing.name = name
-                existing.cron_expression = cron_expr
+                existing.cron = cron_val
                 existing.output_prompt = out_prompt
-                existing.target_channel = target_channel
+                existing.output_channel = out_channel
                 existing.type = job_type
                 existing.action = action
                 existing.url = item.get("url", existing.url)
                 existing.args = args_val
                 existing.kwargs = kwargs_val
-                existing.output_type = item.get("output_type", existing.output_type)
                 existing.output_action = item.get("output_action", existing.output_action)
                 existing.enabled = enabled
                 existing.updated_at = now_iso
@@ -364,15 +367,14 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
                 new_job = CronJobModel(
                     id=job_id,
                     name=name,
-                    cron_expression=cron_expr,
+                    cron=cron_val,
                     output_prompt=out_prompt,
-                    target_channel=target_channel,
+                    output_channel=out_channel,
                     type=job_type,
                     action=action,
                     url=item.get("url", ""),
                     args=args_val,
                     kwargs=kwargs_val,
-                    output_type=item.get("output_type", "stdout"),
                     output_action=item.get("output_action", "ignore"),
                     enabled=enabled,
                     created_at=now_iso,
@@ -388,7 +390,7 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_export_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
+def cron_export_jobs(file_path: str, project_dir: str = "") -> Dict[str, Any]:
     """Export all scheduled cron jobs from project SQLite database to JSON file."""
     abs_file = os.path.abspath(os.path.expanduser(file_path))
     os.makedirs(os.path.dirname(abs_file), exist_ok=True)
