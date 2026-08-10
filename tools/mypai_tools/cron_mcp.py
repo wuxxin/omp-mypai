@@ -32,7 +32,12 @@ VALID_JOB_TYPES = {
 
 
 def validate_cron_expression(expr: str) -> bool:
-    """Validate standard cron expression format using APScheduler CronTrigger."""
+    """Validate cron expression or 'now'/'@once' sentinel keyword."""
+    if not expr or not isinstance(expr, str):
+        return False
+    clean = expr.strip().lower()
+    if clean in ("now", "@now", "@once"):
+        return True
     try:
         CronTrigger.from_crontab(normalize_cron_expression(expr))
         return True
@@ -64,7 +69,7 @@ def cron_add_job(
     actual_cron = cron or cron_expression or "* * * * *"
     if not validate_cron_expression(actual_cron):
         return {
-            "error": f"Invalid cron expression '{actual_cron}'. Standard 5-field format expected (e.g. '0 8 * * 0')."
+            "error": f"Invalid cron expression '{actual_cron}'. Standard 5-field format or 'now' expected."
         }
     actual_type = (job_type or type or "rpc").lower()
     if actual_type not in VALID_JOB_TYPES:
@@ -110,6 +115,107 @@ def cron_add_job(
                 "warning": "Heartbeat daemon is not currently running. Job saved in DB.",
             }
         return {"status": "scheduled", "job": job_dict}
+    finally:
+        session.close()
+
+
+@mcp.tool()
+def cron_run_once(
+    name: str,
+    type: str = "rpc",
+    job_type: str = "",
+    action: str = "prompt",
+    url: str = "",
+    command: str = "",
+    code: str = "",
+    args: Any = "",
+    kwargs: Any = "",
+    output_prompt: str = "",
+    prompt: str = "",
+    output_action: str = "ignore",
+    output_channel: str = "",
+    target_channel: str = "",
+    project_dir: str = "",
+) -> Dict[str, Any]:
+    """Execute a task once immediately using 'now' cron trigger.
+
+    If a job with matching (name, type, action, args, kwargs) exists, reschedules it for immediate execution.
+    Otherwise, creates a new one-shot job. Upon execution by heartbeat daemon, updates telemetry and disables.
+    """
+    actual_type = (job_type or type or "rpc").lower()
+    if actual_type not in VALID_JOB_TYPES:
+        return {
+            "error": f"Invalid job type '{actual_type}'. Must be one of: {sorted(list(VALID_JOB_TYPES))}."
+        }
+
+    actual_action = action or command or code or "prompt"
+    actual_output_prompt = output_prompt or prompt or ""
+    actual_output_channel = output_channel or target_channel or ""
+
+    args_str = args if isinstance(args, str) else json.dumps(args) if args else ""
+    kwargs_str = kwargs if isinstance(kwargs, str) else json.dumps(kwargs) if kwargs else ""
+
+    session = _get_db_session(project_dir)
+    try:
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        # Deduplication check: Search for existing job matching signature
+        existing = (
+            session.query(CronJobModel)
+            .filter_by(
+                name=name,
+                type=actual_type,
+                action=actual_action,
+                args=args_str,
+                kwargs=kwargs_str,
+            )
+            .first()
+        )
+
+        if existing:
+            existing.cron = "now"
+            existing.enabled = True
+            existing.url = url or existing.url
+            if actual_output_prompt:
+                existing.output_prompt = actual_output_prompt
+            if actual_output_channel:
+                existing.output_channel = actual_output_channel
+            if output_action != "ignore":
+                existing.output_action = output_action
+            existing.updated_at = now_iso
+            session.commit()
+            job_dict = existing.to_dict()
+            status_msg = "rescheduled"
+        else:
+            job_id = str(uuid.uuid4())[:8]
+            job = CronJobModel(
+                id=job_id,
+                name=name,
+                cron="now",
+                output_prompt=actual_output_prompt,
+                output_channel=actual_output_channel,
+                type=actual_type,
+                action=actual_action,
+                url=url,
+                args=args_str,
+                kwargs=kwargs_str,
+                output_action=output_action,
+                enabled=True,
+                created_at=now_iso,
+                updated_at=now_iso,
+            )
+            session.add(job)
+            session.commit()
+            job_dict = job.to_dict()
+            status_msg = "scheduled_once"
+
+        if not is_heartbeat_running(project_dir):
+            return {
+                "status": f"{status_msg}_heartbeat_offline",
+                "job": job_dict,
+                "warning": "Heartbeat daemon is not currently running. Job saved in DB.",
+            }
+        return {"status": status_msg, "job": job_dict}
     finally:
         session.close()
 

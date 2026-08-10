@@ -21,10 +21,10 @@ from typing import Any, Dict, List, Set
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from mypai_tools.db import (
-    DEFAULT_JOBS_FILE,
     _get_db_session,
     get_heartbeat_pid_path,
     get_project_db_path,
@@ -124,11 +124,15 @@ async def execute_job(
 
     result["duration_sec"] = duration_sec
 
-    # Update execution telemetry in DB
+    # Update execution telemetry in DB and disable if one-shot ('now'/'@once')
     session = _get_db_session(project_dir)
     try:
         db_job = session.query(CronJobModel).filter_by(id=job_id).first()
         if db_job:
+            cron_clean = str(db_job.cron or "").strip().lower()
+            if cron_clean in ("now", "@now", "@once"):
+                db_job.enabled = False
+
             db_job.last_start = start_iso
             db_job.last_stop = end_iso
             db_job.last_runtime = duration_sec
@@ -176,8 +180,15 @@ class HeartbeatDaemon:
 
                 if aps_job_id not in self.scheduled_job_ids:
                     try:
-                        normalized_expr = normalize_cron_expression(job.cron)
-                        trigger = CronTrigger.from_crontab(normalized_expr)
+                        cron_str = str(job.cron or "").strip().lower()
+                        if cron_str in ("now", "@now", "@once"):
+                            trigger = DateTrigger(run_date=datetime.now(timezone.utc))
+                            misfire_grace = 3600
+                        else:
+                            normalized_expr = normalize_cron_expression(job.cron)
+                            trigger = CronTrigger.from_crontab(normalized_expr)
+                            misfire_grace = None
+
                         self.scheduler.add_job(
                             execute_job,
                             trigger=trigger,
@@ -185,6 +196,7 @@ class HeartbeatDaemon:
                             id=aps_job_id,
                             name=job.name,
                             replace_existing=True,
+                            misfire_grace_time=misfire_grace,
                         )
                         self.scheduled_job_ids.add(aps_job_id)
                         logger.info(
@@ -253,7 +265,11 @@ class HeartbeatDaemon:
 
 
 def export_jobs_to_json(file_path: str, project_dir: str = "") -> None:
-    """Export all registered cron jobs from project DB to a JSON file."""
+    """Export all registered cron jobs from project DB to specified JSON file path."""
+    if not file_path:
+        logger.error("Export target JSON file path is required.")
+        sys.exit(1)
+
     abs_path = os.path.abspath(os.path.expanduser(file_path))
     session = _get_db_session(project_dir)
     try:
@@ -268,11 +284,12 @@ def export_jobs_to_json(file_path: str, project_dir: str = "") -> None:
 
 
 def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
-    """Import cron jobs with inlined attributes from a JSON file (or 'default') into project DB."""
-    if file_path.lower() in ("default", "defaults"):
-        abs_path = DEFAULT_JOBS_FILE
-    else:
-        abs_path = os.path.abspath(os.path.expanduser(file_path))
+    """Import cron jobs with inlined attributes from a specified JSON file path into project DB."""
+    if not file_path:
+        logger.error("Import JSON file path is required.")
+        sys.exit(1)
+
+    abs_path = os.path.abspath(os.path.expanduser(file_path))
 
     if not os.path.isfile(abs_path):
         logger.error("Import file '%s' not found.", abs_path)
@@ -363,23 +380,29 @@ def parse_args(args: List[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="OMP Background Service Heartbeat & Cron Runner",
-        usage="python3 -m mypai_tools.heartbeat daemon|once [--import FILE|default] [--export FILE] [options]",
+        usage="python3 -m mypai_tools.heartbeat daemon|once|import|export [FILE] [options]",
     )
     parser.add_argument(
         "mode",
         nargs="?",
-        choices=["daemon", "once"],
-        help="Execution mode: 'daemon' (run continuously) or 'once' (execute single pass and exit)",
+        choices=["daemon", "once", "import", "export"],
+        help="Execution mode: 'daemon' (run continuously), 'once' (single pass), 'import' (import jobs JSON), or 'export' (export jobs JSON)",
+    )
+    parser.add_argument(
+        "file",
+        nargs="?",
+        default="",
+        help="Target JSON file path for import or export subcommands",
     )
     parser.add_argument(
         "--import",
         dest="import_file",
-        help="Import cron jobs from a JSON file (or 'default') into project SQLite database",
+        help="Import cron jobs from a specified JSON file path into project SQLite database",
     )
     parser.add_argument(
         "--export",
         dest="export_file",
-        help="Export all registered cron jobs from project SQLite database to a JSON file",
+        help="Export all registered cron jobs from project SQLite database to a specified JSON file path",
     )
     parser.add_argument(
         "--project-dir",
@@ -411,15 +434,23 @@ async def main_async(cli_args: argparse.Namespace) -> int:
 
     project_dir = cli_args.project_dir
 
-    if cli_args.export_file:
-        export_jobs_to_json(cli_args.export_file, project_dir=project_dir)
-        if not cli_args.mode:
-            return 0
+    # Handle export subcommand / option
+    if cli_args.mode == "export" or cli_args.export_file:
+        export_target = cli_args.file or cli_args.export_file
+        if not export_target:
+            logger.error("Error: export requires a target JSON file path (e.g. 'heartbeat export /path/to/file.json')")
+            return 1
+        export_jobs_to_json(export_target, project_dir=project_dir)
+        return 0
 
-    if cli_args.import_file:
-        import_jobs_from_json(cli_args.import_file, project_dir=project_dir)
-        if not cli_args.mode:
-            return 0
+    # Handle import subcommand / option
+    if cli_args.mode == "import" or cli_args.import_file:
+        import_target = cli_args.file or cli_args.import_file
+        if not import_target:
+            logger.error("Error: import requires a target JSON file path (e.g. 'heartbeat import /path/to/file.json')")
+            return 1
+        import_jobs_from_json(import_target, project_dir=project_dir)
+        return 0
 
     session = _get_db_session(project_dir)
     try:

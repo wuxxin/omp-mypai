@@ -10,12 +10,12 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 
 1. **Per-Project SQLite Database Sync**:
    - Manages cron job definitions stored in `$HOME/.omp/cron/projects/<project_hash>/cron.db`.
-   - Uses `AsyncIOScheduler` to trigger jobs based on standard 5-field cron syntax (`cron` field, e.g. `0 8 * * 0`).
+   - Uses `AsyncIOScheduler` to trigger jobs based on standard 5-field cron syntax (`cron` field, e.g. `0 8 * * 0`) or immediate one-shot execution (`cron: "now"`).
    - Dynamically syncs DB changes into memory every 10 seconds without requiring daemon restarts.
 
-2. **APScheduler Version-Aware Crontab Normalization**:
-   - **User Convention**: Always expect standard Unix crontab syntax where `0` = Sunday (or `7` = Sunday), `1` = Monday, ..., `6` = Saturday.
-   - **APScheduler Version Resolution**: `apscheduler < 4.0` historically used `0` = Monday, whereas `apscheduler >= 4.0` fixed `0` = Sunday. The `normalize_cron_expression()` helper automatically detects the installed APScheduler version and transparently remaps day-of-week tokens (`0` -> `6`, `1` -> `0`, ..., `7` -> `6`) when running on `apscheduler < 4.0`.
+2. **APScheduler Version-Aware Crontab Normalization & One-Shot DateTriggers**:
+   - **Recurring Crontabs**: Standard Unix crontab syntax where `0` = Sunday (or `7` = Sunday).
+   - **One-Shot Jobs (`cron: "now"`)**: When `cron` is `"now"`, `@now`, or `@once`, `heartbeat` uses APScheduler's `DateTrigger(run_date=datetime.now(timezone.utc))` with `misfire_grace_time=3600`. Upon execution completion, `heartbeat` automatically updates telemetry stats and sets `enabled=False` in SQLite so the task retains its history without repeating automatically.
 
 3. **Distinctive `#[VARNAME]` Macro & Env Variable Substitution**:
    - Uses the unambiguous **`#[VARNAME]`** delimiter format for macro substitution across all string attributes (`url`, `action`, `args`, `kwargs`, `output_prompt`, `name`).
@@ -49,118 +49,16 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 
 ---
 
-## 2. Unified Job Specification & Field Usage Matrix
+## 2. FastMCP Tool `cron_run_once` & Rescheduling
 
-### Universal Metadata Fields (Applies to All Job Types)
-
-| Field | Type | Support | Macro Substitution? | Description |
-| :--- | :--- | :--- | :---: | :--- |
-| **`id`** | `str` | **Required** | No | Unique job identifier string (e.g. `"job_work_sweep"`). |
-| **`name`** | `str` | **Required** | `#[VARNAME]` | Human-readable job name. |
-| **`cron`** | `str` | **Required** | No | Standard 5-field cron string (e.g. `"0 8 * * 0"` where `0` = Sunday). |
-| **`type`** | `str` | **Required** | No | Primary engine selection: `"rpc"`, `"http"`, `"shell"`, or `"python"`. |
-| **`action`** | `str` | **Required** | **`#[VARNAME]`** | Primary executable / verb for **ALL** job types (RPC verb, HTTP method, Shell binary, Python lambda/code). |
-| **`enabled`** | `bool` | **Required** | No | Task schedule status (`true` / `false`). |
-| **`output_channel`** | `str` | **Optional** | No | Notification delivery channel (`""` / `None` for default no extra output, or `"signal"`). |
-| **`output_prompt`** | `str` | **Optional** | **`#[VARNAME]`** | Output context template supporting `#[_STDOUT]`, `#[_STDERR]`, `#[_RETURNCODE]`, `#[_RESULT]`. |
-| **`output_action`** | `str` | **Optional** | No | Action to perform with `output_prompt`: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`. |
+The `cron-scheduler` FastMCP server exposes `cron_run_once(...)`:
+- **Immediate One-Shot Execution**: Schedules a task with `cron="now"`.
+- **Signature Deduplication & Rescheduling**: If a job with matching `(name, type, action, args, kwargs)` exists, `cron_run_once` updates its `cron` to `"now"`, sets `enabled=True`, and reschedules it rather than creating a duplicate row.
+- **Telemetry Update**: Upon execution, `heartbeat` increments `total_calls`, updates `last_start`, `last_stop`, `last_runtime`, `last_returncode`, `last_output`, and marks `enabled=False`.
 
 ---
 
-### Detailed Field Usage & Macro Substitution Matrix
-
-| Field Name | `rpc` | `http` | `shell` | `python` | Macro Substitution? | Exact Field Usage Explanation |
-| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **`action`** | **Req** | **Req** | **Req** | **Req** | **`#[VARNAME]`** | **RPC**: RPC verb (`prompt`, `steer`, `followup`, `abort_and_prompt`, `switch_session`, `branch`).<br>**HTTP**: HTTP method verb (`GET`, `POST`, `PUT`, `DELETE`, `PATCH`).<br>**Shell**: Base CLI executable / binary string (e.g. `"python3"`, `"ls"`, `"echo"`).<br>**Python**: Python lambda expression (e.g. `"lambda args, kwargs: len(args) * 2"`). |
-| **`url`** | N/A | **Req** | N/A | N/A | **`#[VARNAME]`** | **HTTP**: Target REST API endpoint URL (supports placeholders `#[HINDSIGHT_API_URL]`, `#[HINDSIGHT_BANK_ID]`, `#[OMP_RPC_URL]`). |
-| **`args`** | Opt | Opt | Opt | Opt | **`#[VARNAME]`** | **RPC**: Positional argument list.<br>**HTTP**: Positional body payload.<br>**Shell**: Positional argument list (e.g. `["-m", "mypai_tools.input_spooler"]`).<br>**Python**: Positional arguments list passed to lambda/code. |
-| **`kwargs`** | **Req** | Opt | Opt | Opt | **`#[VARNAME]`** | **RPC**: Keyword arguments dictionary containing `"prompt"` text string (`{"prompt": "Audit active tasks"}`).<br>**HTTP**: Request body JSON dictionary + optional merged `"headers"` dict.<br>**Shell**: CLI flag dictionary (e.g. `{"inbox": "#[HOME]/Inbox", "quiescence-sec": 10}`).<br>**Python**: Keyword arguments dictionary passed to lambda/code. |
-| **`output_prompt`** | Opt | Opt | Opt | Opt | **`#[VARNAME]`** | Context template supporting `#[_STDOUT]`, `#[_STDERR]`, `#[_RETURNCODE]`, `#[_RESULT]` interpolation (e.g. `"Exit code #[_RETURNCODE]: #[_STDOUT]"`). |
-| **`output_action`** | Opt | Opt | Opt | Opt | No | Action to perform with `output_prompt`: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, or `"abort_and_prompt"`. |
-
----
-
-## 3. Example Job Schema Configurations
-
-### 1. `"rpc"` Job Type Example
-```json
-{
-  "id": "job_work_sweep",
-  "name": "Periodic Work Sweep Audit",
-  "cron": "*/30 * * * *",
-  "type": "rpc",
-  "action": "prompt",
-  "kwargs": {
-    "prompt": "Audit active project tasks in bank #[HINDSIGHT_BANK_ID]."
-  },
-  "output_channel": "",
-  "enabled": true
-}
-```
-
-### 2. `"http"` Job Type Example (`#[VARNAME]` Macro Substitution)
-```json
-{
-  "id": "job_health_sync",
-  "name": "Hindsight Reflection Sweep",
-  "cron": "0 */2 * * *",
-  "type": "http",
-  "action": "POST",
-  "url": "#[HINDSIGHT_API_URL]/v1/default/banks/#[HINDSIGHT_BANK_ID]/reflect",
-  "output_prompt": "Hindsight reflection result: #[_RESULT]",
-  "output_action": "ignore",
-  "output_channel": "",
-  "kwargs": {
-    "query": "Periodic health reflection sweep",
-    "reason": "scheduled_health_sync",
-    "headers": {
-      "Content-Type": "application/json"
-    }
-  },
-  "enabled": true
-}
-```
-
-### 3. `"shell"` Job Type Example (Internal Telemetry `#[_RETURNCODE]`, `#[_STDOUT]`)
-```json
-{
-  "id": "job_spooler_check",
-  "name": "Inbox Spooler One-shot Check",
-  "cron": "0 * * * *",
-  "type": "shell",
-  "action": "python3",
-  "args": ["-m", "mypai_tools.input_spooler"],
-  "kwargs": {
-    "inbox": "#[HOME]/Recordings/Inbox",
-    "quiescence-sec": 10
-  },
-  "output_prompt": "Spooler process exited with code #[_RETURNCODE]. Output:\n#[_STDOUT]",
-  "output_action": "ignore",
-  "output_channel": "",
-  "enabled": true
-}
-```
-
-### 4. `"python"` Job Type Example (Lambda Expression & `#[_RESULT]`)
-```json
-{
-  "id": "job_custom_calc",
-  "name": "In-process Python Lambda Audit",
-  "cron": "0 12 * * *",
-  "type": "python",
-  "action": "lambda args, kwargs: {'status': 'ok', 'count': len(args)}",
-  "args": ["task1", "task2"],
-  "kwargs": {"env": "prod"},
-  "output_prompt": "Python lambda evaluation result: #[_RESULT]",
-  "output_action": "ignore",
-  "output_channel": "",
-  "enabled": true
-}
-```
-
----
-
-## 4. CLI Command Usage
+## 3. CLI Command Usage
 
 ```bash
 # Continuous background daemon mode
@@ -169,9 +67,9 @@ python3 -m mypai_tools.heartbeat daemon [--project-dir /path/to/project]
 # Execute single-pass for all active jobs and exit
 python3 -m mypai_tools.heartbeat once [--project-dir /path/to/project]
 
+# Import default jobs from default_jobs.json
+python3 -m mypai_tools.heartbeat --import default [--project-dir /path/to/project]
+
 # Export all registered jobs to JSON file
 python3 -m mypai_tools.heartbeat --export /tmp/jobs_backup.json
-
-# Import jobs from JSON file into project SQLite database
-python3 -m mypai_tools.heartbeat --import /tmp/jobs_backup.json
 ```

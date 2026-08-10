@@ -16,6 +16,7 @@ from mypai_tools.cron_mcp import (
     cron_pause_job,
     cron_remove_job,
     cron_resume_job,
+    cron_run_once,
 )
 from mypai_tools.db import (
     _get_db_session,
@@ -241,6 +242,35 @@ class TestFastMcpCronTools(unittest.TestCase):
         post_jobs = cron_list_jobs(project_dir=self.temp_dir)
         self.assertFalse(any(j["id"] == job_id for j in post_jobs))
 
+    def test_cron_run_once_creation_and_rescheduling(self) -> None:
+        """Test cron_run_once creates a 'now' job and reschedules existing matching jobs."""
+        # 1. Create run_once job
+        run1 = cron_run_once(
+            name="One-shot Task",
+            type="python",
+            action="lambda args, kwargs: 100",
+            args=["arg1"],
+            kwargs={"k": "v"},
+            project_dir=self.temp_dir,
+        )
+        self.assertIn(run1["status"], ("scheduled_once", "scheduled_once_heartbeat_offline"))
+        job1 = run1["job"]
+        self.assertEqual(job1["cron"], "now")
+        self.assertTrue(job1["enabled"])
+
+        # 2. Re-trigger exact same cron_run_once -> should reschedule existing job
+        run2 = cron_run_once(
+            name="One-shot Task",
+            type="python",
+            action="lambda args, kwargs: 100",
+            args=["arg1"],
+            kwargs={"k": "v"},
+            project_dir=self.temp_dir,
+        )
+        self.assertIn(run2["status"], ("rescheduled", "rescheduled_heartbeat_offline"))
+        self.assertEqual(run2["job"]["id"], job1["id"])
+        self.assertEqual(run2["job"]["cron"], "now")
+
     def test_cron_export_and_import_roundtrip(self) -> None:
         """Test exporting cron jobs to JSON file and re-importing into SQLite DB."""
         # Add job
@@ -280,7 +310,7 @@ class TestFastMcpCronTools(unittest.TestCase):
 
 
 class TestHeartbeatTelemetryUpdate(unittest.IsolatedAsyncioTestCase):
-    """Test execute_job telemetry recording in SQLite DB."""
+    """Test execute_job telemetry recording and 'now' job disabling in SQLite DB."""
 
     def setUp(self) -> None:
         self.temp_dir = tempfile.mkdtemp(prefix="mypai_telemetry_test_")
@@ -317,6 +347,34 @@ class TestHeartbeatTelemetryUpdate(unittest.IsolatedAsyncioTestCase):
             self.assertGreater(db_job.last_runtime, 0.0)
             self.assertEqual(db_job.last_returncode, 0)
             self.assertEqual(db_job.total_calls, 1)
+        finally:
+            session.close()
+
+    async def test_execute_now_job_disables_after_run(self) -> None:
+        """Test executing a 'now' job sets enabled=False and increments total_calls upon completion."""
+        run_res = cron_run_once(
+            name="One-shot Disabling Job",
+            type="python",
+            action="lambda args, kwargs: 'done'",
+            project_dir=self.temp_dir,
+        )
+        job_data = run_res["job"]
+        self.assertTrue(job_data["enabled"])
+
+        # Execute job
+        res = await execute_job(job_data, project_dir=self.temp_dir)
+        self.assertEqual(res["status"], "success")
+
+        # Verify DB: enabled should be False, total_calls should be 1
+        session = _get_db_session(self.temp_dir)
+        try:
+            db_job = (
+                session.query(CronJobModel).filter_by(id=job_data["id"]).first()
+            )
+            self.assertIsNotNone(db_job)
+            self.assertFalse(db_job.enabled)
+            self.assertEqual(db_job.total_calls, 1)
+            self.assertEqual(db_job.last_returncode, 0)
         finally:
             session.close()
 
