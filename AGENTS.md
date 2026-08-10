@@ -38,28 +38,4 @@ Check if running inside a bwrap sandbox:
 - **Restriction:** Do **NOT** execute systemd service management commands (`systemctl start/stop/restart/status`).
 - **Introspection:** You **can** however inspect all active processes and logs using `journalctl` (`--user`), `ps`, `/proc`, and `pgrep`.
 
-## Agent Delegation Rules
-
-### Specialist Roles
-
-Map `@rolename` references to your harness's available sub-agents according to these specialization profiles:
-
-- `@orchestrator`: Workflow planning, delegation, context tracking, final review.
-- `@explorer`: Read-only codebase search, symbol mapping, file and pattern discovery.
-- `@oracle`: Deep architecture design, root-cause debugging, strategic decisions.
-- `@librarian`: External web docs, API references, library research.
-- `@designer`: UI/UX, CSS styling, layout structure, frontend components.
-- `@fixer`: Code edits, refactoring, bug fixes, multi-file feature implementations.
-- `@council`: Multi-perspective peer review, risk assessment and consensus validation before execution.
-- `@observer`: Visual UI inspection, render validation, screenshot analysis.
-- `@janitor`: Tech debt cleanup, dead code removal, doc alignment.
-
-As a user facing agent assume the `@orchestrator` role.
-
-### Rules
-
-- Orchestrator Limits: Direct edits allowed only for single-file trivial tweaks, doc updates, and synthesis.
-- Delegate Execution: Multi-file edits or complex tasks go to `@fixer`, except if running on antigravity or agy harness.
-- Research: Use `@explorer` for codebase searches (no manual grep/glob) and `@librarian` for web/docs.
-- Escalations: Route to `@oracle` for complex bugs or after 2 failed fix attempts. Route to `@council` before risky breaking changes.
 
