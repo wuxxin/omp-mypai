@@ -31,7 +31,7 @@ def _http_request(
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8") if e.fp else ""
         return {"error": f"HTTP {e.code}: {e.reason}", "details": error_body}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"error": str(e)}
 
 

@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
 """SQLAlchemy Database Models and Pydantic Schemas for MyPAI Cron Tasks."""
 
 import json
-from typing import Any, Dict
+from typing import Any
+
 from sqlalchemy import Boolean, Column, Float, Integer, String, Text
 from sqlalchemy.orm import declarative_base
 
@@ -40,20 +40,20 @@ class CronJobModel(Base):
     created_at = Column(String(64), nullable=False)
     updated_at = Column(String(64), nullable=False)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert model instance to dictionary representation with parsed JSON args and kwargs."""
         args_data = self.args
         if isinstance(args_data, str) and args_data.strip().startswith(("{", "[")):
             try:
                 args_data = json.loads(args_data)
-            except Exception:
+            except Exception:  # noqa: BLE001, S110
                 pass
 
         kwargs_data = self.kwargs
         if isinstance(kwargs_data, str) and kwargs_data.strip().startswith("{"):
             try:
                 kwargs_data = json.loads(kwargs_data)
-            except Exception:
+            except Exception:  # noqa: BLE001, S110
                 pass
 
         return {

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """HTTP Job Executor supporting GET, POST, PUT, DELETE, PATCH with inlined job attributes."""
 
 import json
@@ -44,7 +43,7 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
     if isinstance(kwargs_raw, str) and kwargs_raw.strip():
         try:
             kwargs = json.loads(kwargs_raw)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
     elif isinstance(kwargs_raw, dict):
         kwargs = dict(kwargs_raw)
@@ -60,7 +59,7 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
     if isinstance(payload, str) and payload.strip():
         try:
             payload = json.loads(payload)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     logger.info("Executing HTTP %s request to %s...", method, url)
@@ -74,7 +73,7 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
         try:
             res_data = resp.json()
             output_str = json.dumps(res_data)
-        except Exception:
+        except Exception:  # noqa: BLE001
             output_str = resp.text
 
         logger.info("HTTP %s '%s' returned status %d", method, name, resp.status_code)

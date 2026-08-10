@@ -15,7 +15,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Set, Tuple
+from typing import Any
 
 import httpx
 
@@ -51,14 +51,14 @@ def compute_content_hash(file_path: Path) -> str:
     """
     stat = file_path.stat()
     h = hashlib.sha256()
-    h.update(f"{stat.st_size}\n".encode("utf-8"))
+    h.update(f"{stat.st_size}\n".encode())
     with open(file_path, "rb") as f:
         head = f.read(8 * 1024 * 1024)
         h.update(head)
     return h.hexdigest()
 
 
-def parse_sidecar(file_path: Path) -> Tuple[Dict[str, str], Path | None]:
+def parse_sidecar(file_path: Path) -> tuple[dict[str, str], Path | None]:
     """Parse key: value lines from sidecar markdown file.
 
     Checks for candidate sidecar files:
@@ -82,7 +82,7 @@ def parse_sidecar(file_path: Path) -> Tuple[Dict[str, str], Path | None]:
             sidecar_path = candidate
             break
 
-    metadata: Dict[str, str] = {}
+    metadata: dict[str, str] = {}
     if sidecar_path is None:
         return metadata, None
 
@@ -90,7 +90,7 @@ def parse_sidecar(file_path: Path) -> Tuple[Dict[str, str], Path | None]:
         content = sidecar_path.read_text(encoding="utf-8")
         for line in content.splitlines():
             line = line.strip()
-            if not line or line.startswith("---") or line.startswith("#"):
+            if not line or line.startswith(("---", "#")):
                 continue
             if ":" in line:
                 key, val = line.split(":", 1)
@@ -98,7 +98,7 @@ def parse_sidecar(file_path: Path) -> Tuple[Dict[str, str], Path | None]:
                 val_clean = val.strip().strip("'\"")
                 if key_clean and val_clean:
                     metadata[key_clean] = val_clean
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning(
             "Failed to parse sidecar metadata from %s: %s", sidecar_path, exc
         )
@@ -106,7 +106,7 @@ def parse_sidecar(file_path: Path) -> Tuple[Dict[str, str], Path | None]:
     return metadata, sidecar_path
 
 
-def load_processed_hashes(state_file: Path) -> Set[str]:
+def load_processed_hashes(state_file: Path) -> set[str]:
     """Load previously processed file hashes from JSON state file.
 
     Args:
@@ -121,12 +121,12 @@ def load_processed_hashes(state_file: Path) -> Set[str]:
         data = json.loads(state_file.read_text(encoding="utf-8"))
         if isinstance(data, list):
             return set(data)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning("Failed to load processed state from %s: %s", state_file, exc)
     return set()
 
 
-def save_processed_hashes(state_file: Path, hashes: Set[str]) -> None:
+def save_processed_hashes(state_file: Path, hashes: set[str]) -> None:
     """Save processed file hashes to JSON state file.
 
     Args:
@@ -136,9 +136,9 @@ def save_processed_hashes(state_file: Path, hashes: Set[str]) -> None:
     try:
         state_file.parent.mkdir(parents=True, exist_ok=True)
         state_file.write_text(
-            json.dumps(sorted(list(hashes)), indent=2), encoding="utf-8"
+            json.dumps(sorted(hashes), indent=2), encoding="utf-8"
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.error("Failed to save processed state to %s: %s", state_file, exc)
 
 
@@ -210,7 +210,7 @@ class InputSpooler:
         self.state_file = state_file
 
         self.inbox.mkdir(parents=True, exist_ok=True)
-        self.processed_hashes: Set[str] = load_processed_hashes(self.state_file)
+        self.processed_hashes: set[str] = load_processed_hashes(self.state_file)
 
     async def transcribe_audio(self, file_path: Path) -> str:
         """Transcribe an audio/video file using local Speech-to-Text service.
@@ -226,7 +226,7 @@ class InputSpooler:
         )
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
-                with open(file_path, "rb") as audio_file:
+                with open(file_path, "rb") as audio_file:  # noqa: ASYNC230
                     files = {
                         "file": (file_path.name, audio_file, "application/octet-stream")
                     }
@@ -243,7 +243,7 @@ class InputSpooler:
                             len(transcript),
                         )
                         return transcript
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001
                         logger.warning("Failed to decode STT JSON response: %s", exc)
                         return ""
                 else:
@@ -253,7 +253,7 @@ class InputSpooler:
                         response.text,
                     )
                     return ""
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.error(
                 "STT transcription exception for '%s': %s", file_path.name, exc
             )
@@ -266,7 +266,7 @@ class InputSpooler:
         item_hash: str,
         filename: str,
         transcript: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Post ingested item summary and transcript into Hindsight memory bank.
 
         Args:
@@ -322,14 +322,14 @@ class InputSpooler:
                     )
                     try:
                         data = res.json()
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         data = {"raw": res.text}
                     return {
                         "status": "success",
                         "http_code": res.status_code,
                         "data": data,
                     }
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.debug("Primary /retain call failed: %s", exc)
 
             # 2. Try fallback /memories endpoint (Hindsight v1 items schema)
@@ -352,14 +352,14 @@ class InputSpooler:
                 res.raise_for_status()
                 try:
                     data = res.json()
-                except Exception:
+                except Exception:  # noqa: BLE001
                     data = {"raw": res.text}
                 logger.info(
                     "Hindsight retention successful via /memories (HTTP %d).",
                     res.status_code,
                 )
                 return {"status": "success", "http_code": res.status_code, "data": data}
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.error("Hindsight retention exception for '%s': %s", title, exc)
                 return {"status": "error", "error": str(exc)}
 
@@ -451,7 +451,7 @@ class InputSpooler:
         if not self.inbox.exists():
             return 0
 
-        files = sorted(list(self.inbox.iterdir()))
+        files = sorted(self.inbox.iterdir())
         for item in files:
             if item.is_file():
                 success = await self.process_file(item)

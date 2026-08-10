@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """RPC Job Executor using mandatory omp_rpc.RpcClient SDK with inlined job attributes."""
 
 import json
@@ -30,7 +29,7 @@ async def execute_rpc_job(job: dict[str, Any], default_rpc_url: str = "") -> dic
     if isinstance(kwargs_raw, str) and kwargs_raw.strip():
         try:
             rpc_kwargs = json.loads(kwargs_raw)
-        except Exception:
+        except Exception:  # noqa: BLE001
             rpc_kwargs = {"raw": kwargs_raw}
     elif isinstance(kwargs_raw, dict):
         rpc_kwargs = dict(kwargs_raw)
@@ -40,7 +39,7 @@ async def execute_rpc_job(job: dict[str, Any], default_rpc_url: str = "") -> dic
     if isinstance(args_raw, str) and args_raw.strip():
         try:
             rpc_args = json.loads(args_raw)
-        except Exception:
+        except Exception:  # noqa: BLE001
             rpc_args = [args_raw]
     elif isinstance(args_raw, list):
         rpc_args = args_raw
@@ -88,6 +87,6 @@ async def execute_rpc_job(job: dict[str, Any], default_rpc_url: str = "") -> dic
                 client.prompt(prompt)
                 return {"status": "success", "action": action, "output": f"Prompt queued: {prompt}"}
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.error("RPC execution error for job '%s': %s", name, exc)
         return {"status": "error", "action": action, "error": str(exc)}

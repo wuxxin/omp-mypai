@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Job executor subpackage for MyPAI Heartbeat."""
 
 from .http_executor import execute_http_job

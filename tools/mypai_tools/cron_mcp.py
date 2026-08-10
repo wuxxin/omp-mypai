@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """FastMCP Cron Scheduler Server for MyPAI.
 
-Exposes MCP tools for registering, modifying, listing, pausing, resuming,
+Exposes MCP tools for registering, modifying, listing, enabling, disabling,
 and deleting scheduled jobs stored in the per-project SQLite database
 ($HOME/.omp/cron/projects/<project_hash>/cron.db).
 """
@@ -9,16 +9,14 @@ and deleting scheduled jobs stored in the per-project SQLite database
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
 import uuid
+from typing import Any
 
-import apscheduler
 from mcp.server.fastmcp import FastMCP
 
 from mypai_tools.db import (
     get_db_session,
     is_heartbeat_running,
-    normalize_cron_expression,
 )
 from mypai_tools.models import CronJobModel
 
@@ -58,7 +56,7 @@ def cron_add_job(
     output_action: str = "ignore",
     output_channel: str = "",
     project_dir: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Register a new scheduled task in the project SQLite database.
 
     Args:
@@ -121,7 +119,7 @@ def cron_add_job(
             "job": db_job.to_dict(),
             "heartbeat_running": running,
         }
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         session.rollback()
         logger.error("Failed to add cron job: %s", exc)
         return {"status": "error", "error": str(exc)}
@@ -141,7 +139,7 @@ def cron_run_once(
     output_action: str = "ignore",
     output_channel: str = "",
     project_dir: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Queue or reschedule an immediate one-shot task ('now') in the project SQLite database.
 
     If an exact matching task (matching name, type, action, args, kwargs) exists,
@@ -234,7 +232,7 @@ def cron_run_once(
             "job": db_job.to_dict(),
             "heartbeat_running": running,
         }
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         session.rollback()
         logger.error("Failed to queue run_once job: %s", exc)
         return {"status": "error", "error": str(exc)}
@@ -245,7 +243,7 @@ def cron_run_once(
 @mcp.tool()
 def cron_list_jobs(
     project_dir: str = "", include_disabled: bool = True
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """List registered cron jobs and execution telemetry from project SQLite DB."""
     session = get_db_session(project_dir)
     try:
@@ -259,8 +257,8 @@ def cron_list_jobs(
 
 
 @mcp.tool()
-def cron_pause_job(job_id: str, project_dir: str = "") -> Dict[str, Any]:
-    """Disable/pause a scheduled cron job in the project SQLite database."""
+def cron_disable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
+    """Disable a scheduled cron job in the project SQLite database."""
     session = get_db_session(project_dir)
     try:
         db_job = session.query(CronJobModel).filter_by(id=job_id).first()
@@ -269,8 +267,8 @@ def cron_pause_job(job_id: str, project_dir: str = "") -> Dict[str, Any]:
         db_job.enabled = False
         db_job.updated_at = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
         session.commit()
-        return {"status": "paused", "job": db_job.to_dict()}
-    except Exception as exc:
+        return {"status": "disabled", "job": db_job.to_dict()}
+    except Exception as exc:  # noqa: BLE001
         session.rollback()
         return {"status": "error", "error": str(exc)}
     finally:
@@ -278,8 +276,8 @@ def cron_pause_job(job_id: str, project_dir: str = "") -> Dict[str, Any]:
 
 
 @mcp.tool()
-def cron_resume_job(job_id: str, project_dir: str = "") -> Dict[str, Any]:
-    """Enable/resume a paused cron job in the project SQLite database."""
+def cron_enable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
+    """Enable a scheduled cron job in the project SQLite database."""
     session = get_db_session(project_dir)
     try:
         db_job = session.query(CronJobModel).filter_by(id=job_id).first()
@@ -288,30 +286,43 @@ def cron_resume_job(job_id: str, project_dir: str = "") -> Dict[str, Any]:
         db_job.enabled = True
         db_job.updated_at = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
         session.commit()
-        return {"status": "resumed", "job": db_job.to_dict()}
-    except Exception as exc:
+        return {"status": "enabled", "job": db_job.to_dict()}
+    except Exception as exc:  # noqa: BLE001
         session.rollback()
         return {"status": "error", "error": str(exc)}
     finally:
         session.close()
 
 
+# Alias functions for backward compatibility
+@mcp.tool()
+def cron_pause_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
+    """Alias for cron_disable_job."""
+    return cron_disable_job(job_id=job_id, project_dir=project_dir)
+
+
+@mcp.tool()
+def cron_resume_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
+    """Alias for cron_enable_job."""
+    return cron_enable_job(job_id=job_id, project_dir=project_dir)
+
+
 @mcp.tool()
 def cron_modify_job(
     job_id: str,
-    name: Optional[str] = None,
-    cron: Optional[str] = None,
-    type: Optional[str] = None,
-    action: Optional[str] = None,
-    url: Optional[str] = None,
+    name: str | None = None,
+    cron: str | None = None,
+    type: str | None = None,
+    action: str | None = None,
+    url: str | None = None,
     args: Any = None,
     kwargs: Any = None,
-    output_prompt: Optional[str] = None,
-    output_action: Optional[str] = None,
-    output_channel: Optional[str] = None,
-    enabled: Optional[bool] = None,
+    output_prompt: str | None = None,
+    output_action: str | None = None,
+    output_channel: str | None = None,
+    enabled: bool | None = None,
     project_dir: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Modify parameters of an existing cron job in the project SQLite database."""
     session = get_db_session(project_dir)
     try:
@@ -350,7 +361,7 @@ def cron_modify_job(
         db_job.updated_at = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
         session.commit()
         return {"status": "modified", "job": db_job.to_dict()}
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         session.rollback()
         return {"status": "error", "error": str(exc)}
     finally:
@@ -358,7 +369,7 @@ def cron_modify_job(
 
 
 @mcp.tool()
-def cron_remove_job(job_id: str, project_dir: str = "") -> Dict[str, Any]:
+def cron_remove_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
     """Delete a cron job from the project SQLite database."""
     session = get_db_session(project_dir)
     try:
@@ -369,7 +380,7 @@ def cron_remove_job(job_id: str, project_dir: str = "") -> Dict[str, Any]:
         session.delete(db_job)
         session.commit()
         return {"status": "cancelled", "job": deleted_dict}
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         session.rollback()
         return {"status": "error", "error": str(exc)}
     finally:
@@ -377,7 +388,7 @@ def cron_remove_job(job_id: str, project_dir: str = "") -> Dict[str, Any]:
 
 
 @mcp.tool()
-def cron_import_jobs(file_path: str, project_dir: str = "") -> Dict[str, Any]:
+def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
     """Import cron jobs from a JSON file into project SQLite database."""
     abs_path = os.path.abspath(os.path.expanduser(file_path))
 
@@ -457,12 +468,12 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> Dict[str, Any]:
             "imported_count": imported_count,
             "heartbeat_running": running,
         }
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         return {"status": "error", "error": str(exc)}
 
 
 @mcp.tool()
-def cron_export_jobs(file_path: str, project_dir: str = "") -> Dict[str, Any]:
+def cron_export_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
     """Export all registered cron jobs from project SQLite database to a JSON file."""
     abs_path = os.path.abspath(os.path.expanduser(file_path))
     session = get_db_session(project_dir)
@@ -477,7 +488,7 @@ def cron_export_jobs(file_path: str, project_dir: str = "") -> Dict[str, Any]:
             "exported_count": len(jobs_list),
             "file_path": abs_path,
         }
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         return {"status": "error", "error": str(exc)}
     finally:
         session.close()

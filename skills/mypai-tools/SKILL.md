@@ -52,7 +52,7 @@ Always specify standard Unix crontab syntax where **`0` = Sunday** (or `7` = Sun
 - `cron_add_job`: Add a recurring crontab task.
 - `cron_run_once`: Queue/reschedule an immediate one-shot task (`cron="now"`).
 - `cron_list_jobs`: List active and historical jobs with execution telemetry.
-- `cron_pause_job` / `cron_resume_job`: Toggle job enabled state.
+- `cron_disable_job` / `cron_enable_job`: Toggle job enabled state (`enabled: bool`).
 - `cron_modify_job`: Update existing job properties.
 - `cron_remove_job`: Delete job entry.
 - `cron_import_jobs` / `cron_export_jobs`: JSON backup/restore.

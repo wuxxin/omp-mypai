@@ -9,13 +9,13 @@ from unittest.mock import MagicMock, patch
 
 from mypai_tools.cron_mcp import (
     cron_add_job,
+    cron_disable_job,
+    cron_enable_job,
     cron_export_jobs,
     cron_import_jobs,
     cron_list_jobs,
     cron_modify_job,
-    cron_pause_job,
     cron_remove_job,
-    cron_resume_job,
     cron_run_once,
 )
 from mypai_tools.db import (
@@ -223,15 +223,15 @@ class TestFastMcpCronTools(unittest.TestCase):
         jobs = cron_list_jobs(project_dir=self.temp_dir)
         self.assertTrue(any(j["id"] == job_id for j in jobs))
 
-        # 3. Pause job
-        pause_res = cron_pause_job(job_id=job_id, project_dir=self.temp_dir)
-        self.assertEqual(pause_res["status"], "paused")
-        self.assertFalse(pause_res["job"]["enabled"])
+        # 3. Disable job
+        disable_res = cron_disable_job(job_id=job_id, project_dir=self.temp_dir)
+        self.assertEqual(disable_res["status"], "disabled")
+        self.assertFalse(disable_res["job"]["enabled"])
 
-        # 4. Resume job
-        resume_res = cron_resume_job(job_id=job_id, project_dir=self.temp_dir)
-        self.assertEqual(resume_res["status"], "resumed")
-        self.assertTrue(resume_res["job"]["enabled"])
+        # 4. Enable job
+        enable_res = cron_enable_job(job_id=job_id, project_dir=self.temp_dir)
+        self.assertEqual(enable_res["status"], "enabled")
+        self.assertTrue(enable_res["job"]["enabled"])
 
         # 5. Modify job
         mod_res = cron_modify_job(
@@ -438,7 +438,7 @@ class TestHeartbeatCliSubcommands(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(res_export, 0)
         self.assertTrue(os.path.isfile(export_file))
 
-        with open(export_file, "r", encoding="utf-8") as f:
+        with open(export_file, "r", encoding="utf-8") as f:  # noqa: ASYNC230
             data = json.load(f)
         self.assertIn("jobs", data)
         self.assertGreaterEqual(len(data["jobs"]), 1)

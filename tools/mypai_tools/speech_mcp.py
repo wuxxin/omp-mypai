@@ -51,7 +51,7 @@ def transcribe_audio(file_path: str, language: str = "auto") -> dict[str, Any]:
         with urllib.request.urlopen(req, timeout=30) as resp:
             res_body = resp.read().decode("utf-8")
             return json.loads(res_body)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"error": str(e)}
 
 
@@ -81,7 +81,7 @@ def synthesize_speech(
             with open(out_path, "wb") as out_f:
                 out_f.write(audio_data)
         return {"status": "success", "file_path": out_path, "bytes": len(audio_data)}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"error": str(e)}
 
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Shell Job Executor with inlined attributes, command args & kwargs formatting, and stream routing."""
 
 import asyncio
@@ -6,7 +5,7 @@ import json
 import logging
 import os
 import shlex
-from typing import Any, Dict
+from typing import Any
 
 from mypai_tools.db import substitute_env_vars
 
@@ -26,14 +25,14 @@ def build_full_command(cmd: str, args_val: Any = None, kwargs_val: Any = None) -
     if isinstance(args_val, str) and args_val.strip().startswith(("[", "{")):
         try:
             args_val = json.loads(args_val)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     # Parse kwargs if JSON string
     if isinstance(kwargs_val, str) and kwargs_val.strip().startswith("{"):
         try:
             kwargs_val = json.loads(kwargs_val)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     parts = [base_cmd]
@@ -57,7 +56,7 @@ def build_full_command(cmd: str, args_val: Any = None, kwargs_val: Any = None) -
     return " ".join(parts).strip()
 
 
-async def execute_shell_job(job: Dict[str, Any]) -> Dict[str, Any]:
+async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
     """Execute shell command using action as base command, positional args list, and flag kwargs.
 
     Inlined Attributes:
@@ -127,7 +126,7 @@ async def execute_shell_job(job: Dict[str, Any]) -> Dict[str, Any]:
                     client.follow_up(final_output)
                 elif output_action == "abort_and_prompt":
                     client.abort_and_prompt(final_output)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to route shell output to OMP via RpcClient: %s", exc)
 
     return {

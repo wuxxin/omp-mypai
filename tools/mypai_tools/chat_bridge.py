@@ -10,12 +10,11 @@ import argparse
 import json
 import logging
 import os
-import sys
 import time
 import urllib.error
 import urllib.request
 import uuid
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 # Import chat_mcp helpers if available
 try:
@@ -52,9 +51,9 @@ logger = logging.getLogger("chat_bridge")
 def _http_request(
     url: str,
     method: str = "GET",
-    data: Optional[Dict[str, Any]] = None,
+    data: dict[str, Any] | None = None,
     timeout: float = 15.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Helper for JSON HTTP requests with explicit exception handling."""
     req_data = json.dumps(data).encode("utf-8") if data is not None else None
     headers = {"Content-Type": "application/json"} if req_data else {}
@@ -69,26 +68,26 @@ def _http_request(
         if e.fp:
             try:
                 error_body = e.fp.read().decode("utf-8")
-            except Exception:
+            except Exception:  # noqa: BLE001, S110
                 pass
         logger.error(f"HTTPError {e.code} on {method} {url}: {e.reason} - {error_body}")
         return {"error": f"HTTP {e.code}: {e.reason}", "details": error_body}
     except urllib.error.URLError as e:
         logger.error(f"URLError on {method} {url}: {e.reason}")
         return {"error": f"URLError: {e.reason}"}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Unexpected error on {method} {url}: {e}")
         return {"error": str(e)}
 
 
-def fetch_pending_messages(limit: int = 10) -> List[Dict[str, Any]]:
+def fetch_pending_messages(limit: int = 10) -> list[dict[str, Any]]:
     """Retrieve unread/pending Signal messages via nanobot_mcp or REST API endpoints."""
     if get_pending_signal_messages is not None:
         try:
             res = get_pending_signal_messages(limit=limit)
             if isinstance(res, list):
                 return res
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"nanobot_mcp get_pending_signal_messages failed: {e}")
 
     # Fallback to direct HTTP fetch from Nanobot API first
@@ -110,7 +109,7 @@ def fetch_pending_messages(limit: int = 10) -> List[Dict[str, Any]]:
     return []
 
 
-def extract_message_info(raw_msg: Dict[str, Any]) -> Optional[Tuple[str, str, str]]:
+def extract_message_info(raw_msg: dict[str, Any]) -> tuple[str, str, str] | None:
     """Extract (sender, message_text, message_id) from raw message structure.
 
     Returns None if message format is unrecognized or message body is empty.
@@ -172,7 +171,7 @@ def query_hindsight_context(sender: str, prompt: str) -> str:
         logger.warning(f"Hindsight recall error: {res.get('error')}")
         return ""
 
-    recalled_items: List[str] = []
+    recalled_items: list[str] = []
     # Handle various possible response schemas from Hindsight REST API
     memories = res.get("results") or res.get("memories") or res.get("documents") or []
     if isinstance(memories, list):
@@ -236,7 +235,7 @@ def poke_omp_agent(prompt: str, context: str, sender: str) -> str:
     )
 
 
-def dispatch_signal_response(recipient: str, message: str) -> Dict[str, Any]:
+def dispatch_signal_response(recipient: str, message: str) -> dict[str, Any]:
     """Dispatch outbound message via nanobot_mcp or direct signal-cli endpoint."""
     if send_signal_message is not None:
         try:
@@ -249,11 +248,11 @@ def dispatch_signal_response(recipient: str, message: str) -> Dict[str, Any]:
             logger.warning(
                 f"nanobot_mcp send failed: {res.get('error')}, falling back to direct HTTP."
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"nanobot_mcp exception: {e}, falling back to direct HTTP.")
 
     # Direct HTTP dispatch to signal-cli /v2/send
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "message": message,
         "number": SIGNAL_ACCOUNT,
         "recipients": [recipient],
@@ -269,13 +268,13 @@ def dispatch_signal_response(recipient: str, message: str) -> Dict[str, Any]:
     return res
 
 
-def process_signal_message(raw_msg: Dict[str, Any]) -> bool:
+def process_signal_message(raw_msg: dict[str, Any]) -> bool:
     """Process a single incoming Signal message through the Hindsight RPC bridge pipeline."""
     info = extract_message_info(raw_msg)
     if not info:
         return False
 
-    sender, prompt, msg_id = info
+    sender, prompt, _msg_id = info
     logger.info(f"Processing incoming message from '{sender}': {prompt[:50]}...")
 
     # 1. Query Hindsight memory context
@@ -296,7 +295,7 @@ def run_bridge(poll_interval: float = 3.0, run_once: bool = False) -> None:
     logger.info(f"Hindsight Bank: {HINDSIGHT_BANK_ID} ({HINDSIGHT_URL})")
     logger.info(f"OMP RPC Endpoint: {OMP_RPC_URL}")
 
-    seen_msg_ids: Set[str] = set()
+    seen_msg_ids: set[str] = set()
 
     try:
         while True:
@@ -312,9 +311,9 @@ def run_bridge(poll_interval: float = 3.0, run_once: bool = False) -> None:
 
                 try:
                     process_signal_message(raw_msg)
-                except Exception as e:
-                    logger.error(
-                        f"Error processing message {msg_id}: {e}", exc_info=True
+                except Exception:
+                    logger.exception(
+                        "Error processing message %s", msg_id
                     )
 
             if run_once:

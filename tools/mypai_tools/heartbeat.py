@@ -10,14 +10,14 @@ CLI JSON import/export, and simplified job execution (rpc, http, shell, python).
 import argparse
 import asyncio
 import atexit
-from datetime import datetime, timezone
 import json
 import logging
 import os
 import signal
 import sys
 import time
-from typing import Any, Dict, List, Set
+from datetime import datetime, timezone
+from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -68,8 +68,8 @@ def remove_pid_file(pid_path: str) -> None:
 
 
 async def execute_job(
-    job: Dict[str, Any], default_rpc_url: str = DEFAULT_RPC_URL, project_dir: str = ""
-) -> Dict[str, Any]:
+    job: dict[str, Any], default_rpc_url: str = DEFAULT_RPC_URL, project_dir: str = ""
+) -> dict[str, Any]:
     """Execute job using inlined attributes and update telemetry stats in DB."""
     job = substitute_env_vars(job)
     job_type = str(job.get("type", "rpc")).lower()
@@ -80,7 +80,7 @@ async def execute_job(
     start_time = time.time()
     logger.info("Executing job '%s' (ID: %s, type: %s)...", name, job_id, job_type)
 
-    result: Dict[str, Any] = {"job_id": job_id, "name": name, "type": job_type}
+    result: dict[str, Any] = {"job_id": job_id, "name": name, "type": job_type}
     returncode = 0
     output_summary = ""
 
@@ -112,7 +112,7 @@ async def execute_job(
         else:
             raise ValueError(f"Unsupported job type '{job_type}'")
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.error("Execution error for job '%s': %s", name, exc)
         returncode = 1
         output_summary = str(exc)
@@ -140,7 +140,7 @@ async def execute_job(
             db_job.last_output = output_summary[:2048]
             db_job.total_calls = (db_job.total_calls or 0) + 1
             session.commit()
-    except Exception as db_exc:
+    except Exception as db_exc:  # noqa: BLE001
         logger.warning("Failed to update telemetry for job %s: %s", job_id, db_exc)
         session.rollback()
     finally:
@@ -163,14 +163,14 @@ class HeartbeatDaemon:
         self.pid_path = get_heartbeat_pid_path(project_dir)
 
         self.scheduler = AsyncIOScheduler()
-        self.scheduled_job_ids: Set[str] = set()
+        self.scheduled_job_ids: set[str] = set()
 
     def sync_jobs_from_db(self) -> None:
         """Query DB for active cron jobs and synchronize AsyncIOScheduler tasks."""
         session = get_db_session(self.project_dir)
         try:
             db_jobs = session.query(CronJobModel).filter_by(enabled=True).all()
-            current_active_ids: Set[str] = set()
+            current_active_ids: set[str] = set()
 
             for job in db_jobs:
                 job_dict = job.to_dict()
@@ -206,7 +206,7 @@ class HeartbeatDaemon:
                             job.type,
                             job.cron,
                         )
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001
                         logger.error(
                             "Failed to parse cron trigger for job %s: %s", job_id, exc
                         )
@@ -219,7 +219,7 @@ class HeartbeatDaemon:
                     try:
                         self.scheduler.remove_job(aps_job_id)
                         logger.info("Removed DB cron job ID: %s from scheduler", raw_id)
-                    except Exception:
+                    except Exception:  # noqa: BLE001, S110
                         pass
                     to_remove.add(aps_job_id)
             self.scheduled_job_ids -= to_remove
@@ -319,7 +319,7 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
             if isinstance(kwargs_val, str) and kwargs_val.strip().startswith("{"):
                 try:
                     kwargs_val = json.loads(kwargs_val)
-                except Exception:
+                except Exception:  # noqa: BLE001
                     kwargs_val = {}
             if isinstance(kwargs_val, (dict, list)):
                 kwargs_val = json.dumps(kwargs_val)
@@ -369,7 +369,7 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
 
         session.commit()
         logger.info("Successfully imported %d job(s) from %s", imported_count, abs_path)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.error("Failed to import jobs: %s", exc)
         session.rollback()
         sys.exit(1)
@@ -377,7 +377,7 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
         session.close()
 
 
-def parse_args(args: List[str] | None = None) -> argparse.Namespace:
+def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments matching heartbeat.md spec."""
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument(

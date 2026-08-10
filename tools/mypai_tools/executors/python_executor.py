@@ -1,10 +1,9 @@
-#!/usr/bin/env python3
 """Python Job Executor supporting in-process lambda expressions and async functions using inlined attributes."""
 
 import asyncio
 import json
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from mypai_tools.db import substitute_env_vars
 
@@ -16,7 +15,7 @@ except ImportError:
 logger = logging.getLogger("mypai_heartbeat.python_executor")
 
 
-async def execute_python_job(job: Dict[str, Any]) -> Dict[str, Any]:
+async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
     """Execute Python lambda expression or code block in-process using inlined attributes.
 
     Inlined Attributes:
@@ -36,22 +35,22 @@ async def execute_python_job(job: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(args_val, str) and args_val.strip().startswith(("[", "{")):
         try:
             args_val = json.loads(args_val)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     kwargs_val = job.get("kwargs") or {}
     if isinstance(kwargs_val, str) and kwargs_val.strip().startswith("{"):
         try:
             kwargs_val = json.loads(kwargs_val)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     output_action = (job.get("output_action") or "ignore").lower()
 
     logger.info("Executing Python job '%s'...", name)
 
-    local_namespace: Dict[str, Any] = {}
-    global_namespace: Dict[str, Any] = {
+    local_namespace: dict[str, Any] = {}
+    global_namespace: dict[str, Any] = {
         "asyncio": asyncio,
         "job": job,
         "args": args_val,
@@ -70,7 +69,7 @@ async def execute_python_job(job: Dict[str, Any]) -> Dict[str, Any]:
                 except TypeError:
                     res = fn()
         else:
-            exec(clean_code, global_namespace, local_namespace)
+            exec(clean_code, global_namespace, local_namespace)  # noqa: S102
             res = (
                 local_namespace.get("result")
                 or global_namespace.get("result")
@@ -113,11 +112,11 @@ async def execute_python_job(job: Dict[str, Any]) -> Dict[str, Any]:
                         client.follow_up(final_output)
                     elif output_action == "abort_and_prompt":
                         client.abort_and_prompt(final_output)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.warning("Failed to route python output to OMP via RpcClient: %s", exc)
 
         return {"status": "success", "result": res, "output": final_output}
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.error("Python execution error for job '%s': %s", name, exc)
         return {"status": "error", "error": str(exc)}

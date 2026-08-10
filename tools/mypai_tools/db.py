@@ -1,29 +1,28 @@
-#!/usr/bin/env python3
 """Database session management, SQLite WAL mode, path helpers, and cron normalization."""
 
 import hashlib
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 import apscheduler
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from mypai_tools.models import Base, CronJobModel
+from mypai_tools.models import Base
 
 APSCHEDULER_VERSION = getattr(apscheduler, "__version__", "3.0.0")
 IS_APSCHEDULER_V4 = APSCHEDULER_VERSION.startswith("4")
 
 
-def substitute_env_vars(val: Any, extra_vars: Optional[Dict[str, Any]] = None) -> Any:
+def substitute_env_vars(val: Any, extra_vars: dict[str, Any] | None = None) -> Any:
     """Recursively expand #[VARNAME] environment and internal execution variables.
 
     Supports #[VARNAME] syntax for:
     1. System & Process Environment Variables (e.g. #[HINDSIGHT_API_URL], #[HOME])
     2. Internal Execution Variables (e.g. #[_RETURNCODE], #[_STDOUT], #[_STDERR], #[_STDCOMBINED], #[_RESULT])
     """
-    combined_vars: Dict[str, Any] = dict(os.environ)
+    combined_vars: dict[str, Any] = dict(os.environ)
     if extra_vars:
         combined_vars.update(extra_vars)
 
