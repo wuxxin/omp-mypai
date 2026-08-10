@@ -24,12 +24,14 @@
 
 ### Python Scripts (`.py`)
 - **Style:** `#!/usr/bin/env python3`, 4-space indent, type hints, `snake_case` (functions/vars), `PascalCase` (classes), triple-quote docstrings, explicit exception handling.
-- **Lint, Test & Utility Commands:**
+- **Lint, Test & Utility Commands (Makefile):**
   ```bash
-  ruff check scripts/*.py scripts/test/*.py
-  ruff format scripts/*.py scripts/test/*.py
-  mypy scripts/*.py scripts/test/*.py
-  pytest tests/test_file.py::test_function -v
+  # Manage virtualenv, unit tests, and linting via Makefile
+  make buildenv  # Builds .venv & installs editable package & dependencies
+  make test      # Runs unit tests inside .venv
+  make lint      # Runs ruff check inside .venv
+  make check     # Runs linter and unit tests
+  make cleanenv  # Removes .venv
   ```
 
 ## Operating Guidelines
@@ -47,5 +49,3 @@ Check if running inside a bwrap sandbox:
 **If bwrapped (systemd socket unavailable):**
 - **Restriction:** Do **NOT** execute systemd service management commands (`systemctl start/stop/restart/status`).
 - **Introspection:** You **can** however inspect all active processes and logs using `journalctl` (`--user`), `ps`, `/proc`, and `pgrep`.
-
-

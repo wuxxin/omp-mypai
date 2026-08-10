@@ -4,7 +4,22 @@ Personal Artificial Intelligence (PAI) agent plugin based on **Oh-my-PI** and **
 
 ---
 
-## 1. Sandbox Launcher & Service Configuration (`omp.env`)
+## 1. Development & Testing (`Makefile`)
+
+The plugin includes a dedicated [Makefile](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/Makefile) for virtualenv management, testing, and linting:
+
+```bash
+make buildenv  # Create .venv and install mypai_tools & dependencies
+make test      # Run unit tests inside .venv (auto-builds .venv if missing)
+make lint      # Run ruff check inside .venv
+make check     # Run linter and execute unit tests
+make clean     # Clean up test caches and Python bytecode
+make cleanenv  # Remove .venv directory
+```
+
+---
+
+## 2. Sandbox Launcher & Service Configuration (`omp.env`)
 
 The plugin environment launcher configuration is defined in [omp.env](file:///home/wuxxin/agent-shared/code/mypai/omp.env):
 
@@ -27,8 +42,9 @@ The plugin environment launcher configuration is defined in [omp.env](file:///ho
 
 ---
 
-## 2. Repository Structure
+## 3. Repository Structure
 
+- `Makefile` — Buildenv, virtualenv, testing, and linting targets
 - `plugin.json` — Plugin root manifest
 - `mcp.json` — MCP server registry configuration
 - `skills/` — Portable skills definitions
@@ -39,7 +55,7 @@ The plugin environment launcher configuration is defined in [omp.env](file:///ho
 
 ---
 
-## 3. Configured MCP Servers (`mcp.json`)
+## 4. Configured MCP Servers (`mcp.json`)
 
 All MCP servers comply with **Agent Plugins 1.0.0 Standard** (`https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`) and are declared in [mcp.json](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/mcp.json):
 
@@ -51,13 +67,13 @@ All MCP servers comply with **Agent Plugins 1.0.0 Standard** (`https://agent-plu
 
 ---
 
-## 4. Background Daemons
+## 5. Background Daemons
 
 Each daemon maintains a standalone architectural specification document under `tools/mypai_tools/`:
 
 - **heartbeat** (`python3 -m mypai_tools.heartbeat daemon --project-dir "$MYPAI_PROJECT_DIR"`)
   - **Spec**: [heartbeat.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/tools/mypai_tools/heartbeat.md)
-  - **Function**: Background cron runner, SQLite WAL manager, & RPC poke engine for periodic work audits and Hindsight reflection sweeps (`daemon` or `once` mode).
+  - **Function**: Background cron runner, SQLite WAL manager, & RPC poke engine for periodic work audits and Hindsight reflection sweeps (`daemon`, `once`, `import`, or `export` mode).
 - **input_spooler** (`python3 -m mypai_tools.input_spooler daemon --project-dir "$MYPAI_PROJECT_DIR"`)
   - **Spec**: [input_spooler.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/tools/mypai_tools/input_spooler.md)
   - **Function**: Asynchronous sidecar daemon watching inbox folder (`~/Recordings/Inbox`), SHA256 hashing, sidecar parsing, STT transcription, and Hindsight memory bank retention.
@@ -67,7 +83,7 @@ Each daemon maintains a standalone architectural specification document under `t
 
 ---
 
-## 5. Agent Skills
+## 6. Agent Skills
 
 All skills conform to the closed 6-field frontmatter schema ([agentskills.io](https://agentskills.io/specification)):
 
