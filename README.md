@@ -6,7 +6,7 @@ Personal Artificial Intelligence (PAI) agent plugin based on **Oh-my-PI** and **
 
 ## 1. Development & Testing (`Makefile`)
 
-The plugin includes a dedicated [Makefile](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/Makefile) for virtualenv management, testing, and linting:
+The plugin includes a dedicated [Makefile](Makefile) for virtualenv management, testing, and linting:
 
 ```bash
 make buildenv  # Create .venv and install mypai_tools & dependencies
@@ -21,7 +21,7 @@ make cleanenv  # Remove .venv directory
 
 ## 2. Sandbox Launcher & Service Configuration (`omp.env`)
 
-The plugin environment launcher configuration is defined in [omp.env](file:///home/wuxxin/agent-shared/code/mypai/omp.env):
+The plugin environment launcher configuration is defined in [omp.env](../../omp.env):
 
 - **Default Headless Service**: Executes `omp --headless` inside the target workspace directory (`$MYPAI_PROJECT_DIR`).
   ```bash
@@ -57,7 +57,7 @@ The plugin environment launcher configuration is defined in [omp.env](file:///ho
 
 ## 4. Configured MCP Servers (`mcp.json`)
 
-All MCP servers comply with **Agent Plugins 1.0.0 Standard** (`https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`) and are declared in [mcp.json](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/mcp.json):
+All MCP servers comply with **Agent Plugins 1.0.0 Standard** (`https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`) and are declared in [mcp.json](mcp.json):
 
 - **`chat-channel`**: Signal messaging interface (`mypai_tools.chat_mcp`).
 - **`cron-scheduler`**: Task & cron job scheduler backed by SQLite (`mypai_tools.cron_mcp`).
@@ -72,13 +72,13 @@ All MCP servers comply with **Agent Plugins 1.0.0 Standard** (`https://agent-plu
 Each daemon maintains a standalone architectural specification document under `tools/mypai_tools/`:
 
 - **heartbeat** (`python3 -m mypai_tools.heartbeat daemon --project-dir "$MYPAI_PROJECT_DIR"`)
-  - **Spec**: [heartbeat.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/tools/mypai_tools/heartbeat.md)
+  - **Spec**: [heartbeat.md](tools/mypai_tools/heartbeat.md)
   - **Function**: Background cron runner, SQLite WAL manager, & RPC poke engine for periodic work audits and Hindsight reflection sweeps (`daemon`, `once`, `import`, or `export` mode).
 - **input_spooler** (`python3 -m mypai_tools.input_spooler daemon --project-dir "$MYPAI_PROJECT_DIR"`)
-  - **Spec**: [input_spooler.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/tools/mypai_tools/input_spooler.md)
+  - **Spec**: [input_spooler.md](tools/mypai_tools/input_spooler.md)
   - **Function**: Asynchronous sidecar daemon watching inbox folder (`~/Recordings/Inbox`), SHA256 hashing, sidecar parsing, STT transcription, and Hindsight memory bank retention.
 - **chat_bridge** (`python3 -m mypai_tools.chat_bridge daemon --project-dir "$MYPAI_PROJECT_DIR"`)
-  - **Spec**: [chat_bridge.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/tools/mypai_tools/chat_bridge.md)
+  - **Spec**: [chat_bridge.md](tools/mypai_tools/chat_bridge.md)
   - **Function**: RPC bridge forwarding incoming Signal messages to active OMP sessions with Hindsight recall.
 
 ---
@@ -87,7 +87,7 @@ Each daemon maintains a standalone architectural specification document under `t
 
 All skills conform to the closed 6-field frontmatter schema ([agentskills.io](https://agentskills.io/specification)):
 
-- **`mypai-tools`**: [SKILL.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/skills/mypai-tools/SKILL.md) — Complete agent guide for `mypai_tools` MCP servers and background daemons.
-- **`arbor`**: [SKILL.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/skills/arbor/SKILL.md) — Graph-native AST code intelligence and workspace navigation.
-- **`openadapt`**: [SKILL.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/skills/openadapt/SKILL.md) — Browser capture and UI automation.
-- **`hindsight-api`**: [SKILL.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/skills/hindsight-api/SKILL.md) — REST API guide for Hindsight memory bank management and mental model updates.
+- **`mypai-tools`**: [SKILL.md](skills/mypai-tools/SKILL.md) — Complete agent guide for `mypai_tools` MCP servers and background daemons.
+- **`arbor`**: [SKILL.md](skills/arbor/SKILL.md) — Graph-native AST code intelligence and workspace navigation.
+- **`openadapt`**: [SKILL.md](skills/openadapt/SKILL.md) — Browser capture and UI automation.
+- **`hindsight-api`**: [SKILL.md](skills/hindsight-api/SKILL.md) — REST API guide for Hindsight memory bank management and mental model updates.

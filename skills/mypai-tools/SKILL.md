@@ -13,12 +13,12 @@ description: Complete guide for using mypai_tools MCP services (cron-scheduler, 
 
 | Component Type | Component Name | Implementation Module | Architectural Spec / File | Purpose |
 | :--- | :--- | :--- | :--- | :--- |
-| **MCP Server** | `cron-scheduler` | `mypai_tools.cron_mcp` | [mcp.json](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/mcp.json) | Cron schedule CRUD operations, `cron_run_once`, & job imports/exports |
-| **MCP Server** | `chat-channel` | `mypai_tools.chat_mcp` | [mcp.json](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/mcp.json) | Signal messaging interface (`signal-cli-rest-api`) |
-| **MCP Server** | `local-speech` | `mypai_tools.speech_mcp` | [mcp.json](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/mcp.json) | Local Speech-to-Text (Whisper) & Text-to-Speech synthesis |
-| **Daemon** | `heartbeat` | `mypai_tools.heartbeat` | [heartbeat.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/tools/mypai_tools/heartbeat.md) | Cron runner and execution daemon, SQLite WAL manager |
-| **Daemon** | `input_spooler` | `mypai_tools.input_spooler` | [input_spooler.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/tools/mypai_tools/input_spooler.md) | Inbox directory watcher, STT pipeline, & Hindsight retention |
-| **Daemon** | `chat_bridge` | `mypai_tools.chat_bridge` | [chat_bridge.md](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/tools/mypai_tools/chat_bridge.md) | Signal chat event listener & OMP session steering bridge |
+| **MCP Server** | `cron-scheduler` | `mypai_tools.cron_mcp` | [mcp.json](../../mcp.json) | Cron schedule CRUD operations, `cron_run_once`, & job imports/exports |
+| **MCP Server** | `chat-channel` | `mypai_tools.chat_mcp` | [mcp.json](../../mcp.json) | Signal messaging interface (`signal-cli-rest-api`) |
+| **MCP Server** | `local-speech` | `mypai_tools.speech_mcp` | [mcp.json](../../mcp.json) | Local Speech-to-Text (Whisper) & Text-to-Speech synthesis |
+| **Daemon** | `heartbeat` | `mypai_tools.heartbeat` | [heartbeat.md](../../tools/mypai_tools/heartbeat.md) | Cron runner and execution daemon, SQLite WAL manager |
+| **Daemon** | `input_spooler` | `mypai_tools.input_spooler` | [input_spooler.md](../../tools/mypai_tools/input_spooler.md) | Inbox directory watcher, STT pipeline, & Hindsight retention |
+| **Daemon** | `chat_bridge` | `mypai_tools.chat_bridge` | [chat_bridge.md](../../tools/mypai_tools/chat_bridge.md) | Signal chat event listener & OMP session steering bridge |
 
 ---
 
@@ -138,4 +138,4 @@ Processes audio transcription (`transcribe_audio`) via local Whisper (port 50090
 
 ## 8. References & Technical Guides
 
-- [Autofix Cron Entries Guide](file:///home/wuxxin/agent-shared/code/mypai/submodules/omp-mypai/skills/mypai-tools/references/autofix-cron-entries.md): Detailed guide for configuring `result_error_prompt` to capture error telemetry and automatically delegate fixes to a `@fixer` subagent.
+- [Autofix Cron Entries Guide](references/autofix-cron-entries.md): Detailed guide for configuring `result_error_prompt` to capture error telemetry and automatically delegate fixes to a `@fixer` subagent.

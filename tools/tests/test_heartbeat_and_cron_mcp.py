@@ -25,8 +25,8 @@ from mypai_tools.db import (
     substitute_vars,
 )
 from mypai_tools.executors.http_executor import execute_http_job
-from mypai_tools.executors.python_executor import execute_python_job
 from mypai_tools.executors.omp_rpc_executor import execute_rpc_job
+from mypai_tools.executors.python_executor import execute_python_job
 from mypai_tools.executors.shell_executor import build_full_command, execute_shell_job
 from mypai_tools.heartbeat import execute_job, main_async, parse_args
 from mypai_tools.models import CronJobModel

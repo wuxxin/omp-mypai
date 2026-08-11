@@ -10,7 +10,7 @@
       ],
       "env": {
         "VIRTUAL_ENV": "${PLUGIN_DATA}/venv",
-        "PATH": "${PLUGIN_DATA}/venv/bin:${PATH}",
+        "PATH": "${PLUGIN_DATA}/venv/bin",
         "PYTHONPATH": "${PLUGIN_ROOT}/tools"
       }
     },
@@ -23,7 +23,7 @@
       ],
       "env": {
         "VIRTUAL_ENV": "${PLUGIN_DATA}/venv",
-        "PATH": "${PLUGIN_DATA}/venv/bin:${PATH}",
+        "PATH": "${PLUGIN_DATA}/venv/bin",
         "PYTHONPATH": "${PLUGIN_ROOT}/tools"
       }
     },
@@ -36,7 +36,7 @@
       ],
       "env": {
         "VIRTUAL_ENV": "${PLUGIN_DATA}/venv",
-        "PATH": "${PLUGIN_DATA}/venv/bin:${PATH}",
+        "PATH": "${PLUGIN_DATA}/venv/bin",
         "PYTHONPATH": "${PLUGIN_ROOT}/tools"
       }
     },
