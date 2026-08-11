@@ -16,7 +16,7 @@ logger = logging.getLogger("mypai_heartbeat.omp_rpc_executor")
 
 
 async def execute_omp_rpc_job(
-    job: dict[str, Any], default_rpc_url: str = ""
+    job: dict[str, Any], default_rpc_url: str = "", client: Any | None = None
 ) -> dict[str, Any]:
     """Execute an RPC job via omp_rpc.RpcClient using inlined attributes.
 
@@ -62,6 +62,54 @@ async def execute_omp_rpc_job(
 
     logger.info("Executing OMP RPC job '%s' (action: %s)...", name, action)
 
+    def _dispatch_on_client(rpc_c: Any) -> dict[str, Any]:
+        if action in ("prompt", "prompt_and_wait"):
+            res = rpc_c.prompt_and_wait(prompt, timeout=120.0)
+            output = (
+                res.require_assistant_text()
+                if hasattr(res, "require_assistant_text")
+                else str(res)
+            )
+            raw_obj = res
+        elif action == "steer":
+            rpc_c.steer(prompt)
+            output = f"Steered: {prompt}"
+            raw_obj = {"steered": prompt}
+        elif action in ("followup", "follow_up"):
+            rpc_c.follow_up(prompt)
+            output = f"Follow-up queued: {prompt}"
+            raw_obj = {"followup": prompt}
+        elif action == "abort_and_prompt":
+            rpc_c.abort_and_prompt(prompt)
+            output = f"Aborted and prompted: {prompt}"
+            raw_obj = {"aborted_and_prompted": prompt}
+        elif action in ("switch_session", "branch"):
+            res_raw = rpc_c.request_raw(action, *rpc_args, **rpc_kwargs)
+            output = json.dumps(res_raw)
+            raw_obj = res_raw
+        else:
+            rpc_c.prompt(prompt)
+            output = f"Prompt queued: {prompt}"
+            raw_obj = {"prompted": prompt}
+
+        duration = round(time.time() - start_time, 3)
+        return {
+            "status": "success",
+            "kind": "omp",
+            "action": action,
+            "return_code": 0,
+            "output": output,
+            "error": "",
+            "object": raw_obj,
+            "duration_sec": duration,
+        }
+
+    if client is not None:
+        try:
+            return _dispatch_on_client(client)
+        except Exception as client_exc:  # noqa: BLE001
+            logger.warning("Persistent RPC client call failed: %s. Retrying with new client...", client_exc)
+
     if RpcClient is None:
         duration = round(time.time() - start_time, 3)
         return {
@@ -75,51 +123,15 @@ async def execute_omp_rpc_job(
             "duration_sec": duration,
         }
 
+    target_cwd = job.get("project_dir") or os.getenv("MYPAI_PROJECT_DIR")
+    rpc_client_kwargs: dict[str, Any] = {"extra_args": ["--auto-approve", "--continue"]}
+    if target_cwd and os.path.isdir(target_cwd):
+        rpc_client_kwargs["cwd"] = target_cwd
+
     try:
-        with RpcClient() as client:
-            client.install_headless_ui()
-
-            if action in ("prompt", "prompt_and_wait"):
-                res = client.prompt_and_wait(prompt, timeout=120.0)
-                output = (
-                    res.require_assistant_text()
-                    if hasattr(res, "require_assistant_text")
-                    else str(res)
-                )
-                raw_obj = res
-            elif action == "steer":
-                client.steer(prompt)
-                output = f"Steered: {prompt}"
-                raw_obj = {"steered": prompt}
-            elif action in ("followup", "follow_up"):
-                client.follow_up(prompt)
-                output = f"Follow-up queued: {prompt}"
-                raw_obj = {"followup": prompt}
-            elif action == "abort_and_prompt":
-                client.abort_and_prompt(prompt)
-                output = f"Aborted and prompted: {prompt}"
-                raw_obj = {"aborted_and_prompted": prompt}
-            elif action in ("switch_session", "branch"):
-                res_raw = client.request_raw(action, *rpc_args, **rpc_kwargs)
-                output = json.dumps(res_raw)
-                raw_obj = res_raw
-            else:
-                client.prompt(prompt)
-                output = f"Prompt queued: {prompt}"
-                raw_obj = {"prompted": prompt}
-
-            duration = round(time.time() - start_time, 3)
-            return {
-                "status": "success",
-                "kind": "omp",
-                "action": action,
-                "return_code": 0,
-                "output": output,
-                "error": "",
-                "object": raw_obj,
-                "duration_sec": duration,
-            }
-
+        with RpcClient(**rpc_client_kwargs) as temp_client:
+            temp_client.install_headless_ui()
+            return _dispatch_on_client(temp_client)
     except Exception as exc:  # noqa: BLE001
         logger.error("RPC execution error for job '%s': %s", name, exc)
         duration = round(time.time() - start_time, 3)

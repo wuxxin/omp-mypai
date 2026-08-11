@@ -67,10 +67,36 @@ def remove_pid_file(pid_path: str) -> None:
             logger.warning("Failed to remove PID file %s: %s", pid_path, exc)
 
 
+try:
+    from omp_rpc import RpcClient
+except ImportError:
+    RpcClient = None
+
+
 async def execute_job(
-    job: dict[str, Any], default_rpc_url: str = DEFAULT_RPC_URL, project_dir: str = ""
+    job: dict[str, Any],
+    default_rpc_url: str = DEFAULT_RPC_URL,
+    project_dir: str = "",
+    client: Any | None = None,
+    lock: asyncio.Lock | None = None,
 ) -> dict[str, Any]:
     """Execute job using inlined attributes and update telemetry stats in DB."""
+    if lock is not None:
+        async with lock:
+            return await _execute_job_impl(
+                job, default_rpc_url=default_rpc_url, project_dir=project_dir, client=client
+            )
+    return await _execute_job_impl(
+        job, default_rpc_url=default_rpc_url, project_dir=project_dir, client=client
+    )
+
+
+async def _execute_job_impl(
+    job: dict[str, Any],
+    default_rpc_url: str = DEFAULT_RPC_URL,
+    project_dir: str = "",
+    client: Any | None = None,
+) -> dict[str, Any]:
     job = substitute_vars(job)
     kind = str(job.get("kind", "omp")).lower()
     job_id = job.get("id", "unknown")
@@ -86,7 +112,9 @@ async def execute_job(
 
     try:
         if kind == "omp":
-            res = await execute_omp_rpc_job(job, default_rpc_url=default_rpc_url)
+            res = await execute_omp_rpc_job(
+                job, default_rpc_url=default_rpc_url, client=client
+            )
         elif kind == "http":
             res = await execute_http_job(job)
         elif kind == "shell":
@@ -160,9 +188,50 @@ class HeartbeatDaemon:
 
         self.scheduler = AsyncIOScheduler()
         self.scheduled_job_ids: set[str] = set()
+        self.rpc_client: Any | None = None
+        self.workspace_lock = asyncio.Lock()
+
+    def ensure_rpc_client(self) -> Any | None:
+        """Ensure the persistent RpcClient is alive; restart it automatically if dead or stopped."""
+        if RpcClient is None:
+            return None
+
+        is_dead = False
+        if self.rpc_client is not None:
+            proc = getattr(self.rpc_client, "_process", None)
+            if proc is None or proc.poll() is not None:
+                logger.warning("Persistent RpcClient process has died. Restarting...")
+                is_dead = True
+
+        if self.rpc_client is None or is_dead:
+            if self.rpc_client is not None:
+                try:
+                    self.rpc_client.stop()
+                except Exception:  # noqa: BLE001
+                    pass
+                self.rpc_client = None
+
+            try:
+                target_cwd = self.project_dir or os.getenv("MYPAI_PROJECT_DIR")
+                kwargs: dict[str, Any] = {"extra_args": ["--auto-approve", "--continue"]}
+                if target_cwd and os.path.isdir(target_cwd):
+                    kwargs["cwd"] = target_cwd
+                logger.info(
+                    "Starting persistent RpcClient (--mode rpc --auto-approve --continue --cwd %s)...",
+                    target_cwd or "default directory",
+                )
+                self.rpc_client = RpcClient(**kwargs).start()
+                self.rpc_client.install_headless_ui()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to start persistent RpcClient: %s. Will fallback to per-job RPC.", exc)
+                self.rpc_client = None
+
+        return self.rpc_client
 
     def sync_jobs_from_db(self) -> None:
         """Query DB for active cron jobs and synchronize AsyncIOScheduler tasks."""
+        self.ensure_rpc_client()
+
         session = get_db_session(self.project_dir)
         try:
             db_jobs = session.query(CronJobModel).filter_by(enabled=True).all()
@@ -188,7 +257,7 @@ class HeartbeatDaemon:
                         self.scheduler.add_job(
                             execute_job,
                             trigger=trigger,
-                            args=[job_dict, self.rpc_url, self.project_dir],
+                            args=[job_dict, self.rpc_url, self.project_dir, self.rpc_client, self.workspace_lock],
                             id=aps_job_id,
                             name=job.name,
                             replace_existing=True,
@@ -227,7 +296,15 @@ class HeartbeatDaemon:
         """Start scheduler, register DB jobs, and write PID file."""
         write_pid_file(self.pid_path)
 
+        self.ensure_rpc_client()
+
         def cleanup_handler(*args: Any) -> None:
+            if self.rpc_client is not None:
+                try:
+                    self.rpc_client.stop()
+                except Exception:  # noqa: BLE001
+                    pass
+                self.rpc_client = None
             remove_pid_file(self.pid_path)
 
         atexit.register(cleanup_handler)
@@ -257,7 +334,7 @@ class HeartbeatDaemon:
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("Shutting down Heartbeat daemon...")
             self.scheduler.shutdown(wait=False)
-            remove_pid_file(self.pid_path)
+            cleanup_handler()
 
 
 def export_jobs_to_json(file_path: str, project_dir: str = "") -> None:
