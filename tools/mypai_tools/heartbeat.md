@@ -9,7 +9,7 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
 ## 1. Primary Responsibilities & Functional Features
 
 1. **Per-Project SQLite Database Sync**:
-   - Manages cron job definitions stored in `$HOME/.omp/cron/projects/<project_hash>/cron.db`.
+   - Manages cron job definitions stored in `$HOME/.omp/cron/cron-<project_hash>.db`.
    - SQLite DB session helper is `get_db_session(project_dir: str)`.
    - Requires `cron` field for each job (e.g., standard 5-field syntax `"0 8 * * 0"` or immediate one-shot `"now"` trigger keyword; `cron` has no default value).
    - Dynamically syncs DB changes into memory every 10 seconds without requiring daemon restarts.
@@ -18,20 +18,22 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
    - **Recurring Crontabs**: Standard Unix crontab syntax where `0` = Sunday (or `7` = Sunday), e.g. `0 8 * * 0` or `* * * * *`.
    - **One-Shot Jobs (`cron: "now"`)**: When `cron` is `"now"`, `@now`, or `@once`, `heartbeat` uses APScheduler's `DateTrigger(run_date=datetime.now(timezone.utc))` with `misfire_grace_time=3600`. Upon execution completion, `heartbeat` automatically updates telemetry stats and sets `enabled=False` in SQLite so the task retains its history without repeating automatically.
 
-3. **Distinctive `#[VARNAME]` Macro & Env Variable Substitution**:
-   - Uses the unambiguous **`#[VARNAME]`** delimiter format for macro substitution across all string attributes (`url`, `action`, `args`, `kwargs`, `result_prompt`, `result_error_prompt`, `name`).
+3. **Distinctive `#{VARNAME}` / `#[VARNAME]` Macro & Env Variable Substitution**:
+   - Uses the **`#{VARNAME}`** and **`#[VARNAME]`** delimiter formats for macro substitution across all string attributes (`action`, `args`, `kwargs`, `result_prompt`, `result_error_prompt`, `name`).
 
 4. **Standardized Internal Execution Variables**:
    - Automatically populates standardized `_`-prefixed internal execution telemetry variables for result formatting in `result_prompt` / `result_error_prompt`:
-     - **`#[_RETURNCODE]`**: Process exit status code (0 for success, non-zero for error).
-     - **`#[_STDOUT]`**: Captured standard output text stream.
-     - **`#[_STDERR]`**: Captured standard error text stream.
-     - **`#[_OUTPUT]`**: Combined output / result text.
-     - **`#[_RESULT]`**: Executed return result value/string.
+     - **`#[_RETURN_CODE]`**: Process exit status / HTTP return code (`0` for success, non-zero for error).
+     - **`#[_OUTPUT]`**: Primary captured output stream (stdout for shell, HTTP response body, Python return value, OMP assistant text).
+     - **`#[_ERROR]`**: Primary captured error details (stderr for shell, HTTP error details, Python exception trace).
+     - **`#[_OBJECT]`**: JSON string representation of pristine return object (`json.dumps(res["object"])`).
+     - **`#[_HTTP_CODE]`**: Exact HTTP status code (e.g. `200`, `404`, `500`; default `0` for non-HTTP).
+     - **`#[_DURATION]`**: Execution runtime duration in seconds.
+     - **`#[_JOB_ID]`** & **`#[_JOB_NAME]`**: Cron task ID and name.
 
 5. **Result Action Processing (`result_action`), Prompts & Delivery Channels (`result_channel`)**:
-   - **`result_prompt`**: Template used on `exitlevel == 0`.
-   - **`result_error_prompt`**: Template used on `exitlevel != 0` (falls back to `result_prompt` if empty).
+   - **`result_prompt`**: Template used on `return_code == 0`.
+   - **`result_error_prompt`**: Template used on `return_code != 0` (falls back to `result_prompt` if empty).
    - **`result_action`**: Action with formatted result prompt when evaluated (`"ignore"`, `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`).
    - **`result_channel`**: Target delivery channel (`""` for default no extra output, or `"signal"` for Signal messaging).
 
@@ -44,12 +46,12 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
        action="python3",
        args=["scripts/db_audit.py"],
        result_action="prompt",
-       result_prompt="Nightly Database Audit completed successfully:\n#[_STDOUT]",
+       result_prompt="Nightly Database Audit completed successfully:\n#[_OUTPUT]",
        result_error_prompt=(
            "ALERT: Cron entry 'Nightly Database Audit' failed!\n"
-           "Exit Code: #[_RETURNCODE]\n\n"
-           "STDERR:\n#[_STDERR]\n\n"
-           "STDOUT:\n#[_STDOUT]\n\n"
+           "Exit Code: #[_RETURN_CODE]\n\n"
+           "ERROR:\n#[_ERROR]\n\n"
+           "OUTPUT:\n#[_OUTPUT]\n\n"
            "Please inspect the mypai-tools skill and spawn a @fixer agent to resolve the issue."
        ),
    )

@@ -7,7 +7,7 @@ from .shell_executor import execute_shell_job
 
 __all__ = [
     "execute_http_job",
-    "execute_python_job",
     "execute_omp_rpc_job",
+    "execute_python_job",
     "execute_shell_job",
 ]

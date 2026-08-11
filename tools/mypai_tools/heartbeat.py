@@ -33,8 +33,8 @@ from mypai_tools.db import (
 )
 from mypai_tools.executors import (
     execute_http_job,
-    execute_python_job,
     execute_omp_rpc_job,
+    execute_python_job,
     execute_shell_job,
 )
 from mypai_tools.models import CronJobModel
