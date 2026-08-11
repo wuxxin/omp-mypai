@@ -22,9 +22,5 @@
     "arbor",
     "mcp",
     "agent-plugin"
-  ],
-  "mcp": "mcp.json",
-  "env": {
-    "PYTHONPATH": "${PLUGIN_ROOT}/tools"
-  }
+  ]
 }

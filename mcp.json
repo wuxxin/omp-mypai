@@ -9,6 +9,8 @@
         "mypai_tools.chat_mcp"
       ],
       "env": {
+        "VIRTUAL_ENV": "${PLUGIN_DATA}/venv",
+        "PATH": "${PLUGIN_DATA}/venv/bin:${PATH}",
         "PYTHONPATH": "${PLUGIN_ROOT}/tools"
       }
     },
@@ -20,6 +22,8 @@
         "mypai_tools.cron_mcp"
       ],
       "env": {
+        "VIRTUAL_ENV": "${PLUGIN_DATA}/venv",
+        "PATH": "${PLUGIN_DATA}/venv/bin:${PATH}",
         "PYTHONPATH": "${PLUGIN_ROOT}/tools"
       }
     },
@@ -31,6 +35,8 @@
         "mypai_tools.speech_mcp"
       ],
       "env": {
+        "VIRTUAL_ENV": "${PLUGIN_DATA}/venv",
+        "PATH": "${PLUGIN_DATA}/venv/bin:${PATH}",
         "PYTHONPATH": "${PLUGIN_ROOT}/tools"
       }
     },
