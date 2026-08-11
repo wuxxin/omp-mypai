@@ -2,14 +2,17 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-
 [project]
 name = "mypai_tools"
 version = "0.1.0"
-description = "MyPAI agent tools package for oh-my-pi"
+description = "MyPAI agent tools, daemons, and MCP servers package for oh-my-pi"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.22.0",
+    "websockets>=11.0",
+    "pydantic>=2.0.0",
     "sqlalchemy>=2.0.0",
     "httpx>=0.24.0",
     "watchdog>=3.0.0",
@@ -19,6 +22,12 @@ dependencies = [
     "omp-rpc>=0.1.0",
 ]
 
-[tool.setuptools]
-packages = ["mypai_tools", "mypai_tools.executors"]
-package-dir = {"mypai_tools" = "."}
+[project.scripts]
+mypai_daemon = "mypai_tools.daemon.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mypai_tools*"]
+
+[tool.setuptools.package-data]
+mypai_tools = ["webui/*.html"]

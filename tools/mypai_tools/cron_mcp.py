@@ -6,6 +6,7 @@ import logging
 import os
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -96,7 +97,7 @@ def cron_add_job(
     session = get_db_session(project_dir)
     import uuid
     job_id = str(uuid.uuid4())[:8]
-    now_iso = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     args_str = json.dumps(args) if isinstance(args, (dict, list)) else str(args or "")
     kwargs_str = json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
@@ -168,7 +169,7 @@ def cron_run_once(
 
     # Fallback to direct SQLite DB session
     session = get_db_session(project_dir)
-    now_iso = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     args_str = json.dumps(args) if isinstance(args, (dict, list)) else str(args or "")
     kwargs_str = json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
 

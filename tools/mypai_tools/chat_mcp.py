@@ -2,7 +2,9 @@
 """MCP tool server for Signal messaging integration using SignalClient SDK."""
 
 from typing import Any
+
 from mcp.server.fastmcp import FastMCP
+
 from mypai_tools.signal_client import SignalClient
 
 mcp = FastMCP("chat-channel")

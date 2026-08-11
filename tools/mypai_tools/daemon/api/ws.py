@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """WebSocket Manager and Endpoint for real-time WebUI streaming in mypai_daemon."""
 
-import asyncio
 import json
 import logging
 from typing import Any

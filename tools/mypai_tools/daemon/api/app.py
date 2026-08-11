@@ -4,16 +4,16 @@
 import json
 import os
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
-
-from mypai_tools.daemon.api.ws import router as ws_router, ws_manager
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from mypai_tools.daemon.api.ws import router as ws_router
+from mypai_tools.daemon.api.ws import ws_manager
 from mypai_tools.db import get_db_session
 from mypai_tools.models import CronJobModel
+from pydantic import BaseModel, Field
 
 app = FastAPI(
     title="MyPAI Daemon REST API",
@@ -118,7 +118,7 @@ async def cron_list_jobs(include_disabled: bool = True, project_dir: str = "") -
 async def cron_add_job(job: CronJobSchema, project_dir: str = "") -> dict[str, Any]:
     session = get_db_session(project_dir)
     job_id = str(uuid.uuid4())[:8]
-    now_iso = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     args_str = json.dumps(job.args) if isinstance(job.args, (dict, list)) else str(job.args or "")
     kwargs_str = json.dumps(job.kwargs) if isinstance(job.kwargs, (dict, list)) else str(job.kwargs or "")
@@ -144,7 +144,7 @@ async def cron_add_job(job: CronJobSchema, project_dir: str = "") -> dict[str, A
         session.add(db_job)
         session.commit()
         return {"status": "scheduled", "job": db_job.to_dict()}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         session.rollback()
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     finally:
@@ -161,7 +161,7 @@ async def cron_modify_job(job_id: str, updates: dict[str, Any], project_dir: str
         for k, v in updates.items():
             if hasattr(db_job, k):
                 setattr(db_job, k, v)
-        db_job.updated_at = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
+        db_job.updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         session.commit()
         return {"status": "modified", "job": db_job.to_dict()}
     finally:
