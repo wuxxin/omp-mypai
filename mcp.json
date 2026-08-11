@@ -27,19 +27,6 @@
         "PYTHONPATH": "${PLUGIN_ROOT}/tools"
       }
     },
-    "local-speech": {
-      "type": "stdio",
-      "command": "python3",
-      "args": [
-        "-m",
-        "mypai_tools.speech_mcp"
-      ],
-      "env": {
-        "VIRTUAL_ENV": "${PLUGIN_DATA}/venv",
-        "PATH": "${PLUGIN_DATA}/venv/bin",
-        "PYTHONPATH": "${PLUGIN_ROOT}/tools"
-      }
-    },
     "arbor": {
       "type": "stdio",
       "command": "python3",
@@ -59,4 +46,3 @@
     }
   }
 }
-

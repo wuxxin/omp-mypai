@@ -129,11 +129,31 @@ def main() -> None:
         )
         server = uvicorn.Server(config)
 
+        loop = asyncio.get_running_loop()
+        import signal
+
+        def handle_shutdown(sig_name: str) -> None:
+            logger.info("Received signal %s. Initiating graceful shutdown...", sig_name)
+            asyncio.create_task(ws_manager.broadcast({"event": "daemon_stopping"}))
+            server.should_exit = True
+
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(sig, lambda s=sig.name: handle_shutdown(s))
+            except (NotImplementedError, RuntimeError):
+                pass
+
         try:
             await server.serve()
         finally:
+            logger.info("Cleaning up daemon resources...")
             worker_task.cancel()
             scheduler.shutdown()
+            if session_mgr.rpc_client:
+                try:
+                    session_mgr.rpc_client.stop()
+                except Exception:  # noqa: BLE001
+                    pass
 
     try:
         asyncio.run(run_server())

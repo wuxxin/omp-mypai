@@ -121,18 +121,18 @@ def get_project_db_path(project_dir: str = "") -> str:
     return os.path.join(cron_dir, f"cron-{p_hash}.db")
 
 
-def get_heartbeat_pid_path(project_dir: str = "") -> str:
-    """Get heartbeat daemon PID file path for given project directory."""
+def get_daemon_pid_path(project_dir: str = "") -> str:
+    """Get daemon PID file path for given project directory."""
     p_hash = get_project_dir_hash(project_dir)
     base_dir = os.environ.get("OMP_DIR", os.path.expanduser("~/.omp"))
     cron_dir = os.path.join(base_dir, "cron")
     os.makedirs(cron_dir, exist_ok=True)
-    return os.path.join(cron_dir, f"heartbeat-{p_hash}.pid")
+    return os.path.join(cron_dir, f"mypai-daemon-{p_hash}.pid")
 
 
-def is_heartbeat_running(project_dir: str = "") -> bool:
-    """Check if heartbeat process PID exists and is actively running."""
-    pid_path = get_heartbeat_pid_path(project_dir)
+def is_daemon_running(project_dir: str = "") -> bool:
+    """Check if daemon process PID exists and is actively running."""
+    pid_path = get_daemon_pid_path(project_dir)
     if not os.path.isfile(pid_path):
         return False
     try:
@@ -142,6 +142,14 @@ def is_heartbeat_running(project_dir: str = "") -> bool:
         return True
     except (ValueError, OSError):
         return False
+
+
+def get_heartbeat_pid_path(project_dir: str = "") -> str:
+    return get_daemon_pid_path(project_dir)
+
+
+def is_heartbeat_running(project_dir: str = "") -> bool:
+    return is_daemon_running(project_dir)
 
 
 def get_db_session(project_dir: str = ""):
