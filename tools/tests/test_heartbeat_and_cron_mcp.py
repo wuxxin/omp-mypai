@@ -25,7 +25,7 @@ from mypai_tools.db import (
     substitute_vars,
 )
 from mypai_tools.executors.http_executor import execute_http_job
-from mypai_tools.executors.omp_rpc_executor import execute_rpc_job
+from mypai_tools.executors.omp_rpc_executor import execute_omp_rpc_job
 from mypai_tools.executors.python_executor import execute_python_job
 from mypai_tools.executors.shell_executor import build_full_command, execute_shell_job
 from mypai_tools.heartbeat import execute_job, main_async, parse_args
@@ -69,9 +69,7 @@ class TestCronDbAndMacroSubstitution(unittest.TestCase):
             "_OBJECT": {"status": "success"},
         }
         res = substitute_vars(raw_text, extra_vars=extra)
-        self.assertEqual(
-            res, 'Exit code 0: System OK (Result: {"status": "success"})'
-        )
+        self.assertEqual(res, 'Exit code 0: System OK (Result: {"status": "success"})')
 
     def test_substitute_env_vars_nested_structures(self) -> None:
         """Test recursive macro substitution in dicts and lists."""
@@ -193,7 +191,7 @@ class TestHttpAndRpcExecutors(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(res["return_code"], 0)
         self.assertIn("reflected", res["output"])
 
-    async def test_execute_rpc_job_prompt_extraction(self) -> None:
+    async def test_execute_omp_rpc_job_prompt_extraction(self) -> None:
         """Test RPC prompt extraction from kwargs.prompt."""
         job = {
             "name": "RPC Test Job",
@@ -202,14 +200,16 @@ class TestHttpAndRpcExecutors(unittest.IsolatedAsyncioTestCase):
             "kwargs": {"prompt": "Perform work sweep audit"},
         }
         # mock_client context
-        with patch("mypai_tools.executors.omp_rpc_executor.RpcClient") as mock_rpc_class:
+        with patch(
+            "mypai_tools.executors.omp_rpc_executor.RpcClient"
+        ) as mock_rpc_class:
             mock_client = MagicMock()
             mock_rpc_class.return_value.__enter__.return_value = mock_client
             mock_res = MagicMock()
             mock_res.require_assistant_text.return_value = "Audit complete."
             mock_client.prompt_and_wait.return_value = mock_res
 
-            res = await execute_rpc_job(job)
+            res = await execute_omp_rpc_job(job)
             self.assertEqual(res["status"], "success")
             self.assertEqual(res["output"], "Audit complete.")
             mock_client.prompt_and_wait.assert_called_once_with(
@@ -240,9 +240,7 @@ class TestFastMcpCronTools(unittest.TestCase):
             result_channel="signal",
             project_dir=self.temp_dir,
         )
-        self.assertIn(
-            add_res["status"], ("scheduled", "scheduled_heartbeat_offline")
-        )
+        self.assertIn(add_res["status"], ("scheduled", "scheduled_heartbeat_offline"))
         job_data = add_res["job"]
         job_id = job_data["id"]
         self.assertEqual(job_data["cron"], "0 8 * * 0")
@@ -294,7 +292,9 @@ class TestFastMcpCronTools(unittest.TestCase):
             kwargs={"k": "v"},
             project_dir=self.temp_dir,
         )
-        self.assertIn(run1["status"], ("scheduled_once", "scheduled_once_heartbeat_offline"))
+        self.assertIn(
+            run1["status"], ("scheduled_once", "scheduled_once_heartbeat_offline")
+        )
         job1 = run1["job"]
         self.assertEqual(job1["cron"], "now")
         self.assertTrue(job1["enabled"])
@@ -379,9 +379,7 @@ class TestHeartbeatTelemetryUpdate(unittest.IsolatedAsyncioTestCase):
         # Verify DB telemetry
         session = get_db_session(self.temp_dir)
         try:
-            db_job = (
-                session.query(CronJobModel).filter_by(id=job_data["id"]).first()
-            )
+            db_job = session.query(CronJobModel).filter_by(id=job_data["id"]).first()
             self.assertIsNotNone(db_job)
             self.assertTrue(bool(db_job.last_start))
             self.assertTrue(bool(db_job.last_stop))
@@ -409,9 +407,7 @@ class TestHeartbeatTelemetryUpdate(unittest.IsolatedAsyncioTestCase):
         # Verify DB: enabled should be False, total_calls should be 1
         session = get_db_session(self.temp_dir)
         try:
-            db_job = (
-                session.query(CronJobModel).filter_by(id=job_data["id"]).first()
-            )
+            db_job = session.query(CronJobModel).filter_by(id=job_data["id"]).first()
             self.assertIsNotNone(db_job)
             self.assertFalse(db_job.enabled)
             self.assertEqual(db_job.total_calls, 1)
@@ -450,7 +446,9 @@ class TestHeartbeatCliSubcommands(unittest.IsolatedAsyncioTestCase):
     async def test_main_async_import_and_export(self) -> None:
         """Test main_async execution of import and export subcommands."""
         # 1. Import default jobs
-        args_import = parse_args(["import", DEFAULT_JOBS_FILE, "--project-dir", self.temp_dir])
+        args_import = parse_args(
+            ["import", DEFAULT_JOBS_FILE, "--project-dir", self.temp_dir]
+        )
         res_import = await main_async(args_import)
         self.assertEqual(res_import, 0)
 
@@ -464,7 +462,9 @@ class TestHeartbeatCliSubcommands(unittest.IsolatedAsyncioTestCase):
 
         # 2. Export jobs to file
         export_file = os.path.join(self.temp_dir, "exported.json")
-        args_export = parse_args(["export", export_file, "--project-dir", self.temp_dir])
+        args_export = parse_args(
+            ["export", export_file, "--project-dir", self.temp_dir]
+        )
         res_export = await main_async(args_export)
         self.assertEqual(res_export, 0)
         self.assertTrue(os.path.isfile(export_file))

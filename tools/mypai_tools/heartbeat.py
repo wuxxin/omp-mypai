@@ -34,7 +34,7 @@ from mypai_tools.db import (
 from mypai_tools.executors import (
     execute_http_job,
     execute_python_job,
-    execute_rpc_job,
+    execute_omp_rpc_job,
     execute_shell_job,
 )
 from mypai_tools.models import CronJobModel
@@ -86,7 +86,7 @@ async def execute_job(
 
     try:
         if kind == "omp":
-            res = await execute_rpc_job(job, default_rpc_url=default_rpc_url)
+            res = await execute_omp_rpc_job(job, default_rpc_url=default_rpc_url)
         elif kind == "http":
             res = await execute_http_job(job)
         elif kind == "shell":

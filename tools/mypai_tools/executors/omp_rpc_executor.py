@@ -15,7 +15,7 @@ except ImportError:
 logger = logging.getLogger("mypai_heartbeat.omp_rpc_executor")
 
 
-async def execute_rpc_job(
+async def execute_omp_rpc_job(
     job: dict[str, Any], default_rpc_url: str = ""
 ) -> dict[str, Any]:
     """Execute an RPC job via omp_rpc.RpcClient using inlined attributes.
