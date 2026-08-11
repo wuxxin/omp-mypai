@@ -135,9 +135,7 @@ def save_processed_hashes(state_file: Path, hashes: set[str]) -> None:
     """
     try:
         state_file.parent.mkdir(parents=True, exist_ok=True)
-        state_file.write_text(
-            json.dumps(sorted(hashes), indent=2), encoding="utf-8"
-        )
+        state_file.write_text(json.dumps(sorted(hashes), indent=2), encoding="utf-8")
     except Exception as exc:  # noqa: BLE001
         logger.error("Failed to save processed state to %s: %s", state_file, exc)
 

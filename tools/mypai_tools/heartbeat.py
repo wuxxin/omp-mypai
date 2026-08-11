@@ -2,7 +2,7 @@
 """OMP Background Service Heartbeat & Cron Runner.
 
 Implements an AsyncIOScheduler background daemon connected to the per-project
-SQLite database ($HOME/.omp/cron/projects/<project_hash>/cron.db).
+SQLite database ($HOME/.omp/cron/cron-<project_hash>.db).
 Manages heartbeat.pid lifecycle, periodic DB job sync, inlined attribute execution telemetry,
 CLI JSON import/export, and simplified job execution (rpc, http, shell, python).
 """
@@ -29,7 +29,7 @@ from mypai_tools.db import (
     get_heartbeat_pid_path,
     get_project_db_path,
     normalize_cron_expression,
-    substitute_env_vars,
+    substitute_vars,
 )
 from mypai_tools.executors import (
     execute_http_job,
@@ -71,7 +71,7 @@ async def execute_job(
     job: dict[str, Any], default_rpc_url: str = DEFAULT_RPC_URL, project_dir: str = ""
 ) -> dict[str, Any]:
     """Execute job using inlined attributes and update telemetry stats in DB."""
-    job = substitute_env_vars(job)
+    job = substitute_vars(job)
     kind = str(job.get("kind", "omp")).lower()
     job_id = job.get("id", "unknown")
     name = job.get("name", "Unnamed Job")
@@ -85,38 +85,34 @@ async def execute_job(
     output_summary = ""
 
     try:
-        if kind in ("omp", "command"):
+        if kind == "omp":
             res = await execute_rpc_job(job, default_rpc_url=default_rpc_url)
-            result.update(res)
-            returncode = 0 if res.get("status") == "success" else 1
-            output_summary = res.get("output") or res.get("error") or ""
-
-        elif kind.startswith("http"):
+        elif kind == "http":
             res = await execute_http_job(job)
-            result.update(res)
-            returncode = 0 if res.get("status") == "success" else 1
-            output_summary = res.get("output") or res.get("error") or ""
-
         elif kind == "shell":
             res = await execute_shell_job(job)
-            result.update(res)
-            returncode = res.get("exit_code", 0)
-            output_summary = res.get("output") or res.get("stderr") or ""
-
         elif kind == "python":
             res = await execute_python_job(job)
-            result.update(res)
-            returncode = 0 if res.get("status") == "success" else 1
-            output_summary = res.get("output") or res.get("error") or ""
-
         else:
             raise ValueError(f"Unsupported job kind '{kind}'")
+
+        result.update(res)
+        returncode = res.get("return_code", 0)
+        output_summary = res.get("output") or res.get("error") or ""
 
     except Exception as exc:  # noqa: BLE001
         logger.error("Execution error for job '%s': %s", name, exc)
         returncode = 1
         output_summary = str(exc)
-        result.update({"status": "error", "error": output_summary})
+        result.update(
+            {
+                "status": "error",
+                "return_code": 1,
+                "output": "",
+                "error": output_summary,
+                "object": None,
+            }
+        )
 
     end_time = time.time()
     end_iso = datetime.now(timezone.utc).isoformat()
@@ -124,13 +120,13 @@ async def execute_job(
 
     result["duration_sec"] = duration_sec
 
-    # Update execution telemetry in DB and disable if one-shot ('now'/'@once')
+    # Update execution telemetry in DB and disable if one-shot ('now')
     session = get_db_session(project_dir)
     try:
         db_job = session.query(CronJobModel).filter_by(id=job_id).first()
         if db_job:
             cron_clean = str(db_job.cron or "").strip().lower()
-            if cron_clean in ("now", "@now", "@once"):
+            if cron_clean == "now":
                 db_job.enabled = False
 
             db_job.last_start = start_iso
@@ -181,7 +177,7 @@ class HeartbeatDaemon:
                 if aps_job_id not in self.scheduled_job_ids:
                     try:
                         cron_str = str(job.cron or "").strip().lower()
-                        if cron_str in ("now", "@now", "@once"):
+                        if cron_str == "now":
                             trigger = DateTrigger(run_date=datetime.now(timezone.utc))
                             misfire_grace = 3600
                         else:
@@ -330,7 +326,11 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
             res_err_prompt_val = item.get("result_error_prompt", "")
             cron_val = item.get("cron")
             if not cron_val:
-                logger.error("Job '%s' (ID: %s) missing required 'cron' field.", item.get("name"), job_id)
+                logger.error(
+                    "Job '%s' (ID: %s) missing required 'cron' field.",
+                    item.get("name"),
+                    job_id,
+                )
                 continue
             res_channel_val = item.get("result_channel", "")
 
@@ -346,7 +346,9 @@ def import_jobs_from_json(file_path: str, project_dir: str = "") -> None:
                 existing.url = item.get("url", existing.url)
                 existing.args = args_val
                 existing.kwargs = kwargs_val
-                existing.result_action = item.get("result_action", existing.result_action)
+                existing.result_action = item.get(
+                    "result_action", existing.result_action
+                )
                 existing.enabled = item.get("enabled", existing.enabled)
                 existing.updated_at = now_iso
             else:

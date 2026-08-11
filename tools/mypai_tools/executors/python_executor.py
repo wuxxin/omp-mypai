@@ -3,9 +3,10 @@
 import asyncio
 import json
 import logging
+import time
 from typing import Any
 
-from mypai_tools.db import substitute_env_vars
+from mypai_tools.db import substitute_vars
 
 try:
     from omp_rpc import RpcClient
@@ -16,16 +17,9 @@ logger = logging.getLogger("mypai_heartbeat.python_executor")
 
 
 async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
-    """Execute Python lambda expression or code block in-process using inlined attributes.
-
-    Inlined Attributes:
-    - action: Python lambda expression (e.g. 'lambda args, kwargs: {"status": "ok", "count": len(args)}') or code block
-    - args: positional args list passed to lambda/code
-    - kwargs: keyword args dictionary passed to lambda/code
-    - result_prompt: optional result header template supporting #[_RESULT], #[_STDOUT], #[_RETURNCODE] placeholders
-    - result_error_prompt: optional error result template used on exitlevel != 0
-    - result_action: 'ignore' (default), 'prompt', 'steer', 'followup', 'abort_and_prompt'
-    """
+    """Execute Python lambda expression or code block in-process using inlined attributes."""
+    start_time = time.time()
+    job = substitute_vars(job)
     name = job.get("name", "Unnamed Python Job")
     code = job.get("action") or ""
     if not code:
@@ -79,26 +73,31 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
         if asyncio.iscoroutine(res):
             res = await res
 
+        duration = round(time.time() - start_time, 3)
         res_str = json.dumps(res) if isinstance(res, (dict, list)) else str(res)
 
         internal_vars = {
-            "_RETURNCODE": 0,
-            "_STDOUT": res_str,
-            "_STDERR": "",
-            "_RESULT": res_str,
+            "_RETURN_CODE": 0,
             "_OUTPUT": res_str,
+            "_ERROR": "",
+            "_OBJECT": res,
+            "_HTTP_CODE": 0,
+            "_DURATION": duration,
+            "_JOB_ID": job.get("id", ""),
+            "_JOB_NAME": name,
         }
 
         result_prompt_template = job.get("result_prompt") or ""
         if result_prompt_template:
-            if "#[" in result_prompt_template:
-                final_output = substitute_env_vars(result_prompt_template, extra_vars=internal_vars)
+            if "#" in result_prompt_template:
+                final_output = substitute_vars(
+                    result_prompt_template, extra_vars=internal_vars
+                )
             else:
                 final_output = f"{result_prompt_template}\n{res_str}"
         else:
             final_output = res_str
 
-        # Route result_prompt to OMP via omp_rpc using result_action if result_action != ignore
         if result_action != "ignore" and RpcClient is not None and final_output:
             try:
                 with RpcClient() as client:
@@ -112,27 +111,44 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
                     elif result_action == "abort_and_prompt":
                         client.abort_and_prompt(final_output)
             except Exception as exc:  # noqa: BLE001
-                logger.warning("Failed to route python output to OMP via RpcClient: %s", exc)
+                logger.warning(
+                    "Failed to route python output to OMP via RpcClient: %s", exc
+                )
 
-        return {"status": "success", "result": res, "output": final_output}
+        return {
+            "status": "success",
+            "kind": "python",
+            "action": code,
+            "return_code": 0,
+            "output": final_output,
+            "error": "",
+            "object": res,
+            "duration_sec": duration,
+        }
 
     except Exception as exc:  # noqa: BLE001
         logger.error("Python execution error for job '%s': %s", name, exc)
+        duration = round(time.time() - start_time, 3)
         err_str = str(exc)
         internal_vars = {
-            "_RETURNCODE": 1,
-            "_STDOUT": "",
-            "_STDERR": err_str,
-            "_RESULT": err_str,
-            "_OUTPUT": err_str,
+            "_RETURN_CODE": 1,
+            "_OUTPUT": "",
+            "_ERROR": err_str,
+            "_OBJECT": None,
+            "_HTTP_CODE": 0,
+            "_DURATION": duration,
+            "_JOB_ID": job.get("id", ""),
+            "_JOB_NAME": name,
         }
 
         result_prompt_template = (
             job.get("result_error_prompt") or job.get("result_prompt") or ""
         )
         if result_prompt_template:
-            if "#[" in result_prompt_template:
-                final_output = substitute_env_vars(result_prompt_template, extra_vars=internal_vars)
+            if "#" in result_prompt_template:
+                final_output = substitute_vars(
+                    result_prompt_template, extra_vars=internal_vars
+                )
             else:
                 final_output = f"{result_prompt_template}\n{err_str}"
         else:
@@ -151,6 +167,18 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
                     elif result_action == "abort_and_prompt":
                         client.abort_and_prompt(final_output)
             except Exception as rpc_exc:  # noqa: BLE001
-                logger.warning("Failed to route python error output to OMP via RpcClient: %s", rpc_exc)
+                logger.warning(
+                    "Failed to route python error output to OMP via RpcClient: %s",
+                    rpc_exc,
+                )
 
-        return {"status": "error", "error": err_str, "output": final_output}
+        return {
+            "status": "error",
+            "kind": "python",
+            "action": code,
+            "return_code": 1,
+            "output": final_output,
+            "error": err_str,
+            "object": None,
+            "duration_sec": duration,
+        }

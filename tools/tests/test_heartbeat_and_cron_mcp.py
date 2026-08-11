@@ -22,10 +22,11 @@ from mypai_tools.db import (
     get_db_session,
     normalize_cron_expression,
     substitute_env_vars,
+    substitute_vars,
 )
 from mypai_tools.executors.http_executor import execute_http_job
 from mypai_tools.executors.python_executor import execute_python_job
-from mypai_tools.executors.rpc_executor import execute_rpc_job
+from mypai_tools.executors.omp_rpc_executor import execute_rpc_job
 from mypai_tools.executors.shell_executor import build_full_command, execute_shell_job
 from mypai_tools.heartbeat import execute_job, main_async, parse_args
 from mypai_tools.models import CronJobModel
@@ -59,15 +60,15 @@ class TestCronDbAndMacroSubstitution(unittest.TestCase):
             res = substitute_env_vars(raw_text)
             self.assertEqual(res, "Connecting to secret_value_123...")
 
-    def test_substitute_env_vars_internal_vars(self) -> None:
-        """Test #[_RETURNCODE], #[_STDOUT], #[_RESULT] macro expansion."""
-        raw_text = "Exit code #[_RETURNCODE]: #[_STDOUT] (Result: #[_RESULT])"
+    def test_substitute_vars_internal_vars(self) -> None:
+        """Test #{VAR} and #[_RETURN_CODE], #[_OUTPUT], #[_OBJECT] macro expansion."""
+        raw_text = "Exit code #[_RETURN_CODE]: #{_OUTPUT} (Result: #[_OBJECT])"
         extra = {
-            "_RETURNCODE": 0,
-            "_STDOUT": "System OK",
-            "_RESULT": {"status": "success"},
+            "_RETURN_CODE": 0,
+            "_OUTPUT": "System OK",
+            "_OBJECT": {"status": "success"},
         }
-        res = substitute_env_vars(raw_text, extra_vars=extra)
+        res = substitute_vars(raw_text, extra_vars=extra)
         self.assertEqual(
             res, 'Exit code 0: System OK (Result: {"status": "success"})'
         )
@@ -102,17 +103,17 @@ class TestShellExecutor(unittest.IsolatedAsyncioTestCase):
         self.assertIn("--verbose", cmd)
 
     async def test_execute_shell_job_success(self) -> None:
-        """Test executing shell job with #[_RETURNCODE] and #[_STDOUT] in result_prompt."""
+        """Test executing shell job with #[_RETURN_CODE] and #[_OUTPUT] in result_prompt."""
         job = {
             "name": "Shell Test Job",
             "kind": "shell",
             "action": "echo",
             "args": ["Hello Unit Test"],
-            "result_prompt": "Output (code #[_RETURNCODE]): #[_STDOUT]",
+            "result_prompt": "Output (code #[_RETURN_CODE]): #[_OUTPUT]",
         }
         res = await execute_shell_job(job)
         self.assertEqual(res["status"], "success")
-        self.assertEqual(res["exit_code"], 0)
+        self.assertEqual(res["return_code"], 0)
         self.assertIn("Output (code 0): Hello Unit Test", res["output"])
 
     async def test_execute_shell_job_error_prompt(self) -> None:
@@ -121,18 +122,18 @@ class TestShellExecutor(unittest.IsolatedAsyncioTestCase):
             "name": "Shell Error Test Job",
             "kind": "shell",
             "action": "ls /non_existent_directory_mypai_test_12345",
-            "result_prompt": "Success output: #[_STDOUT]",
-            "result_error_prompt": "Command Failed (code #[_RETURNCODE]): #[_STDERR]",
+            "result_prompt": "Success output: #[_OUTPUT]",
+            "result_error_prompt": "Command Failed (code #[_RETURN_CODE]): #[_ERROR]",
         }
         res = await execute_shell_job(job)
         self.assertEqual(res["status"], "error")
-        self.assertNotEqual(res["exit_code"], 0)
+        self.assertNotEqual(res["return_code"], 0)
         self.assertIn("Command Failed (code ", res["output"])
         self.assertIn("non_existent_directory_mypai_test_12345", res["output"])
 
 
 class TestPythonExecutor(unittest.IsolatedAsyncioTestCase):
-    """Test Python Job Executor lambda evaluation, args/kwargs, and #[_RESULT] formatting."""
+    """Test Python Job Executor lambda evaluation, args/kwargs, and #[_OBJECT] formatting."""
 
     async def test_execute_python_lambda(self) -> None:
         """Test executing Python lambda expression."""
@@ -142,11 +143,11 @@ class TestPythonExecutor(unittest.IsolatedAsyncioTestCase):
             "action": "lambda args, kwargs: {'status': 'ok', 'count': len(args), 'env': kwargs.get('env')}",
             "args": ["a", "b", "c"],
             "kwargs": {"env": "test"},
-            "result_prompt": "Lambda Result: #[_RESULT]",
+            "result_prompt": "Lambda Result: #[_OBJECT]",
         }
         res = await execute_python_job(job)
         self.assertEqual(res["status"], "success")
-        self.assertEqual(res["result"], {"status": "ok", "count": 3, "env": "test"})
+        self.assertEqual(res["object"], {"status": "ok", "count": 3, "env": "test"})
         self.assertIn(
             'Lambda Result: {"status": "ok", "count": 3, "env": "test"}',
             res["output"],
@@ -158,8 +159,8 @@ class TestPythonExecutor(unittest.IsolatedAsyncioTestCase):
             "name": "Python Error Test Job",
             "kind": "python",
             "action": "lambda args, kwargs: 1 / 0",
-            "result_prompt": "Success result: #[_RESULT]",
-            "result_error_prompt": "Python Failed (code #[_RETURNCODE]): #[_STDERR]",
+            "result_prompt": "Success result: #[_OBJECT]",
+            "result_error_prompt": "Python Failed (code #[_RETURN_CODE]): #[_ERROR]",
         }
         res = await execute_python_job(job)
         self.assertEqual(res["status"], "error")
@@ -181,7 +182,7 @@ class TestHttpAndRpcExecutors(unittest.IsolatedAsyncioTestCase):
             "name": "HTTP Test Job",
             "kind": "http",
             "action": "POST",
-            "url": "http://localhost:8888/v1/reflect",
+            "args": "http://localhost:8888/v1/reflect",
             "kwargs": {
                 "query": "test reflection",
                 "headers": {"Authorization": "Bearer token123"},
@@ -189,7 +190,7 @@ class TestHttpAndRpcExecutors(unittest.IsolatedAsyncioTestCase):
         }
         res = await execute_http_job(job)
         self.assertEqual(res["status"], "success")
-        self.assertEqual(res["http_code"], 200)
+        self.assertEqual(res["return_code"], 0)
         self.assertIn("reflected", res["output"])
 
     async def test_execute_rpc_job_prompt_extraction(self) -> None:
@@ -201,7 +202,7 @@ class TestHttpAndRpcExecutors(unittest.IsolatedAsyncioTestCase):
             "kwargs": {"prompt": "Perform work sweep audit"},
         }
         # mock_client context
-        with patch("mypai_tools.executors.rpc_executor.RpcClient") as mock_rpc_class:
+        with patch("mypai_tools.executors.omp_rpc_executor.RpcClient") as mock_rpc_class:
             mock_client = MagicMock()
             mock_rpc_class.return_value.__enter__.return_value = mock_client
             mock_res = MagicMock()

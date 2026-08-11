@@ -3,7 +3,7 @@
 
 Exposes MCP tools for registering, modifying, listing, enabling, disabling,
 and deleting scheduled jobs stored in the per-project SQLite database
-($HOME/.omp/cron/projects/<project_hash>/cron.db).
+($HOME/.omp/cron/cron-<project_hash>.db).
 """
 
 import json
@@ -301,7 +301,6 @@ def cron_enable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
         return {"status": "error", "error": str(exc)}
     finally:
         session.close()
-
 
 
 @mcp.tool()

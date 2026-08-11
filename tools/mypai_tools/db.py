@@ -15,12 +15,12 @@ APSCHEDULER_VERSION = getattr(apscheduler, "__version__", "3.0.0")
 IS_APSCHEDULER_V4 = APSCHEDULER_VERSION.startswith("4")
 
 
-def substitute_env_vars(val: Any, extra_vars: dict[str, Any] | None = None) -> Any:
-    """Recursively expand #[VARNAME] environment and internal execution variables.
+def substitute_vars(val: Any, extra_vars: dict[str, Any] | None = None) -> Any:
+    """Recursively expand #{VARNAME} and #[VARNAME] environment and internal variables.
 
-    Supports #[VARNAME] syntax for:
-    1. System & Process Environment Variables (e.g. #[HINDSIGHT_API_URL], #[HOME])
-    2. Internal Execution Variables (e.g. #[_RETURNCODE], #[_STDOUT], #[_STDERR], #[_OUTPUT], #[_RESULT])
+    Supports #{VARNAME} and #[VARNAME] syntax for:
+    1. System & Process Environment Variables (e.g. #{HINDSIGHT_API_URL}, #[HOME])
+    2. Internal Execution Variables (e.g. #[_RETURN_CODE], #[_OUTPUT], #[_ERROR], #[_OBJECT], #[_HTTP_CODE], #[_DURATION], #[_JOB_ID], #[_JOB_NAME])
     """
     combined_vars: dict[str, Any] = dict(os.environ)
     if extra_vars:
@@ -29,19 +29,23 @@ def substitute_env_vars(val: Any, extra_vars: dict[str, Any] | None = None) -> A
     if isinstance(val, str):
         expanded = val
         for k, v in combined_vars.items():
-            placeholder = f"#[{k}]"
-            if placeholder in expanded:
-                v_str = json.dumps(v) if isinstance(v, (dict, list)) else str(v)
-                expanded = expanded.replace(placeholder, v_str)
+            placeholders = (f"#{{{k}}}", f"#[{k}]")
+            v_str = json.dumps(v) if isinstance(v, (dict, list)) else str(v)
+            for placeholder in placeholders:
+                if placeholder in expanded:
+                    expanded = expanded.replace(placeholder, v_str)
         return expanded
     elif isinstance(val, dict):
         return {
-            substitute_env_vars(k, extra_vars): substitute_env_vars(v, extra_vars)
+            substitute_vars(k, extra_vars): substitute_vars(v, extra_vars)
             for k, v in val.items()
         }
     elif isinstance(val, list):
-        return [substitute_env_vars(item, extra_vars) for item in val]
+        return [substitute_vars(item, extra_vars) for item in val]
     return val
+
+
+substitute_env_vars = substitute_vars
 
 
 def normalize_cron_expression(expr: str) -> str:
@@ -111,17 +115,19 @@ def get_project_dir_hash(project_dir: str = "") -> str:
 def get_project_db_path(project_dir: str = "") -> str:
     """Get absolute SQLite database path for given project directory."""
     p_hash = get_project_dir_hash(project_dir)
-    db_dir = os.path.expanduser(f"~/.omp/cron/projects/{p_hash}")
-    os.makedirs(db_dir, exist_ok=True)
-    return os.path.join(db_dir, "cron.db")
+    base_dir = os.environ.get("OMP_DIR", os.path.expanduser("~/.omp"))
+    cron_dir = os.path.join(base_dir, "cron")
+    os.makedirs(cron_dir, exist_ok=True)
+    return os.path.join(cron_dir, f"cron-{p_hash}.db")
 
 
 def get_heartbeat_pid_path(project_dir: str = "") -> str:
     """Get heartbeat daemon PID file path for given project directory."""
     p_hash = get_project_dir_hash(project_dir)
-    db_dir = os.path.expanduser(f"~/.omp/cron/projects/{p_hash}")
-    os.makedirs(db_dir, exist_ok=True)
-    return os.path.join(db_dir, "heartbeat.pid")
+    base_dir = os.environ.get("OMP_DIR", os.path.expanduser("~/.omp"))
+    cron_dir = os.path.join(base_dir, "cron")
+    os.makedirs(cron_dir, exist_ok=True)
+    return os.path.join(cron_dir, f"heartbeat-{p_hash}.pid")
 
 
 def is_heartbeat_running(project_dir: str = "") -> bool:

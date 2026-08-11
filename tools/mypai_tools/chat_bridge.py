@@ -2,7 +2,7 @@
 """Nanobot Signal Gateway RPC Bridge.
 
 Listens for incoming Signal messages via the Nanobot Signal Gateway (signal-cli),
-recalls sender/global memory context from Hindsight REST API, pokes the persistent
+recalls sender/global memory context from Hindsight REST API, calls the persistent
 OMP agent service over RPC, and dispatches agent responses back via Signal.
 """
 
@@ -45,7 +45,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("chat_bridge")
-
 
 
 def _http_request(
@@ -312,9 +311,7 @@ def run_bridge(poll_interval: float = 3.0, run_once: bool = False) -> None:
                 try:
                     process_signal_message(raw_msg)
                 except Exception:
-                    logger.exception(
-                        "Error processing message %s", msg_id
-                    )
+                    logger.exception("Error processing message %s", msg_id)
 
             if run_once:
                 break

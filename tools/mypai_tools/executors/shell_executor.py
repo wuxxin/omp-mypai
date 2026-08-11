@@ -5,9 +5,10 @@ import json
 import logging
 import os
 import shlex
+import time
 from typing import Any
 
-from mypai_tools.db import substitute_env_vars
+from mypai_tools.db import substitute_vars
 
 try:
     from omp_rpc import RpcClient
@@ -21,14 +22,12 @@ def build_full_command(cmd: str, args_val: Any = None, kwargs_val: Any = None) -
     """Combine base command string with positional args (list/str) and flag kwargs (dict)."""
     base_cmd = cmd.strip()
 
-    # Parse args if JSON string
     if isinstance(args_val, str) and args_val.strip().startswith(("[", "{")):
         try:
             args_val = json.loads(args_val)
         except Exception:  # noqa: BLE001, S110
             pass
 
-    # Parse kwargs if JSON string
     if isinstance(kwargs_val, str) and kwargs_val.strip().startswith("{"):
         try:
             kwargs_val = json.loads(kwargs_val)
@@ -37,14 +36,12 @@ def build_full_command(cmd: str, args_val: Any = None, kwargs_val: Any = None) -
 
     parts = [base_cmd]
 
-    # Process positional args
     if isinstance(args_val, list):
         for a in args_val:
             parts.append(shlex.quote(str(a)))
     elif isinstance(args_val, str) and args_val.strip():
         parts.append(args_val.strip())
 
-    # Process flag kwargs
     if isinstance(kwargs_val, dict):
         for k, v in kwargs_val.items():
             prefix = f"--{k}" if len(k) > 1 else f"-{k}"
@@ -57,16 +54,9 @@ def build_full_command(cmd: str, args_val: Any = None, kwargs_val: Any = None) -
 
 
 async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
-    """Execute shell command using action as base command, positional args list, and flag kwargs.
-
-    Inlined Attributes:
-    - action: base CLI binary or script executable string (e.g. 'python3', 'ls', 'echo')
-    - args: positional argument list or string
-    - kwargs: dictionary of flag parameters
-    - result_prompt: optional result context template supporting #[_STDOUT], #[_STDERR], #[_RETURNCODE], #[_OUTPUT]
-    - result_error_prompt: optional error result template used on exitlevel != 0
-    - result_action: 'ignore' (default), 'prompt', 'steer', 'followup', 'abort_and_prompt'
-    """
+    """Execute shell command using action as base command, positional args list, and flag kwargs."""
+    start_time = time.time()
+    job = substitute_vars(job)
     name = job.get("name", "Unnamed Shell Job")
     raw_cmd = job.get("action") or ""
     if not raw_cmd:
@@ -89,17 +79,20 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
     )
     stdout, stderr = await proc.communicate()
     exit_code = proc.returncode
+    duration = round(time.time() - start_time, 3)
 
     stdout_str = stdout.decode("utf-8", errors="replace").strip()
     stderr_str = stderr.decode("utf-8", errors="replace").strip()
-    combined_str = f"STDOUT:\n{stdout_str}\n\nSTDERR:\n{stderr_str}".strip()
 
     internal_vars = {
-        "_RETURNCODE": exit_code,
-        "_STDOUT": stdout_str,
-        "_STDERR": stderr_str,
-        "_RESULT": stdout_str,
-        "_OUTPUT": combined_str,
+        "_RETURN_CODE": exit_code,
+        "_OUTPUT": stdout_str,
+        "_ERROR": stderr_str,
+        "_OBJECT": {"exit_code": exit_code, "command": cmd},
+        "_HTTP_CODE": 0,
+        "_DURATION": duration,
+        "_JOB_ID": job.get("id", ""),
+        "_JOB_NAME": name,
     }
 
     if exit_code != 0:
@@ -110,8 +103,10 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
         result_prompt_template = job.get("result_prompt") or ""
 
     if result_prompt_template:
-        if "#[" in result_prompt_template:
-            final_output = substitute_env_vars(result_prompt_template, extra_vars=internal_vars)
+        if "#" in result_prompt_template:
+            final_output = substitute_vars(
+                result_prompt_template, extra_vars=internal_vars
+            )
         else:
             out_body = stdout_str if exit_code == 0 else (stderr_str or stdout_str)
             final_output = f"{result_prompt_template}\n{out_body}"
@@ -120,7 +115,6 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
 
     logger.info("Shell job '%s' exited with code %d", name, exit_code)
 
-    # Route result_prompt to OMP via omp_rpc using result_action if result_action != ignore
     if result_action != "ignore" and RpcClient is not None and final_output:
         try:
             with RpcClient() as client:
@@ -138,9 +132,11 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "status": "success" if exit_code == 0 else "error",
-        "exit_code": exit_code,
-        "full_command": cmd,
-        "stdout": stdout_str,
-        "stderr": stderr_str,
+        "kind": "shell",
+        "action": cmd,
+        "return_code": exit_code,
         "output": final_output,
+        "error": stderr_str,
+        "object": {"exit_code": exit_code, "command": cmd},
+        "duration_sec": duration,
     }

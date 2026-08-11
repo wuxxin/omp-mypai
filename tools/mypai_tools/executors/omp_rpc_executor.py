@@ -1,26 +1,33 @@
-"""RPC Job Executor using mandatory omp_rpc.RpcClient SDK with inlined job attributes."""
+"""OMP RPC Job Executor using mandatory omp_rpc.RpcClient SDK with inlined job attributes."""
 
 import json
 import logging
+import time
 from typing import Any
+
+from mypai_tools.db import substitute_vars
 
 try:
     from omp_rpc import RpcClient
 except ImportError:
     RpcClient = None
 
-logger = logging.getLogger("mypai_heartbeat.rpc_executor")
+logger = logging.getLogger("mypai_heartbeat.omp_rpc_executor")
 
 
-async def execute_rpc_job(job: dict[str, Any], default_rpc_url: str = "") -> dict[str, Any]:
+async def execute_rpc_job(
+    job: dict[str, Any], default_rpc_url: str = ""
+) -> dict[str, Any]:
     """Execute an RPC job via omp_rpc.RpcClient using inlined attributes.
 
     Inlined Job Attributes:
     - action: RPC operation verb ('prompt' / 'prompt_and_wait', 'steer', 'followup', 'abort_and_prompt', 'switch_session', 'branch')
-    - kwargs: keyword arguments dictionary containing 'prompt' string (e.g. kwargs: {"prompt": "..."})
+    - kwargs: keyword arguments dictionary containing 'prompt' string
     - args: positional argument list/tuple for custom RPC requests
     - result_prompt: optional fallback prompt text context
     """
+    start_time = time.time()
+    job = substitute_vars(job)
     name = job.get("name", "Unnamed RPC Job")
     action = (job.get("action") or "prompt").lower()
 
@@ -53,10 +60,20 @@ async def execute_rpc_job(job: dict[str, Any], default_rpc_url: str = "") -> dic
     else:
         prompt = job.get("result_prompt") or ""
 
-    logger.info("Executing RPC job '%s' (action: %s)...", name, action)
+    logger.info("Executing OMP RPC job '%s' (action: %s)...", name, action)
 
     if RpcClient is None:
-        raise RuntimeError("omp_rpc Python package is not installed.")
+        duration = round(time.time() - start_time, 3)
+        return {
+            "status": "error",
+            "kind": "omp",
+            "action": action,
+            "return_code": 1,
+            "output": "",
+            "error": "omp_rpc Python package is not installed.",
+            "object": None,
+            "duration_sec": duration,
+        }
 
     try:
         with RpcClient() as client:
@@ -64,29 +81,55 @@ async def execute_rpc_job(job: dict[str, Any], default_rpc_url: str = "") -> dic
 
             if action in ("prompt", "prompt_and_wait"):
                 res = client.prompt_and_wait(prompt, timeout=120.0)
-                output = res.require_assistant_text() if hasattr(res, "require_assistant_text") else str(res)
-                return {"status": "success", "action": action, "output": output}
-
+                output = (
+                    res.require_assistant_text()
+                    if hasattr(res, "require_assistant_text")
+                    else str(res)
+                )
+                raw_obj = res
             elif action == "steer":
                 client.steer(prompt)
-                return {"status": "success", "action": action, "output": f"Steered: {prompt}"}
-
+                output = f"Steered: {prompt}"
+                raw_obj = {"steered": prompt}
             elif action in ("followup", "follow_up"):
                 client.follow_up(prompt)
-                return {"status": "success", "action": action, "output": f"Follow-up queued: {prompt}"}
-
+                output = f"Follow-up queued: {prompt}"
+                raw_obj = {"followup": prompt}
             elif action == "abort_and_prompt":
                 client.abort_and_prompt(prompt)
-                return {"status": "success", "action": action, "output": f"Aborted and prompted: {prompt}"}
-
+                output = f"Aborted and prompted: {prompt}"
+                raw_obj = {"aborted_and_prompted": prompt}
             elif action in ("switch_session", "branch"):
                 res_raw = client.request_raw(action, *rpc_args, **rpc_kwargs)
-                return {"status": "success", "action": action, "output": json.dumps(res_raw)}
-
+                output = json.dumps(res_raw)
+                raw_obj = res_raw
             else:
                 client.prompt(prompt)
-                return {"status": "success", "action": action, "output": f"Prompt queued: {prompt}"}
+                output = f"Prompt queued: {prompt}"
+                raw_obj = {"prompted": prompt}
+
+            duration = round(time.time() - start_time, 3)
+            return {
+                "status": "success",
+                "kind": "omp",
+                "action": action,
+                "return_code": 0,
+                "output": output,
+                "error": "",
+                "object": raw_obj,
+                "duration_sec": duration,
+            }
 
     except Exception as exc:  # noqa: BLE001
         logger.error("RPC execution error for job '%s': %s", name, exc)
-        return {"status": "error", "action": action, "error": str(exc)}
+        duration = round(time.time() - start_time, 3)
+        return {
+            "status": "error",
+            "kind": "omp",
+            "action": action,
+            "return_code": 1,
+            "output": "",
+            "error": str(exc),
+            "object": None,
+            "duration_sec": duration,
+        }

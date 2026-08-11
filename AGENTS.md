@@ -36,7 +36,10 @@
 
 ## Operating Guidelines
 
-
+- if asked for agent plugins conformity on this repo:
+    - git pull into: `scratch/agent-plugins-spec` from `github.com/agentplugins/agent-plugins-spec`
+    - read all specs, then read all omp_mypai plugin files, and fix nonconformity, or document in research/agent-plugins-conformity.md where easy fix not possible.
+ 
 ### Workspace & Documentation
 - **Workspace Isolation:** Use `scratch/` for temporary files, research, and git checkouts (`scratch/*-sources`). Always use the top-level repository root `scratch/`: if checked out independently, use its own root `scratch/`; if checked out as a git submodule, use the parent repository's root `scratch/`.
 - create and activate an venv for testing the mypai_tools, dont try to pip install with break system packages.
