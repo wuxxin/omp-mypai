@@ -36,6 +36,13 @@ class FakeRpcClient:
         self.prompts_received.append((text, "prompt"))
         return {"status": "ok", "response": f"Echo: {text}"}
 
+    def prompt_and_wait(self, text: str, timeout: float = 120.0) -> "FakeRpcClient":
+        self.prompts_received.append((text, "prompt_and_wait"))
+        return self
+
+    def require_assistant_text(self) -> str:
+        return "Echo Assistant Text"
+
     def steer(self, text: str) -> dict[str, Any]:
         self.prompts_received.append((text, "steer"))
         return {"status": "ok", "response": f"Steer Echo: {text}"}
@@ -43,6 +50,13 @@ class FakeRpcClient:
     def followup(self, text: str) -> dict[str, Any]:
         self.prompts_received.append((text, "followup"))
         return {"status": "ok", "response": f"Followup Echo: {text}"}
+
+    def follow_up(self, text: str) -> dict[str, Any]:
+        return self.followup(text)
+
+    def abort_and_prompt(self, text: str) -> dict[str, Any]:
+        self.prompts_received.append((text, "abort_and_prompt"))
+        return {"status": "ok", "response": f"Abort Echo: {text}"}
 
 
 @pytest.fixture
