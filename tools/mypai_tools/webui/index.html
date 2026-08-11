@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyPAI Daemon Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --accent-blue: #3b82f6;
+      --accent-purple: #8b5cf6;
+      --status-green: #10b981;
+      --status-amber: #f59e0b;
+      --status-red: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #090d16 0%, #0f172a 50%, #1e1b4b 100%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+
+    .brand { display: flex; align-items: center; gap: 0.75rem; font-size: 1.25rem; font-weight: 700; }
+    .brand-badge { background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; text-transform: uppercase; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--status-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-green); animation: pulse 2s infinite; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .log-console {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 1rem;
+      height: 380px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+    }
+
+    .log-entry { margin-bottom: 0.4rem; line-height: 1.4; color: var(--text-muted); }
+    .log-entry.info { color: #60a5fa; }
+    .log-entry.success { color: var(--status-green); }
+    .log-entry.error { color: var(--status-red); }
+
+    .control-form { display: flex; flex-direction: column; gap: 0.75rem; }
+    .input-row { display: flex; gap: 0.75rem; }
+    input[type="text"], select {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-family: inherit;
+    }
+    input[type="text"]:focus, select:focus { outline: none; border-color: var(--accent-blue); }
+
+    button {
+      padding: 0.75rem 1.25rem;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+
+    .cron-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .cron-table th, .cron-table td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--card-border); }
+    .cron-table th { color: var(--text-muted); font-weight: 500; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span>MyPAI Daemon</span>
+      <span class="brand-badge">v1.0</span>
+    </div>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      <span id="session-info" style="font-size: 0.85rem; color: var(--text-muted);">Session: Loading...</span>
+      <div id="status-badge" class="status-badge">
+        <div class="status-dot"></div>
+        <span id="status-text">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid-container">
+    <main style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <div class="card">
+        <div class="card-title">
+          <span>Live Session Transcript & Event Stream</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">WebSocket Port 52080</span>
+        </div>
+        <div id="log-console" class="log-console">
+          <div class="log-entry info">[System] Initializing WebUI WebSocket Connection...</div>
+        </div>
+
+        <form id="prompt-form" class="control-form">
+          <div class="input-row">
+            <input type="text" id="prompt-input" placeholder="Type a prompt turn for OMP session..." required />
+            <select id="mode-select" style="max-width: 180px;">
+              <option value="prompt">Prompt (Normal)</option>
+              <option value="steer">Steer (Interrupt)</option>
+              <option value="followup">Followup (Append)</option>
+              <option value="abort_and_prompt">Abort & Prompt</option>
+            </select>
+            <button type="submit">Submit Turn</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Registered Cron Tasks</span>
+          <button id="refresh-cron-btn" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">Refresh</button>
+        </div>
+        <table class="cron-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Cron</th>
+              <th>Kind</th>
+              <th>Last Runtime</th>
+              <th>Calls</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="cron-tbody">
+            <tr><td colspan="6" style="color: var(--text-muted); text-align: center;">Loading tasks...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <aside style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <div class="card">
+        <div class="card-title">Session Telemetry</div>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem;">
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Fixed Session Name:</span>
+            <span id="tel-session" style="font-weight: 600;">mypai-main</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Process PID:</span>
+            <span id="tel-pid">--</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Queue Depth:</span>
+            <span id="tel-queue">0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Uptime:</span>
+            <span id="tel-uptime">0s</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const logConsole = document.getElementById('log-console');
+    const statusText = document.getElementById('status-text');
+    const sessionInfo = document.getElementById('session-info');
+    const cronTbody = document.getElementById('cron-tbody');
+
+    function appendLog(text, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      const timeStr = new Date().toLocaleTimeString();
+      entry.textContent = `[${timeStr}] ${text}`;
+      logConsole.appendChild(entry);
+      logConsole.scrollTop = logConsole.scrollHeight;
+    }
+
+    // Connect WebSocket
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/api/v1/ws`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      statusText.textContent = 'Connected';
+      appendLog('[WebSocket] Connected to mypai_daemon API.', 'success');
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === 'turn_started') {
+          appendLog(`[Turn Start] Task ${data.task_id} (mode: ${data.mode}, source: ${data.source})`, 'info');
+        } else if (data.event === 'turn_completed') {
+          const out = data.result.output || data.result.error || '';
+          appendLog(`[Turn Completed] Task ${data.task_id} (${data.result.duration_sec}s): ${out.substring(0, 100)}`, data.result.status === 'success' ? 'success' : 'error');
+        }
+      } catch (e) {}
+    };
+
+    ws.onclose = () => {
+      statusText.textContent = 'Disconnected';
+      appendLog('[WebSocket] Disconnected from daemon.', 'error');
+    };
+
+    // Prompt Form Submit
+    document.getElementById('prompt-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const promptInput = document.getElementById('prompt-input');
+      const modeSelect = document.getElementById('mode-select');
+      const promptText = promptInput.value.trim();
+      const mode = modeSelect.value;
+      if (!promptText) return;
+
+      try {
+        const res = await fetch(`/api/v1/session/${mode === 'prompt' ? 'prompt' : mode}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: promptText, mode: mode, source: 'webui' })
+        });
+        const data = await res.json();
+        appendLog(`Submitted ${mode} turn: Task ID ${data.task_id}`, 'info');
+        promptInput.value = '';
+      } catch (err) {
+        appendLog(`Failed to submit turn: ${err}`, 'error');
+      }
+    });
+
+    // Fetch Status & Cron
+    async function updateStatus() {
+      try {
+        const res = await fetch('/api/v1/session/status');
+        const data = await res.json();
+        sessionInfo.textContent = `Session: ${data.session_name}`;
+        document.getElementById('tel-session').textContent = data.session_name;
+        document.getElementById('tel-pid').textContent = data.pid || 'N/A';
+        document.getElementById('tel-queue').textContent = data.queue_depth;
+        document.getElementById('tel-uptime').textContent = `${data.uptime_sec}s`;
+      } catch (e) {}
+    }
+
+    async function loadCronJobs() {
+      try {
+        const res = await fetch('/api/v1/cron/jobs');
+        const jobs = await res.json();
+        if (!jobs.length) {
+          cronTbody.innerHTML = '<tr><td colspan="6" style="color: var(--text-muted); text-align: center;">No scheduled cron jobs found.</td></tr>';
+          return;
+        }
+        cronTbody.innerHTML = jobs.map(j => `
+          <tr>
+            <td>${j.name}</td>
+            <td><code>${j.cron}</code></td>
+            <td>${j.kind}</td>
+            <td>${j.last_runtime ? j.last_runtime + 's' : '--'}</td>
+            <td>${j.total_calls || 0}</td>
+            <td>
+              <button onclick="runOnce('${j.name}', '${j.kind}', '${j.action}')" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Run</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function runOnce(name, kind, action) {
+      try {
+        await fetch('/api/v1/cron/jobs/run_once', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, kind, action })
+        });
+        appendLog(`Queued run_once for '${name}'`, 'info');
+        loadCronJobs();
+      } catch (e) {}
+    }
+
+    document.getElementById('refresh-cron-btn').addEventListener('click', loadCronJobs);
+
+    setInterval(updateStatus, 3000);
+    updateStatus();
+    loadCronJobs();
+  </script>
+</body>
+</html>

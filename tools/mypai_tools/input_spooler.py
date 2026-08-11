@@ -432,11 +432,45 @@ class InputSpooler:
             transcript=transcript,
         )
 
+        # Notify mypai_daemon via REST API
+        await self.notify_daemon(
+            title=title,
+            filename=file_path.name,
+            transcript=transcript,
+            item_hash=item_hash,
+        )
+
         # Mark processed and save state
         self.processed_hashes.add(item_hash)
         save_processed_hashes(self.state_file, self.processed_hashes)
         logger.info("Successfully ingested '%s' into spooler pipeline.", file_path.name)
         return True
+
+    async def notify_daemon(
+        self, title: str, filename: str, transcript: str, item_hash: str
+    ) -> None:
+        """Send HTTP notification prompt to mypai_daemon REST API."""
+        daemon_url = os.getenv("MYPAI_DAEMON_URL", "http://127.0.0.1:52080")
+        endpoint = f"{daemon_url.rstrip('/')}/api/v1/session/prompt"
+        snippet = transcript[:200] if transcript else "File drop registered."
+        prompt_text = f"🎙️ New inbox item processed ({filename}): '{title}'. Content: {snippet}"
+
+        payload = {
+            "prompt": prompt_text,
+            "mode": "prompt",
+            "source": "spooler",
+            "context": {"filename": filename, "hash": item_hash, "title": title},
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(endpoint, json=payload)
+                if res.status_code == 200:
+                    logger.info("Notified mypai_daemon of spooler ingestion for '%s'.", filename)
+                else:
+                    logger.warning("mypai_daemon notification returned HTTP %d", res.status_code)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to notify mypai_daemon: %s", exc)
 
     async def scan_inbox(self) -> int:
         """Scan inbox directory once and process all eligible files.

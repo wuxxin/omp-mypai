@@ -1,23 +1,16 @@
 #!/usr/bin/env python3
-"""FastMCP Cron Scheduler Server for MyPAI.
-
-Exposes MCP tools for registering, modifying, listing, enabling, disabling,
-and deleting scheduled jobs stored in the per-project SQLite database
-($HOME/.omp/cron/cron-<project_hash>.db).
-"""
+"""FastMCP Cron Scheduler Server for MyPAI targeting mypai_daemon REST API."""
 
 import json
 import logging
 import os
-import uuid
+import urllib.error
+import urllib.request
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from mypai_tools.db import (
-    get_db_session,
-    is_heartbeat_running,
-)
+from mypai_tools.db import get_db_session, is_heartbeat_running
 from mypai_tools.models import CronJobModel
 
 logging.basicConfig(
@@ -27,6 +20,25 @@ logging.basicConfig(
 logger = logging.getLogger("mypai_cron_mcp")
 
 mcp = FastMCP("cron-scheduler")
+DAEMON_URL = os.getenv("MYPAI_DAEMON_URL", "http://127.0.0.1:52080")
+
+
+def _daemon_http_request(
+    endpoint: str, method: str = "GET", data: dict[str, Any] | None = None
+) -> dict[str, Any] | list[Any]:
+    """Helper to issue HTTP REST calls to mypai_daemon API."""
+    url = f"{DAEMON_URL.rstrip('/')}/{endpoint.lstrip('/')}"
+    req_data = json.dumps(data).encode("utf-8") if data is not None else None
+    headers = {"Content-Type": "application/json"} if req_data else {}
+    req = urllib.request.Request(url, data=req_data, headers=headers, method=method)
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode("utf-8")
+            return json.loads(body) if body else {}
+    except Exception as e:  # noqa: BLE001
+        logger.debug("Daemon API request error on %s %s: %s", method, url, e)
+        return {"error": f"Daemon offline: {e}"}
 
 
 def validate_cron_expression(cron_str: str) -> None:
@@ -58,32 +70,36 @@ def cron_add_job(
     result_channel: str = "",
     project_dir: str = "",
 ) -> dict[str, Any]:
-    """Register a new scheduled task in the project SQLite database.
-
-    Args:
-        name: Human-readable task name (e.g. 'Sunday Reflection Sweep')
-        cron: Standard 5-field cron expression (e.g. '0 8 * * 0') or 'now' for immediate one-shot execution
-        kind: Task kind ('omp', 'http', 'shell', 'python')
-        action: Command/verb/code to execute (e.g. 'prompt', 'GET', 'echo', lambda snippet)
-        url: Target HTTP URL for http job types
-        args: Command positional arguments (list or space-separated string)
-        kwargs: Command options / request headers / RPC payload parameters
-        result_prompt: Prompt template formatted with #[_STDOUT], #[_STDERR], #[_RETURNCODE], #[_RESULT]
-        result_error_prompt: Error prompt template evaluated on exitlevel != 0
-        result_action: Action on execution ('ignore', 'prompt', 'steer', 'followup', 'abort_and_prompt')
-        result_channel: Delivery channel (e.g. '' for none, 'signal' for Signal messaging)
-        project_dir: Target workspace directory path
-    """
+    """Register a new scheduled task in the project database via mypai_daemon API."""
     validate_cron_expression(cron)
-    session = get_db_session(project_dir)
+    payload = {
+        "name": name,
+        "cron": cron,
+        "kind": kind,
+        "action": action,
+        "url": url,
+        "args": args,
+        "kwargs": kwargs,
+        "result_prompt": result_prompt,
+        "result_error_prompt": result_error_prompt,
+        "result_action": result_action,
+        "result_channel": result_channel,
+    }
 
+    res = _daemon_http_request(
+        f"api/v1/cron/jobs?project_dir={project_dir}", method="POST", data=payload
+    )
+    if isinstance(res, dict) and "error" not in res:
+        return res
+
+    # Fallback to direct SQLite DB session if daemon API is offline
+    session = get_db_session(project_dir)
+    import uuid
     job_id = str(uuid.uuid4())[:8]
     now_iso = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
 
     args_str = json.dumps(args) if isinstance(args, (dict, list)) else str(args or "")
-    kwargs_str = (
-        json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
-    )
+    kwargs_str = json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
 
     db_job = CronJobModel(
         id=job_id,
@@ -102,30 +118,16 @@ def cron_add_job(
         created_at=now_iso,
         updated_at=now_iso,
     )
-
     try:
         session.add(db_job)
         session.commit()
-
         running = is_heartbeat_running(project_dir)
-        status_msg = "scheduled" if running else "scheduled_heartbeat_offline"
-
-        logger.info(
-            "Registered cron task '%s' (ID: %s, cron: '%s', heartbeat: %s)",
-            name,
-            job_id,
-            cron,
-            "active" if running else "offline",
-        )
-        return {
-            "status": status_msg,
-            "job": db_job.to_dict(),
-            "heartbeat_running": running,
-        }
-    except Exception as exc:  # noqa: BLE001
-        session.rollback()
-        logger.error("Failed to add cron job: %s", exc)
-        return {"status": "error", "error": str(exc)}
+        cron_clean = str(cron or "").strip().lower()
+        if cron_clean in ("now", "@now", "@once"):
+            status_msg = "scheduled_once" if running else "scheduled_once_heartbeat_offline"
+        else:
+            status_msg = "scheduled" if running else "scheduled_heartbeat_offline"
+        return {"status": status_msg, "job": db_job.to_dict(), "heartbeat_running": running}
     finally:
         session.close()
 
@@ -144,161 +146,127 @@ def cron_run_once(
     result_channel: str = "",
     project_dir: str = "",
 ) -> dict[str, Any]:
-    """Queue or reschedule an immediate one-shot task ('now') in the project SQLite database.
+    """Queue or reschedule an immediate one-shot task ('now') via mypai_daemon API."""
+    payload = {
+        "name": name,
+        "cron": "now",
+        "kind": kind,
+        "action": action,
+        "url": url,
+        "args": args,
+        "kwargs": kwargs,
+        "result_prompt": result_prompt,
+        "result_error_prompt": result_error_prompt,
+        "result_action": result_action,
+        "result_channel": result_channel,
+    }
+    res = _daemon_http_request(
+        f"api/v1/cron/jobs/run_once?project_dir={project_dir}", method="POST", data=payload
+    )
+    if isinstance(res, dict) and "error" not in res:
+        return res
 
-    If an exact matching task (matching name, kind, action, args, kwargs) exists,
-    it updates the existing entry (setting cron='now' and enabled=True) to reschedule it.
-
-    Args:
-        name: Human-readable task name
-        kind: Task kind ('omp', 'http', 'shell', 'python')
-        action: Command/verb/code to execute
-        url: Target HTTP URL for http job types
-        args: Command positional arguments
-        kwargs: Command options / payload parameters
-        result_prompt: Result prompt template
-        result_error_prompt: Error prompt template evaluated on exitlevel != 0
-        result_action: Action on execution ('ignore', 'prompt', 'steer', 'followup', 'abort_and_prompt')
-        result_channel: Delivery channel ('', 'signal')
-        project_dir: Target workspace directory path
-    """
+    # Fallback to direct SQLite DB session
     session = get_db_session(project_dir)
     now_iso = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
-
     args_str = json.dumps(args) if isinstance(args, (dict, list)) else str(args or "")
-    kwargs_str = (
-        json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
-    )
+    kwargs_str = json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
 
     try:
-        # Deduplication search
-        existing = (
-            session.query(CronJobModel)
-            .filter_by(name=name, kind=kind, action=action)
-            .all()
-        )
+        existing = session.query(CronJobModel).filter_by(name=name, kind=kind, action=action).all()
         matching_job = None
         for j in existing:
-            j_args = j.args or ""
-            j_kwargs = j.kwargs or ""
-            if j_args == args_str and j_kwargs == kwargs_str:
+            if (j.args or "") == args_str and (j.kwargs or "") == kwargs_str:
                 matching_job = j
                 break
+
+        running = is_heartbeat_running(project_dir)
 
         if matching_job:
             matching_job.cron = "now"
             matching_job.enabled = True
-            matching_job.result_prompt = result_prompt or matching_job.result_prompt
-            matching_job.result_error_prompt = (
-                result_error_prompt or matching_job.result_error_prompt
-            )
-            matching_job.result_action = result_action or matching_job.result_action
-            matching_job.result_channel = result_channel or matching_job.result_channel
-            matching_job.url = url or matching_job.url
             matching_job.updated_at = now_iso
             session.commit()
-
-            running = is_heartbeat_running(project_dir)
             status_msg = "rescheduled" if running else "rescheduled_heartbeat_offline"
-
-            logger.info(
-                "Rescheduled one-shot task '%s' (ID: %s)", name, matching_job.id
-            )
-            return {
-                "status": status_msg,
-                "job": matching_job.to_dict(),
-                "heartbeat_running": running,
-            }
-
-        # Create new one-shot job
-        job_id = str(uuid.uuid4())[:8]
-        db_job = CronJobModel(
-            id=job_id,
-            name=name,
-            cron="now",
-            kind=kind,
-            action=action,
-            url=url,
-            args=args_str,
-            kwargs=kwargs_str,
-            result_prompt=result_prompt,
-            result_error_prompt=result_error_prompt,
-            result_action=result_action,
-            result_channel=result_channel,
-            enabled=True,
-            created_at=now_iso,
-            updated_at=now_iso,
-        )
-        session.add(db_job)
-        session.commit()
-
-        running = is_heartbeat_running(project_dir)
-        status_msg = "scheduled_once" if running else "scheduled_once_heartbeat_offline"
-
-        logger.info("Queued new one-shot task '%s' (ID: %s)", name, job_id)
-        return {
-            "status": status_msg,
-            "job": db_job.to_dict(),
-            "heartbeat_running": running,
-        }
-    except Exception as exc:  # noqa: BLE001
-        session.rollback()
-        logger.error("Failed to queue run_once job: %s", exc)
-        return {"status": "error", "error": str(exc)}
+            return {"status": status_msg, "job": matching_job.to_dict(), "heartbeat_running": running}
     finally:
         session.close()
+
+    return cron_add_job(
+        name=name,
+        cron="now",
+        kind=kind,
+        action=action,
+        url=url,
+        args=args,
+        kwargs=kwargs,
+        result_prompt=result_prompt,
+        result_error_prompt=result_error_prompt,
+        result_action=result_action,
+        result_channel=result_channel,
+        project_dir=project_dir,
+    )
 
 
 @mcp.tool()
 def cron_list_jobs(
     project_dir: str = "", include_disabled: bool = True
 ) -> list[dict[str, Any]]:
-    """List registered cron jobs and execution telemetry from project SQLite DB."""
+    """List registered cron jobs and execution telemetry."""
+    res = _daemon_http_request(
+        f"api/v1/cron/jobs?include_disabled={include_disabled}&project_dir={project_dir}"
+    )
+    if isinstance(res, list):
+        return res
+
     session = get_db_session(project_dir)
     try:
         query = session.query(CronJobModel)
         if not include_disabled:
             query = query.filter_by(enabled=True)
-        jobs = query.all()
-        return [j.to_dict() for j in jobs]
+        return [j.to_dict() for j in query.all()]
     finally:
         session.close()
 
 
 @mcp.tool()
 def cron_disable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
-    """Disable a scheduled cron job in the project SQLite database."""
+    """Disable a scheduled cron job."""
+    res = _daemon_http_request(
+        f"api/v1/cron/jobs/{job_id}/disable?project_dir={project_dir}", method="POST"
+    )
+    if isinstance(res, dict) and "error" not in res:
+        return res
+
     session = get_db_session(project_dir)
     try:
         db_job = session.query(CronJobModel).filter_by(id=job_id).first()
         if not db_job:
             return {"status": "error", "error": f"Job ID '{job_id}' not found"}
         db_job.enabled = False
-        db_job.updated_at = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
         session.commit()
         return {"status": "disabled", "job": db_job.to_dict()}
-    except Exception as exc:  # noqa: BLE001
-        session.rollback()
-        return {"status": "error", "error": str(exc)}
     finally:
         session.close()
 
 
 @mcp.tool()
 def cron_enable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
-    """Enable a scheduled cron job in the project SQLite database."""
+    """Enable a scheduled cron job."""
+    res = _daemon_http_request(
+        f"api/v1/cron/jobs/{job_id}/enable?project_dir={project_dir}", method="POST"
+    )
+    if isinstance(res, dict) and "error" not in res:
+        return res
+
     session = get_db_session(project_dir)
     try:
         db_job = session.query(CronJobModel).filter_by(id=job_id).first()
         if not db_job:
             return {"status": "error", "error": f"Job ID '{job_id}' not found"}
         db_job.enabled = True
-        db_job.updated_at = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
         session.commit()
         return {"status": "enabled", "job": db_job.to_dict()}
-    except Exception as exc:  # noqa: BLE001
-        session.rollback()
-        return {"status": "error", "error": str(exc)}
     finally:
         session.close()
 
@@ -320,56 +288,51 @@ def cron_modify_job(
     enabled: bool | None = None,
     project_dir: str = "",
 ) -> dict[str, Any]:
-    """Modify parameters of an existing cron job in the project SQLite database."""
+    """Modify parameters of an existing cron job."""
+    updates: dict[str, Any] = {}
+    if name is not None: updates["name"] = name
+    if cron is not None:
+        validate_cron_expression(cron)
+        updates["cron"] = cron
+    if kind is not None: updates["kind"] = kind
+    if action is not None: updates["action"] = action
+    if url is not None: updates["url"] = url
+    if args is not None: updates["args"] = args
+    if kwargs is not None: updates["kwargs"] = kwargs
+    if result_prompt is not None: updates["result_prompt"] = result_prompt
+    if result_error_prompt is not None: updates["result_error_prompt"] = result_error_prompt
+    if result_action is not None: updates["result_action"] = result_action
+    if result_channel is not None: updates["result_channel"] = result_channel
+    if enabled is not None: updates["enabled"] = enabled
+
+    res = _daemon_http_request(
+        f"api/v1/cron/jobs/{job_id}?project_dir={project_dir}", method="PUT", data=updates
+    )
+    if isinstance(res, dict) and "error" not in res:
+        return res
+
     session = get_db_session(project_dir)
     try:
         db_job = session.query(CronJobModel).filter_by(id=job_id).first()
         if not db_job:
             return {"status": "error", "error": f"Job ID '{job_id}' not found"}
-
-        if cron is not None:
-            validate_cron_expression(cron)
-            db_job.cron = cron
-        if name is not None:
-            db_job.name = name
-        if kind is not None:
-            db_job.kind = kind
-        if action is not None:
-            db_job.action = action
-        if url is not None:
-            db_job.url = url
-        if args is not None:
-            db_job.args = (
-                json.dumps(args) if isinstance(args, (dict, list)) else str(args)
-            )
-        if kwargs is not None:
-            db_job.kwargs = (
-                json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs)
-            )
-        if result_prompt is not None:
-            db_job.result_prompt = result_prompt
-        if result_error_prompt is not None:
-            db_job.result_error_prompt = result_error_prompt
-        if result_action is not None:
-            db_job.result_action = result_action
-        if result_channel is not None:
-            db_job.result_channel = result_channel
-        if enabled is not None:
-            db_job.enabled = enabled
-
-        db_job.updated_at = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
+        for k, v in updates.items():
+            setattr(db_job, k, v)
         session.commit()
         return {"status": "modified", "job": db_job.to_dict()}
-    except Exception as exc:  # noqa: BLE001
-        session.rollback()
-        return {"status": "error", "error": str(exc)}
     finally:
         session.close()
 
 
 @mcp.tool()
 def cron_remove_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
-    """Delete a cron job from the project SQLite database."""
+    """Delete a cron job from database."""
+    res = _daemon_http_request(
+        f"api/v1/cron/jobs/{job_id}?project_dir={project_dir}", method="DELETE"
+    )
+    if isinstance(res, dict) and "error" not in res:
+        return res
+
     session = get_db_session(project_dir)
     try:
         db_job = session.query(CronJobModel).filter_by(id=job_id).first()
@@ -379,131 +342,59 @@ def cron_remove_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
         session.delete(db_job)
         session.commit()
         return {"status": "cancelled", "job": deleted_dict}
-    except Exception as exc:  # noqa: BLE001
-        session.rollback()
-        return {"status": "error", "error": str(exc)}
     finally:
         session.close()
 
 
 @mcp.tool()
 def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
-    """Import cron jobs from a JSON file into project SQLite database."""
+    """Import cron jobs from a JSON file into project database."""
     abs_path = os.path.abspath(os.path.expanduser(file_path))
-
     if not os.path.isfile(abs_path):
         return {"status": "error", "error": f"Import file '{abs_path}' not found"}
 
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             data = json.load(f)
+        jobs_list = data.get("jobs", data) if isinstance(data, dict) else data
+        if not isinstance(jobs_list, list):
+            return {"status": "error", "error": "Expected list of jobs"}
 
-        jobs_data = data.get("jobs", data) if isinstance(data, dict) else data
-        if not isinstance(jobs_data, list):
-            return {
-                "status": "error",
-                "error": "Expected list of jobs under 'jobs' key",
-            }
-
-        session = get_db_session(project_dir)
         imported_count = 0
-        now_iso = os.popen("date -u +'%Y-%m-%dT%H:%M:%SZ'").read().strip()
-
-        for item in jobs_data:
-            job_id = item.get("id") or item.get("name", "job")[:8]
-            cron_val = item.get("cron")
-            if not cron_val:
-                logger.warning(
-                    "Skipping job '%s': missing required 'cron' field.",
-                    item.get("name"),
-                )
-                continue
-
-            args_val = item.get("args", "")
-            if isinstance(args_val, (dict, list)):
-                args_val = json.dumps(args_val)
-
-            kwargs_val = item.get("kwargs", {})
-            if isinstance(kwargs_val, (dict, list)):
-                kwargs_val = json.dumps(kwargs_val)
-
-            existing = session.query(CronJobModel).filter_by(id=job_id).first()
-            if existing:
-                existing.name = item.get("name", existing.name)
-                existing.cron = cron_val
-                existing.kind = item.get("kind", existing.kind)
-                existing.enabled = item.get("enabled", existing.enabled)
-                existing.action = item.get("action", existing.action)
-                existing.url = item.get("url", existing.url)
-                existing.args = args_val
-                existing.kwargs = kwargs_val
-                existing.result_action = item.get(
-                    "result_action", existing.result_action
-                )
-                existing.result_prompt = item.get(
-                    "result_prompt", existing.result_prompt
-                )
-                existing.result_error_prompt = item.get(
-                    "result_error_prompt", existing.result_error_prompt
-                )
-                existing.result_channel = item.get(
-                    "result_channel", existing.result_channel
-                )
-                existing.updated_at = now_iso
-            else:
-                job = CronJobModel(
-                    id=job_id,
-                    name=item.get("name", "Imported Job"),
-                    cron=cron_val,
+        for item in jobs_list:
+            if isinstance(item, dict) and item.get("name") and item.get("cron"):
+                cron_add_job(
+                    name=item["name"],
+                    cron=item["cron"],
                     kind=item.get("kind", "omp"),
                     action=item.get("action", "prompt"),
                     url=item.get("url", ""),
-                    args=args_val,
-                    kwargs=kwargs_val,
-                    result_action=item.get("result_action", "ignore"),
+                    args=item.get("args"),
+                    kwargs=item.get("kwargs"),
                     result_prompt=item.get("result_prompt", ""),
                     result_error_prompt=item.get("result_error_prompt", ""),
+                    result_action=item.get("result_action", "ignore"),
                     result_channel=item.get("result_channel", ""),
-                    enabled=item.get("enabled", True),
-                    created_at=now_iso,
-                    updated_at=now_iso,
+                    project_dir=project_dir,
                 )
-                session.add(job)
-            imported_count += 1
-
-        session.commit()
-        session.close()
-
-        running = is_heartbeat_running(project_dir)
-        return {
-            "status": "imported",
-            "imported_count": imported_count,
-            "heartbeat_running": running,
-        }
+                imported_count += 1
+        return {"status": "imported", "imported_count": imported_count}
     except Exception as exc:  # noqa: BLE001
         return {"status": "error", "error": str(exc)}
 
 
 @mcp.tool()
 def cron_export_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
-    """Export all registered cron jobs from project SQLite database to a JSON file."""
+    """Export all registered cron jobs to a JSON file."""
     abs_path = os.path.abspath(os.path.expanduser(file_path))
-    session = get_db_session(project_dir)
+    jobs_list = cron_list_jobs(project_dir=project_dir, include_disabled=True)
     try:
-        db_jobs = session.query(CronJobModel).all()
-        jobs_list = [j.to_dict() for j in db_jobs]
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         with open(abs_path, "w", encoding="utf-8") as f:
             json.dump({"jobs": jobs_list}, f, indent=2)
-        return {
-            "status": "exported",
-            "exported_count": len(jobs_list),
-            "file_path": abs_path,
-        }
+        return {"status": "exported", "exported_count": len(jobs_list), "file_path": abs_path}
     except Exception as exc:  # noqa: BLE001
         return {"status": "error", "error": str(exc)}
-    finally:
-        session.close()
 
 
 if __name__ == "__main__":
