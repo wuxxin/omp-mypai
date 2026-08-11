@@ -6,11 +6,19 @@
 
 ---
 
-## 1. Daemon Launch Commands
+## 1. Daemon Launch Commands & Environment Configuration
+
+`mypai_daemon` loads configuration from environment variables defined in `omp.env`:
+
+```env
+MYPAI_SESSION_NAME="mypai-main"         # Fixed session name reused across restarts
+SIGNAL_ACCOUNT="+15550001111"           # Local Signal phone profile
+SIGNAL_ALLOWED_SENDER="+15559992222"    # Whitelisted Signal sender phone number
+```
 
 ```bash
 # Continuous background daemon mode (default port 52080)
-python3 -m mypai_tools.daemon [--project-dir /path/to/project] [--port 52080]
+python3 -m mypai_tools.daemon [--project-dir /path/to/project] [--port 52080] [--session-name mypai-main]
 
 # Execute single-pass for all active cron jobs and exit
 python3 -m mypai_tools.daemon --once [--project-dir /path/to/project]

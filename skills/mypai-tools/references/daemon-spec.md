@@ -61,30 +61,44 @@ It maintains a persistent `omp --mode rpc --auto-approve --continue` connection 
 
 ### 2.2 OMP Session Manager (`mypai_daemon.session_manager`)
 * **RPC SDK**: Wraps `omp_rpc.RpcClient`.
-* **Launch Arguments**: `omp --mode rpc --auto-approve --continue --cwd <project_dir>`.
-* **Process Recovery**: Monitors PID via `proc.poll()`. On crash or broken pipe, cleans up old handles and automatically re-instantiates `RpcClient` with `--continue` in the configured workspace directory.
+* **Fixed Session Spawning**: Spawns and reuses a single **fixed session** whose name is read from `omp.env` (`MYPAI_SESSION_NAME`, defaulting to `"mypai-main"`).
+* **Launch Arguments**: `omp --mode rpc --auto-approve --continue --session <MYPAI_SESSION_NAME> --cwd <project_dir>`. All producers (Signal, WebUI, Cron, Spooler) automatically route into this single fixed session.
+* **Process Recovery**: Monitors PID via `proc.poll()`. On crash or broken pipe, cleans up old handles and automatically re-instantiates `RpcClient` with `--continue` and `--session <MYPAI_SESSION_NAME>` in the configured workspace directory.
 * **Session Actions Supported**: **`prompt`**, **`steer`**, **`followup`**, and **`abort_and_prompt`**.
 
 ---
 
-## 3. Signal Entanglement & Shared SDK (`mypai_tools.signal_client`)
+## 3. Signal Entanglement & Whitelist Filtering (`mypai_tools.signal_client`)
 
-A shared Python SDK module `mypai_tools.signal_client.SignalClient` wraps all HTTP communication with `signal-cli-rest-api`. Both `mypai_daemon` and `chat_mcp` import and use this SDK:
+A shared Python SDK module `mypai_tools.signal_client.SignalClient` wraps all HTTP communication with `signal-cli-rest-api`.
+
+### 3.1 Configuration & Access Control
+- **`SIGNAL_ACCOUNT`**: Defines the local account phone number (e.g. `+15550001111`).
+- **`SIGNAL_ALLOWED_SENDER`**: Defines the **single allowed incoming sender phone number** (e.g. `+15559992222`).
+- **Strict Filtering**: `mypai_daemon` inspects the sender field of all incoming webhooks/messages. Any message from a number other than `SIGNAL_ALLOWED_SENDER` is **ignored and dropped immediately**.
+- **Default Outbound Target**: Outbound Signal replies automatically target `SIGNAL_ALLOWED_SENDER` if no recipient is explicitly specified.
 
 ```python
 # mypai_tools/signal_client.py
 
 class SignalClient:
-    def __init__(self, api_url: str = "http://localhost:50889", account: str = ""):
+    def __init__(
+        self,
+        api_url: str = "http://localhost:50889",
+        account: str = os.getenv("SIGNAL_ACCOUNT", ""),
+        allowed_sender: str = os.getenv("SIGNAL_ALLOWED_SENDER", ""),
+    ):
         self.api_url = api_url
         self.account = account
+        self.allowed_sender = allowed_sender
 
     def fetch_next_unread_message(
         self, sender: str | None = None, attachment_dir: str | None = None
     ) -> dict | None:
-        """Fetch oldest unread message, send read receipt (2 checkmarks) & typing indicator, 
-        and extract attachments to local disk."""
+        """Fetch oldest unread message from SIGNAL_ALLOWED_SENDER, send read receipt (2 checkmarks) 
+        & typing indicator, and extract attachments to local disk."""
         ...
+```
 
     def fetch_unread_messages(self, limit: int = 10) -> list[dict]:
         """Fetch pending/unread Signal messages from signal-cli-rest-api."""

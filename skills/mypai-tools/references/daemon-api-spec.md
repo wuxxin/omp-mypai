@@ -102,7 +102,8 @@ The `/api/v1/session` routes support the complete 4-action OMP RPC feature set m
 ### `POST /api/v1/signal/webhook`
 * **Description**: Webhook target for `signal-cli-rest-api`.
 * **Request Body**: JSON envelope from `signal-cli-rest-api` containing sender metadata.
-* **Behavior**: Extracts sender phone number/UUID, enqueues notification prompt `"NEW Signal message received from {sender}. Use 'chat_mcp.get_next_unread_message' to read."` into Event Queue, and returns `{"status": "acknowledged"}`.
+* **Access Control**: Checks if `sender` matches `SIGNAL_ALLOWED_SENDER` (read from `omp.env`). If the sender is unauthorized, returns `{"status": "ignored_unauthorized"}` and drops the payload.
+* **Behavior**: If authorized, enqueues notification prompt `"NEW Signal message received from {sender}. Use 'chat_mcp.get_next_unread_message' to read."` into Event Queue, and returns `{"status": "acknowledged"}`.
 
 ---
 

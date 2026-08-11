@@ -82,9 +82,9 @@ Persistent asynchronous sidecar daemon (`python3 -m mypai_tools.input_spooler da
 ## 5. `mypai_daemon` Environment Overview
 
 * **Host & Port**: `http://127.0.0.1:52080`
-* **Session Manager**: Maintains persistent `omp --mode rpc --auto-approve --continue` session in target workspace. Automatically recovers from RPC crashes with `--continue`.
+* **Fixed Session Spawning**: Reads `MYPAI_SESSION_NAME` from `omp.env` (default `"mypai-main"`) and maintains a persistent `omp --mode rpc --auto-approve --continue --session <MYPAI_SESSION_NAME>` session. All producers automatically interact with this single fixed session. Automatically recovers from RPC crashes with `--continue`.
 * **Queue Serializer**: Multi-Producer Single-Consumer (MPSC) queue serializing prompt turns from Signal webhooks, Input Spooler, Cron, and WebUI.
-* **Signal Entanglement**: Receives webhooks on `POST /api/v1/signal/webhook` and enqueues a light notification turn: `"NEW Signal message received from {sender}. Read with chat_mcp."`
+* **Signal Whitelist Entanglement**: Configured with `SIGNAL_ACCOUNT` and `SIGNAL_ALLOWED_SENDER`. Receives webhooks on `POST /api/v1/signal/webhook`, ignores unauthorized senders, and enqueues a light notification turn for whitelisted messages: `"NEW Signal message received from {sender}. Read with chat_mcp."`
 
 ---
 
