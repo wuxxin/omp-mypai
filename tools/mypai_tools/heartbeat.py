@@ -39,7 +39,7 @@ from mypai_tools.executors import (
 )
 from mypai_tools.models import CronJobModel
 
-DEFAULT_RPC_URL = os.getenv("OMP_RPC_URL", "http://localhost:51080/v1/rpc")
+DEFAULT_RPC_URL = os.getenv("MYPAI_RPC_URL", "http://localhost:52080/v1/rpc")
 DEFAULT_DB_SYNC_INTERVAL_SEC = 10.0
 
 logging.basicConfig(

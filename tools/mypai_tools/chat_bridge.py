@@ -38,7 +38,7 @@ NANOBOT_API_URL = os.getenv("NANOBOT_API_URL", "http://localhost:8790")
 SIGNAL_ACCOUNT = os.getenv("SIGNAL_ACCOUNT", "")
 HINDSIGHT_URL = os.getenv("HINDSIGHT_URL", "http://localhost:8888")
 HINDSIGHT_BANK_ID = os.getenv("HINDSIGHT_BANK_ID", "omp-orchestrator")
-OMP_RPC_URL = os.getenv("OMP_RPC_URL", "http://localhost:51080/v1/rpc")
+MYPAI_RPC_URL = os.getenv("MYPAI_RPC_URL", "http://localhost:52080/v1/rpc")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -206,8 +206,8 @@ def poke_omp_agent(prompt: str, context: str, sender: str) -> str:
         "id": str(uuid.uuid4()),
     }
 
-    logger.info(f"Sending RPC poke to OMP agent at {OMP_RPC_URL}...")
-    res = _http_request(OMP_RPC_URL, method="POST", data=payload, timeout=30.0)
+    logger.info(f"Sending RPC poke to MyPAI agent at {MYPAI_RPC_URL}...")
+    res = _http_request(MYPAI_RPC_URL, method="POST", data=payload, timeout=30.0)
 
     if "error" in res:
         logger.error(f"OMP Agent RPC call failed: {res.get('error')}")
@@ -292,7 +292,7 @@ def run_bridge(poll_interval: float = 3.0, run_once: bool = False) -> None:
     logger.info("Starting Nanobot Signal Gateway RPC Bridge daemon...")
     logger.info(f"Signal Gateway: {SIGNAL_API_URL} | Nanobot: {NANOBOT_API_URL}")
     logger.info(f"Hindsight Bank: {HINDSIGHT_BANK_ID} ({HINDSIGHT_URL})")
-    logger.info(f"OMP RPC Endpoint: {OMP_RPC_URL}")
+    logger.info(f"MyPAI RPC Endpoint: {MYPAI_RPC_URL}")
 
     seen_msg_ids: set[str] = set()
 

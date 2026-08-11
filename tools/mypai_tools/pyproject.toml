@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mypai_tools"
 version = "0.1.0"
-description = "MyPAI agent tools package"
+description = "MyPAI agent tools package for oh-my-pi"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -14,12 +14,9 @@ dependencies = [
     "httpx>=0.24.0",
     "watchdog>=3.0.0",
     "pyyaml>=6.0",
-    # arbor-agent doesnt work with mcp >=2.x
     "mcp>=1.2.0,<2",
     "apscheduler>=3.10.0,<4.0.0",
     "omp-rpc>=0.1.0",
-    "openadapt[browser,capture]",
-    "arbor-agent[mcp]",
 ]
 
 [tool.setuptools]
