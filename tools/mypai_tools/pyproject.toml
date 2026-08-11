@@ -20,5 +20,5 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["mypai_tools"]
+packages = ["mypai_tools", "mypai_tools.executors"]
 package-dir = {"mypai_tools" = "."}
