@@ -9,7 +9,7 @@ description: Complete guide for using mypai_tools MCP services (cron-scheduler, 
 
 ---
 
-## 1. Documentation Index & Location Matrix
+## Index & Location Matrix
 
 | Component Type | Component Name | Implementation Module | Architectural Spec / File | Purpose |
 | :--- | :--- | :--- | :--- | :--- |
@@ -22,42 +22,39 @@ description: Complete guide for using mypai_tools MCP services (cron-scheduler, 
 
 ---
 
-## 2. Task Scheduling & One-Shot Execution (`cron-scheduler`)
+## Cron - Task Scheduling & One-Shot Execution (`cron-scheduler`)
 
 Per-project cron tasks are stored in SQLite databases located at `$HOME/.omp/cron/cron-<project_hash>.db`.
 
-### `cron_add_job` Task Registration
+### MCP Tools List
+- `cron_add_job`: Add a recurring crontab task.
+- `cron_run_once`: Queue/reschedule an immediate one-shot task (`cron="now"`).
+- `cron_list_jobs`: List active and historical jobs with execution telemetry.
+- `cron_disable_job` / `cron_enable_job`: Toggle job enabled state (`enabled: bool`).
+- `cron_modify_job`: Update existing job properties.
+- `cron_remove_job`: Delete job entry.
+- `cron_import_jobs` / `cron_export_jobs`: JSON backup/restore.
+
+#### `cron_add_job` Task Registration
 - Use **`cron_add_job(name, cron, kind, action, args, kwargs, result_prompt, result_error_prompt, result_action, result_channel)`** to register a scheduled task in the project SQLite DB (`~/.omp/cron/cron-<project_hash>.db`).
 - **`name`**: Human-readable task name (e.g. `'Nightly DB Audit'`).
 - **`cron`**: Standard 5-field cron expression (e.g. `'0 3 * * *'`) or `'now'` for immediate execution.
 - **`kind`**: Execution engine kind (`'omp'`, `'http'`, `'shell'`, `'python'`).
 - **`action`**: Execution command/verb/code (e.g. `'prompt'`, `'POST'`, CLI binary name, or Python lambda).
 
-### `cron_run_once` Immediate One-Shot Execution
+#### `cron_run_once` Immediate One-Shot Execution
 - Use **`cron_run_once(name, kind, action, args, kwargs, ...)`** to queue a task for immediate execution (`cron="now"`).
 - Uses APScheduler `DateTrigger(run_date=now)` with `misfire_grace_time=3600`.
 - If an exact matching job `(name, kind, action, args, kwargs)` exists, it reschedules the job (`cron="now"`, `enabled=True`).
 - Upon execution, `heartbeat` records telemetry and sets `enabled=False` so it retains history without repeating.
 
----
+### Cron Entry Specifications
 
-## 3. Standardized Cron Kind Reference & Parameter Specifications
+#### Input variable substitution `#[VAR]`
 
-All job executors return a **Standardized Result Object**:
-```json
-{
-  "status": "success | error",
-  "kind": "omp | http | shell | python",
-  "action": "<string>",
-  "return_code": 0,
-  "output": "<primary captured output text>",
-  "error": "<captured error text>",
-  "object": <unformatted Python object / parsed JSON dict or list / None>,
-  "duration_sec": 0.123
-}
-```
+- **Macro Syntax**: All string attributes (`action`, `args`, `kwargs`, `result_prompt`, `result_error_prompt`) substitute both `#{VARNAME}` and `#[VARNAME]` placeholders (e.g. `#{HINDSIGHT_API_URL}`, `#[HOME]`) before execution.
 
-### 3.1 `omp` Job Kind (OMP RPC Engine)
+#### `omp` Job (OMP RPC Engine)
 - **Input Parameters Used**:
   - `action`: RPC verb (`'prompt'`, `'prompt_and_wait'`, `'steer'`, `'followup'`, `'abort_and_prompt'`, `'switch_session'`, `'branch'`).
   - `args`: Optional positional argument list (e.g. session path for `switch_session`).
@@ -65,32 +62,30 @@ All job executors return a **Standardized Result Object**:
   - `result_prompt` / `result_error_prompt`: Templated prompt context.
 - **Return Fields**: `status`, `kind`, `action`, `return_code`, `output` (assistant text or RPC payload string), `error`, `object`, `duration_sec`.
 
-### 3.2 `http` Job Kind (Generic HTTP Request Engine)
+#### `http` Job (Generic HTTP Request Engine)
 - **Input Parameters Used**:
   - `action`: HTTP method verb (`'GET'`, `'POST'`, `'PUT'`, `'DELETE'`, `'PATCH'`).
   - `args`: Target API endpoint URL string or `["https://endpoint.com/api", optional_body_payload]`.
   - `kwargs`: Dictionary containing optional request parameters and optional `headers` dictionary (`{"headers": {"Authorization": "..."}}`).
 - **Return Fields**: `status`, `kind`, `action`, `return_code` (`0` on 2xx/3xx; HTTP status code on 4xx/5xx/network error), `output` (response body string), `error` (HTTP error message), `object` (parsed JSON response or string), `duration_sec`.
 
-### 3.3 `shell` Job Kind (CLI Process Executor)
+#### `shell` Job (CLI Process Executor)
 - **Input Parameters Used**:
   - `action`: Base CLI binary or script executable (e.g. `'python3'`, `'ls'`, `'echo'`).
   - `args`: Positional arguments list (e.g. `["-la", "/home"]`).
   - `kwargs`: Dictionary of flag parameters (e.g. `{"verbose": True, "output": "file.txt"}`).
 - **Return Fields**: `status`, `kind`, `action` (full quoted CLI string), `return_code` (process exit status), `output` (captured `stdout`), `error` (captured `stderr`), `object` (`{"exit_code": N, "command": "..."}`), `duration_sec`.
 
-### 3.4 `python` Job Kind (In-Process Python Lambda & Async Code)
+#### `python` Job (In-Process Python Lambda & Async Code)
 - **Input Parameters Used**:
   - `action`: Python lambda expression string (e.g. `'lambda args, kwargs: {"count": len(args)}'`) or multiline python script snippet.
   - `args`: Positional arguments list passed into lambda or namespace.
   - `kwargs`: Keyword arguments dictionary passed into lambda or namespace.
 - **Return Fields**: `status`, `kind`, `action`, `return_code` (`0` for success, `1` for exception), `output` (stringified return value), `error` (exception traceback string), `object` (pristine unformatted return object), `duration_sec`.
 
----
+### Cron Execution Result
 
-## 4. Distinctive `#{VAR}` / `#[VAR]` Macro Delimiters & Delivered `#[_` Internal Variables
-
-- **Macro Syntax**: All string attributes (`action`, `args`, `kwargs`, `result_prompt`, `result_error_prompt`) substitute both `#{VARNAME}` and `#[VARNAME]` placeholders (e.g. `#{HINDSIGHT_API_URL}`, `#[HOME]`) before execution.
+#### Execution output variables
 
 - **Delivered Internal Execution Variables**: `result_prompt` and `result_error_prompt` support standardized `_`-prefixed internal telemetry variables:
 
@@ -111,31 +106,36 @@ All job executors return a **Standardized Result Object**:
   - `result_action`: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`.
   - `result_channel`: `""` / `None` (default no extra output), or `"signal"` for Signal messaging.
 
+#### Result Object
+
+All job executors return a **Standardized Result Object**:
+```json
+{
+  "status": "success | error",
+  "kind": "omp | http | shell | python",
+  "action": "<string>",
+  "return_code": 0,
+  "output": "<primary captured output text>",
+  "error": "<captured error text>",
+  "object": <unformatted Python object / parsed JSON dict or list / None>,
+  "duration_sec": 0.123
+}
+```
+
 ---
 
-## 5. MCP Tools List
-- `cron_add_job`: Add a recurring crontab task.
-- `cron_run_once`: Queue/reschedule an immediate one-shot task (`cron="now"`).
-- `cron_list_jobs`: List active and historical jobs with execution telemetry.
-- `cron_disable_job` / `cron_enable_job`: Toggle job enabled state (`enabled: bool`).
-- `cron_modify_job`: Update existing job properties.
-- `cron_remove_job`: Delete job entry.
-- `cron_import_jobs` / `cron_export_jobs`: JSON backup/restore.
-
----
-
-## 6. Signal Messaging (`chat-channel`)
+## Signal Messaging (`chat-channel`)
 
 Interacts with local `signal-cli-rest-api` daemon to send and receive Signal messages.
 
 ---
 
-## 7. Audio & Speech Processing (`local-speech`)
+## Audio & Speech Processing (`local-speech`)
 
 Processes audio transcription (`transcribe_audio`) via local Whisper (port 50090) and speech synthesis (`synthesize_speech`) via TTS server (port 50095).
 
 ---
 
-## 8. References & Technical Guides
+## References & Technical Guides
 
 - [Autofix Cron Entries Guide](references/autofix-cron-entries.md): Detailed guide for configuring `result_error_prompt` to capture error telemetry and automatically delegate fixes to a `@fixer` subagent.
