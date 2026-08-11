@@ -85,7 +85,6 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
             "_RETURNCODE": 0,
             "_STDOUT": res_str,
             "_STDERR": "",
-            "_STDCOMBINED": res_str,
             "_RESULT": res_str,
             "_OUTPUT": res_str,
         }
@@ -124,7 +123,6 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
             "_RETURNCODE": 1,
             "_STDOUT": "",
             "_STDERR": err_str,
-            "_STDCOMBINED": err_str,
             "_RESULT": err_str,
             "_OUTPUT": err_str,
         }

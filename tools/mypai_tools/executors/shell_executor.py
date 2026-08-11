@@ -63,7 +63,7 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
     - action: base CLI binary or script executable string (e.g. 'python3', 'ls', 'echo')
     - args: positional argument list or string
     - kwargs: dictionary of flag parameters
-    - result_prompt: optional result context template supporting #[_STDOUT], #[_STDERR], #[_RETURNCODE], #[_STDCOMBINED]
+    - result_prompt: optional result context template supporting #[_STDOUT], #[_STDERR], #[_RETURNCODE], #[_OUTPUT]
     - result_error_prompt: optional error result template used on exitlevel != 0
     - result_action: 'ignore' (default), 'prompt', 'steer', 'followup', 'abort_and_prompt'
     """
@@ -98,9 +98,8 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
         "_RETURNCODE": exit_code,
         "_STDOUT": stdout_str,
         "_STDERR": stderr_str,
-        "_STDCOMBINED": combined_str,
         "_RESULT": stdout_str,
-        "_OUTPUT": stdout_str,
+        "_OUTPUT": combined_str,
     }
 
     if exit_code != 0:

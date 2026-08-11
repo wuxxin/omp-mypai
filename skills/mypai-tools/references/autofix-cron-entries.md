@@ -55,7 +55,7 @@ When evaluated on execution completion, `result_error_prompt` expands the follow
 | Macro Variable | Description |
 | :--- | :--- |
 | **`#[_RETURNCODE]`** | Process exit code (`0` for success, non-zero for failure/error) |
-| **`#[_STDERR]`** | Captured standard error text stream |
 | **`#[_STDOUT]`** | Captured standard output text stream |
-| **`#[_STDCOMBINED]`** | Combined `STDOUT` + `STDERR` output |
+| **`#[_STDERR]`** | Captured standard error text stream |
+| **`#[_OUTPUT]`** | Combined stdout + stderr text stream |
 | **`#[_RESULT]`** | Python return result / JSON object |

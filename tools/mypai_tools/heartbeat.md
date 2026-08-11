@@ -26,7 +26,7 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
      - **`#[_RETURNCODE]`**: Process exit status code (0 for success, non-zero for error).
      - **`#[_STDOUT]`**: Captured standard output text stream.
      - **`#[_STDERR]`**: Captured standard error text stream.
-     - **`#[_STDCOMBINED]`**: Combined STDOUT + STDERR stream output.
+     - **`#[_OUTPUT]`**: Combined output / result text.
      - **`#[_RESULT]`**: Executed return result value/string.
 
 5. **Result Action Processing (`result_action`), Prompts & Delivery Channels (`result_channel`)**:

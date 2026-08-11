@@ -39,23 +39,32 @@ Per-project cron tasks are stored in SQLite databases located at `$HOME/.omp/cro
 - If an exact matching job `(name, kind, action, args, kwargs)` exists, it reschedules the job (`cron="now"`, `enabled=True`).
 - Upon execution, `heartbeat` records telemetry and sets `enabled=False` so it retains history without repeating.
 
-### Recurring Crontab Standard & Version Normalization
-Always specify standard Unix crontab syntax where **`0` = Sunday** (or `7` = Sunday).
-`mypai_tools` transparently detects whether `apscheduler < 4.0` or `apscheduler >= 4.0` is installed and normalizes the day-of-week field automatically so `0` always means Sunday.
+### Crontab Syntax Standard
+Specify standard Unix crontab syntax where **`0` = Sunday** (or `7` = Sunday).
+`mypai_tools` transparently detects whether `apscheduler < 4.0` or `apscheduler >= 4.0` is installed and normalizes the day-of-week field automatically so crontab syntax is as expected.
 
 ### Distinctive `#[VARNAME]` Macro Delimiter & Standardized Internal Variables
+
 - **`#[VARNAME]` Macro Syntax**: All string attributes (`action`, `url`, `args`, `kwargs`, `result_prompt`, `result_error_prompt`) substitute `#[VARNAME]` placeholders (e.g. `#[HINDSIGHT_API_URL]`, `#[HINDSIGHT_BANK_ID]`, `#[HOME]`) before execution.
+
 - **Internal Execution Variables**: `result_prompt` and `result_error_prompt` support standardized `_`-prefixed internal telemetry variables:
-  - `#[_RETURNCODE]`: Process exit status code
-  - `#[_STDOUT]`: Standard output text
-  - `#[_STDERR]`: Standard error text
-  - `#[_STDCOMBINED]`: Combined stdout + stderr text
-  - `#[_RESULT]`: Result object / string
+
+| Macro Variable | Description |
+| :--- | :--- |
+| **`#[_RETURNCODE]`** | Process exit code (`0` for success, non-zero for failure/error) |
+| **`#[_STDOUT]`** | Captured standard output text stream |
+| **`#[_STDERR]`** | Captured standard error text stream |
+| **`#[_OUTPUT]`** | Combined stdout + stderr text stream |
+| **`#[_RESULT]`** | Python return result / JSON object |
+
+
 - **Result Prompts, Action & Channel**:
   - `result_prompt`: Template used on `exitlevel == 0`.
   - `result_error_prompt`: Template used on `exitlevel != 0` (falls back to `result_prompt` if empty).
   - `result_action`: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`.
   - `result_channel`: `""` / `None` (default no extra output), or `"signal"` for Signal messaging.
+
+
 
 ### MCP Tools List
 - `cron_add_job`: Add a recurring crontab task.

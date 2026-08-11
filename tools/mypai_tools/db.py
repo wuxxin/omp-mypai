@@ -20,7 +20,7 @@ def substitute_env_vars(val: Any, extra_vars: dict[str, Any] | None = None) -> A
 
     Supports #[VARNAME] syntax for:
     1. System & Process Environment Variables (e.g. #[HINDSIGHT_API_URL], #[HOME])
-    2. Internal Execution Variables (e.g. #[_RETURNCODE], #[_STDOUT], #[_STDERR], #[_STDCOMBINED], #[_RESULT])
+    2. Internal Execution Variables (e.g. #[_RETURNCODE], #[_STDOUT], #[_STDERR], #[_OUTPUT], #[_RESULT])
     """
     combined_vars: dict[str, Any] = dict(os.environ)
     if extra_vars:
