@@ -26,7 +26,14 @@ description: Complete guide for using mypai_tools MCP services (cron-scheduler, 
 
 Per-project cron tasks are stored in SQLite databases located at `$HOME/.omp/cron/projects/<project_hash>/cron.db`.
 
-### FastMCP `cron_run_once` & Immediate One-Shot Execution
+### `cron_add_job` Task Registration
+- Use **`cron_add_job(name, cron, kind, action, url, args, kwargs, result_prompt, result_error_prompt, result_action, result_channel)`** to register a scheduled task in the project SQLite DB (`~/.omp/cron/projects/<project_hash>/cron.db`).
+- **`name`**: Human-readable task name (e.g. `'Nightly DB Audit'`).
+- **`cron`**: Standard 5-field cron expression (e.g. `'0 3 * * *'`) or `'now'` for immediate execution.
+- **`kind`**: Execution engine kind (`'omp'`, `'http'`, `'shell'`, `'python'`).
+- **`action`**: Execution command/verb/code (e.g. `'prompt'`, `'POST'`, CLI string, or Python lambda).
+
+### `cron_run_once` Immediate One-Shot Execution
 - Use **`cron_run_once(name, kind, action, args, kwargs, ...)`** to queue a task for immediate execution (`cron="now"`).
 - Uses APScheduler `DateTrigger(run_date=now)` with `misfire_grace_time=3600`.
 - If an exact matching job `(name, kind, action, args, kwargs)` exists, it reschedules the job (`cron="now"`, `enabled=True`).
@@ -49,26 +56,6 @@ Always specify standard Unix crontab syntax where **`0` = Sunday** (or `7` = Sun
   - `result_error_prompt`: Template used on `exitlevel != 0` (falls back to `result_prompt` if empty).
   - `result_action`: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`.
   - `result_channel`: `""` / `None` (default no extra output), or `"signal"` for Signal messaging.
-
-  ```python
-  # Example: Automatic Error Notification & Fixer Agent Delegation
-  cron_add_job(
-      name="Nightly Database Audit",
-      cron="0 3 * * *",
-      kind="shell",
-      action="python3",
-      args=["scripts/db_audit.py"],
-      result_action="prompt",
-      result_prompt="Nightly Database Audit completed successfully:\n#[_STDOUT]",
-      result_error_prompt=(
-          "ALERT: Cron entry 'Nightly Database Audit' failed!\n"
-          "Exit Code: #[_RETURNCODE]\n\n"
-          "STDERR:\n#[_STDERR]\n\n"
-          "STDOUT:\n#[_STDOUT]\n\n"
-          "Please inspect the mypai-tools skill and spawn a @fixer agent to resolve the issue."
-      ),
-  )
-  ```
 
 ### MCP Tools List
 - `cron_add_job`: Add a recurring crontab task.
