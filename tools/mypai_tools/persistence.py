@@ -216,3 +216,93 @@ def set_setting(session: Any, key: str, value: str) -> None:
         session.add(row)
     session.commit()
 
+
+def import_jobs_to_db(session: Any, jobs_list: list[dict[str, Any]]) -> tuple[int, int]:
+    """Bulk import or update cron jobs list in SQLite database session."""
+    import uuid
+    from datetime import datetime, timezone
+
+    imported_count = 0
+    updated_count = 0
+    existing_jobs = session.query(CronJobModel).all()
+    id_map = {j.id: j for j in existing_jobs}
+    name_map = {j.name: j for j in existing_jobs}
+
+    for item in jobs_list:
+        if not (isinstance(item, dict) and item.get("name") and item.get("cron")):
+            continue
+        item_id = item.get("id")
+        item_name = item.get("name")
+        existing = id_map.get(item_id) if item_id else name_map.get(item_name)
+
+        if existing:
+            for k in (
+                "description",
+                "cron",
+                "kind",
+                "action",
+                "url",
+                "result_prompt",
+                "result_error_prompt",
+                "result_action",
+                "result_channel",
+                "enabled",
+            ):
+                if k in item:
+                    setattr(existing, k, item[k])
+            if "args" in item:
+                existing.args = (
+                    json.dumps(item["args"])
+                    if isinstance(item["args"], (dict, list))
+                    else str(item["args"] or "")
+                )
+            if "kwargs" in item:
+                existing.kwargs = (
+                    json.dumps(item["kwargs"])
+                    if isinstance(item["kwargs"], (dict, list))
+                    else str(item["kwargs"] or "")
+                )
+            existing.updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            updated_count += 1
+        else:
+            new_id = item_id or str(uuid.uuid4())[:8]
+            now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            args_str = (
+                json.dumps(item.get("args"))
+                if isinstance(item.get("args"), (dict, list))
+                else str(item.get("args") or "")
+            )
+            kwargs_str = (
+                json.dumps(item.get("kwargs"))
+                if isinstance(item.get("kwargs"), (dict, list))
+                else str(item.get("kwargs") or "")
+            )
+            job_obj = CronJobModel(
+                id=new_id,
+                name=item_name,
+                description=item.get("description", ""),
+                cron=item["cron"],
+                kind=item.get("kind", "omp"),
+                action=item.get("action", "prompt"),
+                url=item.get("url", ""),
+                args=args_str,
+                kwargs=kwargs_str,
+                result_prompt=item.get("result_prompt", ""),
+                result_error_prompt=item.get("result_error_prompt", ""),
+                result_action=item.get("result_action", "ignore"),
+                result_channel=item.get("result_channel", ""),
+                enabled=item.get("enabled", True),
+                created_at=now_iso,
+                updated_at=now_iso,
+            )
+            session.add(job_obj)
+            imported_count += 1
+    session.commit()
+    return imported_count, updated_count
+
+
+def export_jobs_from_db(session: Any) -> list[dict[str, Any]]:
+    """Export all cron job records from SQLite database session as dictionary list."""
+    return [j.to_dict() for j in session.query(CronJobModel).all()]
+
+
