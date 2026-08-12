@@ -4,7 +4,20 @@ Personal Artificial Intelligence (PAI) agent plugin based on **Oh-my-PI** and **
 
 ---
 
-## 1. Development & Testing (`Makefile`)
+## Repository Structure
+
+- `Makefile` — Buildenv, virtualenv, testing, and linting targets
+- `plugin.json` — Plugin root manifest
+- `package.json` — Compatibility manifest
+- `mcp.json` — MCP server registry configuration
+- `skills/` — Portable skills definitions & modular references
+- `tools/mypai_tools/` — Python package (`mypai_tools`), `mypai_daemon`, FastMCP servers, and sidecars
+- `agents/` — Custom subagent prompt profiles
+- `rules/` — Execution policies and guidelines
+- `config/` — Hindsight bank configurations and templates
+
+
+## Development & Testing (`Makefile`)
 
 The plugin includes a dedicated [Makefile](Makefile) for virtualenv management, testing, and linting:
 
@@ -17,9 +30,7 @@ make clean     # Clean up test caches and Python bytecode
 make cleanenv  # Remove .venv directory
 ```
 
----
-
-## 2. Sandbox Launcher & Service Configuration (`omp.env`)
+## Sandbox Launcher & Service Configuration (`omp.env`)
 
 The plugin environment launcher configuration is defined in [omp.env](../../omp.env):
 
@@ -40,31 +51,15 @@ The plugin environment launcher configuration is defined in [omp.env](../../omp.
   LAUNCHER_SIDECAR_INPUT_SPOOLER_ARGS="-m mypai_tools.input_spooler daemon --project-dir $MYPAI_PROJECT_DIR"
   ```
 
----
-
-## 3. Repository Structure
-
-- `Makefile` — Buildenv, virtualenv, testing, and linting targets
-- `plugin.json` — Plugin root manifest
-- `mcp.json` — MCP server registry configuration
-- `skills/` — Portable skills definitions & modular references
-- `tools/mypai_tools/` — Python package (`mypai_tools`), `mypai_daemon`, FastMCP servers, and sidecars
-- `agents/` — Custom subagent prompt profiles
-- `rules/` — Execution policies and guidelines
-- `config/` — Hindsight bank configurations and templates
-
----
-
-## 4. Configured MCP Servers (`mcp.json`)
+## Configured MCP Servers (`mcp.json`)
 
 All MCP servers comply with **Agent Plugins 1.0.0 Standard** (`https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`) and are declared in [mcp.json](mcp.json):
 
 - **`chat-channel`**: Signal messaging interface (`mypai_tools.chat_mcp`).
 - **`cron-scheduler`**: Task & cron job scheduler backed by SQLite and `mypai_daemon` REST API (`mypai_tools.cron_mcp`).
 
----
 
-## 5. Background Daemons & Services
+## Background Daemons & Services
 
 Each daemon maintains detailed architectural specifications under `skills/mypai-tools/references/`:
 
@@ -77,7 +72,7 @@ Each daemon maintains detailed architectural specifications under `skills/mypai-
 
 ---
 
-## 6. Agent Skills
+## Agent Skills
 
 All skills conform to the closed 6-field frontmatter schema ([agentskills.io](https://agentskills.io/specification)):
 
