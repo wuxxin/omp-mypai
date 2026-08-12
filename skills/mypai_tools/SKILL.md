@@ -26,7 +26,7 @@ description: Guide for mypai_tools MCP services (cron-scheduler, chat-channel, l
 
 ## 1. Cron Task Scheduler (`cron-scheduler`)
 
-Per-project cron entries are stored in SQLite databases located at `$HOME/.omp/cron/cron-<project_hash>.db`. `cron_mcp` calls `mypai_daemon` REST API (`/api/v1/cron/jobs`) to avoid DB WAL locking.
+Per-project cron entries are stored in SQLite databases located at `mypai_plugin_data/daemon/agent-<basedir>-<shorthash>.db`. `cron_mcp` calls `mypai_daemon` REST API (`/api/v1/cron/jobs`) to avoid DB WAL locking.
 
 ### MCP Tools List
 - **`cron_add_job(name, cron, kind, action, url, args, kwargs, result_prompt, result_error_prompt, result_action, result_channel)`**: Register a recurring crontab task.
@@ -82,7 +82,7 @@ Persistent asynchronous sidecar daemon (`python3 -m mypai_tools.input_spooler da
 ## 5. `mypai_daemon` Environment Overview
 
 * **Host & Port**: `http://127.0.0.1:52080`
-* **Fixed Session Spawning**: Reads `MYPAI_SESSION_NAME` from `omp.env` (default `"mypai-main"`) and maintains a persistent `omp --mode rpc --auto-approve --continue --session <MYPAI_SESSION_NAME>` session. All producers automatically interact with this single fixed session. Automatically recovers from RPC crashes with `--continue`.
+* **Session Persistence & Title**: Maintains persistent `omp --mode rpc --auto-approve` session. Reattaches to existing session UUID saved in DB `project_settings` table or creates a new session. Display title is set to `"mypai_daemon - running"`. Automatically recovers from RPC crashes with `--continue`.
 * **Queue Serializer**: Multi-Producer Single-Consumer (MPSC) queue serializing prompt turns from Signal webhooks, Input Spooler, Cron, and WebUI.
 * **Signal Whitelist Entanglement**: Configured with `SIGNAL_ACCOUNT` and `SIGNAL_ALLOWED_SENDER`. Receives webhooks on `POST /api/v1/signal/webhook`, ignores unauthorized senders, and enqueues a light notification turn for whitelisted messages: `"NEW Signal message received from {sender}. Read with chat_mcp."`
 
@@ -99,6 +99,6 @@ For detailed specifications, API schemas, UI design, and implementation referenc
 - [Cron Scheduler Usage](references/scheduler-usage.md): Cron expression syntax, `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), telemetry macros, & SQLite schema.
 - [Input Spooler Specification](references/input_spooler.md): Inbox directory watcher, STT transcription pipeline, Hindsight memory retention, & `mypai_daemon` REST notifications.
 - [Daemon Test Architecture](references/daemon-testing.md): Hermetic test suite structure, fixtures (`FakeRpcClient`, `in_memory_db`), and test coverage matrix.
-- [CLI Command Usage](references/cli-usage.md): Command line options (`--project-dir`, `--port`, `--once`, `import`, `export`, `pytest`).
+- [CLI Command Usage](references/cli-usage.md): Command line options (`--agent-dir`, `--port`, `--once`, `import`, `export`, `pytest`).
 - [Autofix Cron Entries Guide](references/autofix-cron-entries.md): Guide for configuring `result_error_prompt` to delegate automated fixes to a `@fixer` subagent.
 - [Legacy Heartbeat Specification](references/old-heartbeat.md): Historical spec for the former heartbeat daemon.

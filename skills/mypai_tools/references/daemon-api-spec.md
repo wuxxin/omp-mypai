@@ -43,7 +43,7 @@ The `/api/v1/session` routes support the complete 4-action OMP RPC feature set m
   {
     "status": "connected",
     "pid": 12345,
-    "project_dir": "/home/user/project",
+    "agent_dir": "/home/user/project",
     "is_busy": false,
     "queue_depth": 0,
     "uptime_sec": 3600.5

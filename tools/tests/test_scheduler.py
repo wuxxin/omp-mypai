@@ -14,7 +14,7 @@ def test_cron_normalization() -> None:
 
 @pytest.mark.asyncio
 async def test_scheduler_shell_job_execution(tmp_path) -> None:
-    scheduler = CronScheduler(project_dir=str(tmp_path))
+    scheduler = CronScheduler(agent_dir=str(tmp_path))
     job = {
         "id": "test_job_1",
         "name": "Echo Test",

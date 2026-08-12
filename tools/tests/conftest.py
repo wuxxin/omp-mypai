@@ -76,7 +76,7 @@ def daemon_queue() -> EventQueue:
 
 @pytest.fixture
 def session_manager(tmp_path, fake_rpc_client) -> OMPSessionManager:
-    mgr = OMPSessionManager(project_dir=str(tmp_path), session_name="mypai-test-session")
+    mgr = OMPSessionManager(agent_dir=str(tmp_path))
     mgr.rpc_client = fake_rpc_client
     return mgr
 
@@ -92,6 +92,7 @@ def signal_client() -> SignalClient:
 
 @pytest.fixture
 def test_client(daemon_queue, session_manager, signal_client) -> TestClient:
+    app.state.agent_dir = session_manager.agent_dir
     app.state.daemon_queue = daemon_queue
     app.state.session_manager = session_manager
     app.state.signal_client = signal_client

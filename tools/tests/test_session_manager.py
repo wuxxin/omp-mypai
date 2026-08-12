@@ -8,11 +8,11 @@ from mypai_tools.daemon.session_manager import OMPSessionManager
 @pytest.mark.asyncio
 async def test_session_manager_fixed_session(tmp_path) -> None:
     fake_client = FakeRpcClient()
-    mgr = OMPSessionManager(project_dir=str(tmp_path), session_name="mypai-test-session")
+    mgr = OMPSessionManager(agent_dir=str(tmp_path))
     mgr.rpc_client = fake_client
 
     assert mgr.session_name == "mypai_daemon - running"
-    assert mgr.project_dir == str(tmp_path)
+    assert mgr.agent_dir == str(tmp_path)
 
     # Test executing a prompt turn
     res = await mgr.execute_turn(prompt="Hello MyPAI", mode="prompt")
@@ -24,7 +24,7 @@ async def test_session_manager_fixed_session(tmp_path) -> None:
 @pytest.mark.asyncio
 async def test_session_manager_modes(tmp_path) -> None:
     fake_client = FakeRpcClient()
-    mgr = OMPSessionManager(project_dir=str(tmp_path), session_name="mypai-test-session")
+    mgr = OMPSessionManager(agent_dir=str(tmp_path))
     mgr.rpc_client = fake_client
 
     # Test steer mode
@@ -41,7 +41,7 @@ async def test_session_manager_modes(tmp_path) -> None:
 @pytest.mark.asyncio
 async def test_session_manager_get_status(tmp_path) -> None:
     fake_client = FakeRpcClient()
-    mgr = OMPSessionManager(project_dir=str(tmp_path), session_name="mypai-test-session")
+    mgr = OMPSessionManager(agent_dir=str(tmp_path))
     mgr.rpc_client = fake_client
 
     status = mgr.get_status(queue_depth=2)

@@ -117,11 +117,10 @@ def test_cron_mcp_no_database_fallback(tmp_path: Path) -> None:
         res_add = cron_mcp.cron_add_job(
             name="Offline Task",
             cron="0 * * * *",
-            project_dir=agent_dir,
         )
         assert res_add["status"] == "error"
         assert "MYPAI_AGENT_URL unreachable" in res_add["error"]
 
-        res_list = cron_mcp.cron_list_jobs(project_dir=agent_dir)
+        res_list = cron_mcp.cron_list_jobs()
         assert isinstance(res_list, dict)
         assert res_list["status"] == "error"

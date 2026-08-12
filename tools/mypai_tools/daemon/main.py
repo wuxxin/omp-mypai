@@ -83,8 +83,7 @@ def main() -> None:
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument(
         "--agent-dir",
-        "--project-dir",
-        dest="project_dir",
+        dest="agent_dir",
         type=str,
         default=os.getenv("MYPAI_AGENT_DIR", ""),
         help="Target agent directory path (MYPAI_AGENT_DIR)",
@@ -110,45 +109,46 @@ def main() -> None:
     serve_parser = subparsers.add_parser(
         "serve",
         parents=[parent_parser],
-        help="Run persistent background HTTP REST/WebSocket daemon server",
+        help="Run background daemon REST API server and queue worker",
     )
     serve_parser.add_argument(
         "--port",
         type=int,
-        default=52080,
-        help="HTTP REST & WebSocket port (default: 52080)",
-    )
-    serve_parser.add_argument(
-        "--session-name",
-        type=str,
-        default=os.getenv("MYPAI_SESSION_NAME", "mypai-main"),
-        help="Fixed session name for OMP (default: mypai-main)",
+        default=int(os.getenv("MYPAI_PORT", "52080")),
+        help="REST API server port (default: 52080)",
     )
 
     # Subcommand: once
     subparsers.add_parser(
         "once",
         parents=[parent_parser],
-        help="Run single-pass execution for active cron jobs and exit",
+        help="Execute pending scheduled tasks once and exit",
     )
 
     # Subcommand: import
     import_parser = subparsers.add_parser(
         "import",
         parents=[parent_parser],
-        help="Import cron jobs from a JSON file into project SQLite DB",
+        help="Import cron jobs from a JSON file into SQLite database",
     )
-    import_parser.add_argument("file_path", type=str, help="Path to input JSON file")
+    import_parser.add_argument(
+        "file_path", type=str, help="Path to input JSON file containing jobs"
+    )
 
     # Subcommand: export
     export_parser = subparsers.add_parser(
         "export",
         parents=[parent_parser],
-        help="Export all registered cron jobs from project SQLite DB to a JSON file",
+        help="Export registered cron jobs to a JSON file",
     )
-    export_parser.add_argument("file_path", type=str, help="Path to output JSON file")
+    export_parser.add_argument(
+        "file_path", type=str, help="Path to output JSON file"
+    )
 
     args = parser.parse_args()
+
+    if args.agent_dir:
+        os.environ["MYPAI_AGENT_DIR"] = args.agent_dir
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -165,7 +165,7 @@ def main() -> None:
             logger.error("Import file '%s' not found.", abs_path)
             sys.exit(1)
 
-        db = get_db_session(args.project_dir)
+        db = get_db_session(args.agent_dir)
         try:
             with open(abs_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -193,7 +193,7 @@ def main() -> None:
         from mypai_tools.persistence import export_jobs_from_db, get_db_session
 
         abs_path = os.path.abspath(os.path.expanduser(args.file_path))
-        db = get_db_session(args.project_dir)
+        db = get_db_session(args.agent_dir)
         try:
             jobs = export_jobs_from_db(db)
             os.makedirs(os.path.dirname(abs_path), exist_ok=True)
@@ -209,7 +209,7 @@ def main() -> None:
 
     queue = EventQueue()
     scheduler = CronScheduler(
-        project_dir=args.project_dir, daemon_queue=queue
+        agent_dir=args.agent_dir, daemon_queue=queue
     )
 
     if args.command == "once":
@@ -218,14 +218,11 @@ def main() -> None:
         sys.exit(0)
 
     # Subcommand: serve
-    session_name = getattr(args, "session_name", "mypai-main")
-
-    session_mgr = OMPSessionManager(
-        project_dir=args.project_dir, session_name=session_name
-    )
+    session_mgr = OMPSessionManager(agent_dir=args.agent_dir)
     signal_client = SignalClient()
 
     # Attach components to FastAPI app state
+    app.state.agent_dir = args.agent_dir
     app.state.daemon_queue = queue
     app.state.session_manager = session_mgr
     app.state.scheduler = scheduler

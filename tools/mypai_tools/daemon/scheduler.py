@@ -31,10 +31,10 @@ logger = logging.getLogger("mypai_daemon.scheduler")
 class CronScheduler:
     """Manages AsyncIOScheduler synced with project SQLite database."""
 
-    def __init__(self, project_dir: str = "", daemon_queue: Any | None = None) -> None:
-        self.project_dir = project_dir
+    def __init__(self, agent_dir: str = "", daemon_queue: Any | None = None) -> None:
+        self.agent_dir = agent_dir
         self.daemon_queue = daemon_queue
-        self.db_path = get_project_db_path(project_dir)
+        self.db_path = get_project_db_path(agent_dir)
         self.scheduler = AsyncIOScheduler()
         self.scheduled_job_ids: set[str] = set()
         self.enabled: bool = True
@@ -134,7 +134,7 @@ class CronScheduler:
         res["duration_sec"] = duration
 
         # Record telemetry in SQLite DB
-        session = get_db_session(self.project_dir)
+        session = get_db_session(self.agent_dir)
         try:
             db_job = session.query(CronJobModel).filter_by(id=job_id).first()
             if db_job:
@@ -159,7 +159,7 @@ class CronScheduler:
 
     def sync_jobs_from_db(self) -> None:
         """Query SQLite database for active cron jobs and sync AsyncIOScheduler."""
-        session = get_db_session(self.project_dir)
+        session = get_db_session(self.agent_dir)
         try:
             db_jobs = session.query(CronJobModel).filter_by(enabled=True).all()
             active_ids: set[str] = set()

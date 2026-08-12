@@ -20,16 +20,6 @@ mcp = FastMCP("cron-scheduler")
 DAEMON_URL = os.getenv("MYPAI_AGENT_URL", "http://127.0.0.1:52080")
 
 
-def _effective_agent_dir(agent_dir: str = "", project_dir: str = "") -> str:
-    """Resolve target agent directory using agent_dir or project_dir argument or MYPAI_AGENT_DIR environment variable."""
-    return agent_dir or project_dir or os.getenv("MYPAI_AGENT_DIR", "")
-
-
-def _effective_project_dir(project_dir: str = "", agent_dir: str = "") -> str:
-    """Alias for _effective_agent_dir."""
-    return _effective_agent_dir(agent_dir=agent_dir, project_dir=project_dir)
-
-
 def _daemon_http_request(
     endpoint: str, method: str = "GET", data: dict[str, Any] | None = None
 ) -> dict[str, Any] | list[Any]:
@@ -79,9 +69,8 @@ def cron_add_job(
     result_error_prompt: str = "",
     result_action: str = "ignore",
     result_channel: str = "",
-    project_dir: str = "",
 ) -> dict[str, Any]:
-    """Register a new scheduled task in the project database via mypai_daemon API."""
+    """Register a new scheduled task in the agent database via mypai_daemon API."""
     validate_cron_expression(cron)
     payload = {
         "name": name,
@@ -98,10 +87,7 @@ def cron_add_job(
         "result_channel": result_channel,
     }
 
-    eff_dir = _effective_project_dir(project_dir)
-    res = _daemon_http_request(
-        f"api/v1/cron/jobs?project_dir={eff_dir}", method="POST", data=payload
-    )
+    res = _daemon_http_request("api/v1/cron/jobs", method="POST", data=payload)
     if isinstance(res, dict):
         return res
     return {"status": "error", "error": f"Unexpected response from daemon: {res}"}
@@ -119,7 +105,6 @@ def cron_run_once(
     result_error_prompt: str = "",
     result_action: str = "ignore",
     result_channel: str = "",
-    project_dir: str = "",
 ) -> dict[str, Any]:
     """Queue or reschedule an immediate one-shot task ('now') via mypai_daemon API."""
     payload = {
@@ -135,9 +120,8 @@ def cron_run_once(
         "result_action": result_action,
         "result_channel": result_channel,
     }
-    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/run_once?project_dir={eff_dir}",
+        "api/v1/cron/jobs/run_once",
         method="POST",
         data=payload,
     )
@@ -147,27 +131,23 @@ def cron_run_once(
 
 
 @mcp.tool()
-def cron_list_jobs(
-    project_dir: str = "", include_disabled: bool = True
-) -> list[dict[str, Any]] | dict[str, Any]:
+def cron_list_jobs(include_disabled: bool = True) -> list[dict[str, Any]] | dict[str, Any]:
     """List registered cron jobs and execution telemetry via mypai_daemon API."""
-    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs?include_disabled={include_disabled}&project_dir={eff_dir}"
+        f"api/v1/cron/jobs?include_disabled={include_disabled}"
     )
     return res
 
 
 @mcp.tool()
-def cron_disable_job(job_id: str = "", name: str = "", project_dir: str = "") -> dict[str, Any]:
+def cron_disable_job(job_id: str = "", name: str = "") -> dict[str, Any]:
     """Disable a scheduled cron job via mypai_daemon API."""
     target_id = (job_id or "").strip() or (name or "").strip()
     if not target_id:
         return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
 
-    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{target_id}/disable?project_dir={eff_dir}", method="POST"
+        f"api/v1/cron/jobs/{target_id}/disable", method="POST"
     )
     if isinstance(res, dict):
         return res
@@ -175,15 +155,14 @@ def cron_disable_job(job_id: str = "", name: str = "", project_dir: str = "") ->
 
 
 @mcp.tool()
-def cron_enable_job(job_id: str = "", name: str = "", project_dir: str = "") -> dict[str, Any]:
+def cron_enable_job(job_id: str = "", name: str = "") -> dict[str, Any]:
     """Enable a scheduled cron job via mypai_daemon API."""
     target_id = (job_id or "").strip() or (name or "").strip()
     if not target_id:
         return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
 
-    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{target_id}/enable?project_dir={eff_dir}", method="POST"
+        f"api/v1/cron/jobs/{target_id}/enable", method="POST"
     )
     if isinstance(res, dict):
         return res
@@ -206,7 +185,6 @@ def cron_modify_job(
     result_action: str | None = None,
     result_channel: str | None = None,
     enabled: bool | None = None,
-    project_dir: str = "",
 ) -> dict[str, Any]:
     """Modify parameters of an existing cron job via mypai_daemon API."""
     target_id = (job_id or "").strip()
@@ -244,9 +222,8 @@ def cron_modify_job(
     if enabled is not None:
         updates["enabled"] = enabled
 
-    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{target_id}?project_dir={eff_dir}",
+        f"api/v1/cron/jobs/{target_id}",
         method="PUT",
         data=updates,
     )
@@ -256,15 +233,14 @@ def cron_modify_job(
 
 
 @mcp.tool()
-def cron_remove_job(job_id: str = "", name: str = "", project_dir: str = "") -> dict[str, Any]:
+def cron_remove_job(job_id: str = "", name: str = "") -> dict[str, Any]:
     """Delete a cron job via mypai_daemon API."""
     target_id = (job_id or "").strip() or (name or "").strip()
     if not target_id:
         return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
 
-    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{target_id}?project_dir={eff_dir}", method="DELETE"
+        f"api/v1/cron/jobs/{target_id}", method="DELETE"
     )
     if isinstance(res, dict):
         return res
@@ -272,7 +248,7 @@ def cron_remove_job(job_id: str = "", name: str = "", project_dir: str = "") -> 
 
 
 @mcp.tool()
-def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
+def cron_import_jobs(file_path: str) -> dict[str, Any]:
     """Import cron jobs from a JSON file into mypai_daemon via API."""
     abs_path = os.path.abspath(os.path.expanduser(file_path))
     if not os.path.isfile(abs_path):
@@ -287,7 +263,7 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
 
         imported_count = 0
         updated_count = 0
-        existing_res = cron_list_jobs(project_dir=project_dir, include_disabled=True)
+        existing_res = cron_list_jobs(include_disabled=True)
         if isinstance(existing_res, dict) and "error" in existing_res:
             return existing_res
 
@@ -324,7 +300,6 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
                     result_action=item.get("result_action", existing.get("result_action", "ignore")),
                     result_channel=item.get("result_channel", existing.get("result_channel", "")),
                     enabled=item.get("enabled", existing.get("enabled", True)),
-                    project_dir=project_dir,
                 )
                 updated_count += 1
             else:
@@ -341,7 +316,6 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
                     result_error_prompt=item.get("result_error_prompt", ""),
                     result_action=item.get("result_action", "ignore"),
                     result_channel=item.get("result_channel", ""),
-                    project_dir=project_dir,
                 )
                 imported_count += 1
 
@@ -355,10 +329,10 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_export_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
+def cron_export_jobs(file_path: str) -> dict[str, Any]:
     """Export all registered cron jobs to a JSON file via mypai_daemon API."""
     abs_path = os.path.abspath(os.path.expanduser(file_path))
-    jobs_res = cron_list_jobs(project_dir=project_dir, include_disabled=True)
+    jobs_res = cron_list_jobs(include_disabled=True)
     if isinstance(jobs_res, dict) and "error" in jobs_res:
         return jobs_res
     jobs_list = jobs_res if isinstance(jobs_res, list) else []
@@ -377,42 +351,39 @@ def cron_export_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_enable_execution(project_dir: str = "") -> dict[str, Any]:
+def cron_enable_execution() -> dict[str, Any]:
     """Temporarily enable global cron task execution in mypai_daemon."""
-    eff_dir = _effective_project_dir(project_dir)
-    res = _daemon_http_request(f"api/v1/cron/enable?project_dir={eff_dir}", method="POST")
+    res = _daemon_http_request("api/v1/cron/enable", method="POST")
     if isinstance(res, dict):
         return res
     return {"status": "error", "error": f"Unexpected response from daemon: {res}"}
 
 
 @mcp.tool()
-def cron_disable_execution(project_dir: str = "") -> dict[str, Any]:
+def cron_disable_execution() -> dict[str, Any]:
     """Temporarily disable global cron task execution in mypai_daemon."""
-    eff_dir = _effective_project_dir(project_dir)
-    res = _daemon_http_request(f"api/v1/cron/disable?project_dir={eff_dir}", method="POST")
+    res = _daemon_http_request("api/v1/cron/disable", method="POST")
     if isinstance(res, dict):
         return res
     return {"status": "error", "error": f"Unexpected response from daemon: {res}"}
 
 
 @mcp.tool()
-def cron_enable_all_jobs(project_dir: str = "") -> dict[str, Any]:
+def cron_enable_all_jobs() -> dict[str, Any]:
     """Enable global cron task execution."""
-    return cron_enable_execution(project_dir=project_dir)
+    return cron_enable_execution()
 
 
 @mcp.tool()
-def cron_disable_all_jobs(project_dir: str = "") -> dict[str, Any]:
+def cron_disable_all_jobs() -> dict[str, Any]:
     """Disable global cron task execution."""
-    return cron_disable_execution(project_dir=project_dir)
+    return cron_disable_execution()
 
 
 @mcp.tool()
-def cron_get_status(project_dir: str = "") -> dict[str, Any]:
+def cron_get_status() -> dict[str, Any]:
     """Get status overview of scheduled cron jobs via mypai_daemon API."""
-    eff_dir = _effective_project_dir(project_dir)
-    res = _daemon_http_request(f"api/v1/cron/status?project_dir={eff_dir}")
+    res = _daemon_http_request("api/v1/cron/status")
     if isinstance(res, dict):
         return res
     return {"status": "error", "error": f"Unexpected response from daemon: {res}"}
@@ -420,3 +391,4 @@ def cron_get_status(project_dir: str = "") -> dict[str, Any]:
 
 if __name__ == "__main__":
     mcp.run()
+

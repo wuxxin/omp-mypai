@@ -124,7 +124,7 @@ async def execute_omp_rpc_job(
             "duration_sec": duration,
         }
 
-    target_cwd = job.get("agent_dir") or job.get("project_dir") or os.getenv("MYPAI_AGENT_DIR", "")
+    target_cwd = job.get("agent_dir") or os.getenv("MYPAI_AGENT_DIR", "")
     rpc_client_kwargs: dict[str, Any] = {"extra_args": ["--auto-approve", "--continue"]}
     if target_cwd and os.path.isdir(target_cwd):
         rpc_client_kwargs["cwd"] = target_cwd
@@ -146,3 +146,25 @@ async def execute_omp_rpc_job(
             "object": None,
             "duration_sec": duration,
         }
+
+
+def dispatch_result_to_omp(result_action: str, final_output: str) -> None:
+    """Helper to dispatch job output or error text to active OMP session via RpcClient."""
+    act = (result_action or "ignore").lower()
+    if act == "ignore" or not final_output or RpcClient is None:
+        return
+
+    try:
+        with RpcClient() as client:
+            client.install_headless_ui()
+            if act in ("prompt", "prompt_and_wait"):
+                client.prompt(final_output)
+            elif act == "steer":
+                client.steer(final_output)
+            elif act in ("followup", "follow_up"):
+                client.follow_up(final_output)
+            elif act == "abort_and_prompt":
+                client.abort_and_prompt(final_output)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to route output to OMP via RpcClient: %s", exc)
+

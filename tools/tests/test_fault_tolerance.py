@@ -34,7 +34,7 @@ class FaultyRpcClient(FakeRpcClient):
 @pytest.mark.asyncio
 async def test_session_manager_fault_recovery(tmp_path) -> None:
     faulty_client = FaultyRpcClient()
-    mgr = OMPSessionManager(project_dir=str(tmp_path), session_name="mypai-test-session")
+    mgr = OMPSessionManager(agent_dir=str(tmp_path), session_name="mypai-test-session")
     mgr.rpc_client = faulty_client
 
     # Execute turn with faulty client -> first call fails, session manager reconnects
@@ -52,7 +52,7 @@ async def test_session_manager_fault_recovery(tmp_path) -> None:
 @pytest.mark.asyncio
 async def test_session_manager_missing_session_strict_resume(tmp_path) -> None:
     """Test that session manager handles RPC process startup failure cleanly."""
-    mgr = OMPSessionManager(project_dir=str(tmp_path), session_name="mypai-missing-test")
+    mgr = OMPSessionManager(agent_dir=str(tmp_path), session_name="mypai-missing-test")
 
     mock_rpc_cls = MagicMock()
     first_client_mock = MagicMock()

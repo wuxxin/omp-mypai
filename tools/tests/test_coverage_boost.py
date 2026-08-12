@@ -57,7 +57,7 @@ def test_signal_client_attachments_and_errors(tmp_path: Path) -> None:
 
 
 def test_daemon_main_once_flag(tmp_path: Path) -> None:
-    with patch("sys.argv", ["daemon", "once", "--project-dir", str(tmp_path)]):
+    with patch("sys.argv", ["daemon", "once", "--agent-dir", str(tmp_path)]):
         with pytest.raises(SystemExit) as exc_info:
             daemon_main()
         assert exc_info.value.code == 0
@@ -112,30 +112,30 @@ def test_cron_mcp_all_tools_http_branch(tmp_path: Path) -> None:
     }
 
     with patch.object(cron_mcp, "_daemon_http_request", return_value=[fake_job]):
-        res_list = cron_mcp.cron_list_jobs(project_dir=proj_dir)
+        res_list = cron_mcp.cron_list_jobs()
         assert res_list == [fake_job]
 
     fake_dict_resp = {"status": "ok", "job": fake_job}
     with patch.object(cron_mcp, "_daemon_http_request", return_value=fake_dict_resp):
-        res_mod = cron_mcp.cron_modify_job(job_id="mock_id", name="T1 Mod", project_dir=proj_dir)
+        res_mod = cron_mcp.cron_modify_job(job_id="mock_id", name="T1 Mod")
         assert res_mod == fake_dict_resp
 
-        res_dis = cron_mcp.cron_disable_job(job_id="mock_id", project_dir=proj_dir)
+        res_dis = cron_mcp.cron_disable_job(job_id="mock_id")
         assert res_dis == fake_dict_resp
 
-        res_en = cron_mcp.cron_enable_job(job_id="mock_id", project_dir=proj_dir)
+        res_en = cron_mcp.cron_enable_job(job_id="mock_id")
         assert res_en == fake_dict_resp
 
-        res_rm = cron_mcp.cron_remove_job(job_id="mock_id", project_dir=proj_dir)
+        res_rm = cron_mcp.cron_remove_job(job_id="mock_id")
         assert res_rm == fake_dict_resp
 
-        res_en_all = cron_mcp.cron_enable_all_jobs(project_dir=proj_dir)
+        res_en_all = cron_mcp.cron_enable_all_jobs()
         assert res_en_all == fake_dict_resp
 
-        res_dis_all = cron_mcp.cron_disable_all_jobs(project_dir=proj_dir)
+        res_dis_all = cron_mcp.cron_disable_all_jobs()
         assert res_dis_all == fake_dict_resp
 
-        res_stat = cron_mcp.cron_get_status(project_dir=proj_dir)
+        res_stat = cron_mcp.cron_get_status()
         assert res_stat == fake_dict_resp
 
 
@@ -146,21 +146,21 @@ def test_daemon_import_export_cli(tmp_path: Path) -> None:
 
     with patch("mypai_tools.cron_mcp._daemon_http_request", return_value={"error": "offline"}):
         # Test import subcommand (first import creates new job with generated ID)
-        with patch("sys.argv", ["mypai_daemon", "import", str(import_file), "--project-dir", proj_dir]):
+        with patch("sys.argv", ["mypai_daemon", "import", str(import_file), "--agent-dir", proj_dir]):
             with pytest.raises(SystemExit) as exc_info:
                 daemon_main()
             assert exc_info.value.code == 0
 
         # Test export subcommand
         export_file = tmp_path / "jobs_export.json"
-        with patch("sys.argv", ["mypai_daemon", "export", str(export_file), "--project-dir", proj_dir]):
+        with patch("sys.argv", ["mypai_daemon", "export", str(export_file), "--agent-dir", proj_dir]):
             with pytest.raises(SystemExit) as exc_info:
                 daemon_main()
             assert exc_info.value.code == 0
         assert export_file.exists()
 
         # Re-importing exported file (with assigned IDs) updates existing job, avoiding duplicates
-        with patch("sys.argv", ["mypai_daemon", "import", str(export_file), "--project-dir", proj_dir]):
+        with patch("sys.argv", ["mypai_daemon", "import", str(export_file), "--agent-dir", proj_dir]):
             with pytest.raises(SystemExit) as exc_info:
                 daemon_main()
             assert exc_info.value.code == 0

@@ -8,6 +8,7 @@ import shlex
 import time
 from typing import Any
 
+from mypai_tools.executors.omp_rpc_executor import dispatch_result_to_omp
 from mypai_tools.utils import substitute_vars
 
 try:
@@ -115,20 +116,7 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
 
     logger.info("Shell job '%s' exited with code %d", name, exit_code)
 
-    if result_action != "ignore" and RpcClient is not None and final_output:
-        try:
-            with RpcClient() as client:
-                client.install_headless_ui()
-                if result_action in ("prompt", "prompt_and_wait"):
-                    client.prompt(final_output)
-                elif result_action == "steer":
-                    client.steer(final_output)
-                elif result_action in ("followup", "follow_up"):
-                    client.follow_up(final_output)
-                elif result_action == "abort_and_prompt":
-                    client.abort_and_prompt(final_output)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Failed to route shell output to OMP via RpcClient: %s", exc)
+    dispatch_result_to_omp(result_action, final_output)
 
     return {
         "status": "success" if exit_code == 0 else "error",

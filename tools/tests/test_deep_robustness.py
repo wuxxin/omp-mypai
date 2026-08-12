@@ -66,7 +66,7 @@ async def test_scheduler_telemetry_and_oneshot(tmp_path: Path) -> None:
     session.commit()
     session.close()
 
-    scheduler = CronScheduler(project_dir=proj_dir)
+    scheduler = CronScheduler(agent_dir=proj_dir)
     scheduler.sync_jobs_from_db()
     assert len(scheduler.scheduled_job_ids) == 1
 

@@ -136,18 +136,23 @@ def get_agent_dir_info(agent_dir: str = "") -> tuple[str, str]:
     return basedir, shorthash
 
 
-def get_project_dir_hash(project_dir: str = "") -> str:
-    """Compute 12-char SHA256 hash for normalized real project directory path."""
-    _, shorthash = get_agent_dir_info(project_dir)
+def get_agent_dir_hash(agent_dir: str = "") -> str:
+    """Compute shorthash for normalized real agent directory path."""
+    _, shorthash = get_agent_dir_info(agent_dir)
     return shorthash
 
 
-def get_project_db_path(project_dir: str = "") -> str:
+def get_project_dir_hash(agent_dir: str = "") -> str:
+    """Alias for get_agent_dir_hash."""
+    return get_agent_dir_hash(agent_dir)
+
+
+def get_agent_db_path(agent_dir: str = "") -> str:
     """Get absolute SQLite database path for given MYPAI_AGENT_DIR.
-    
+
     Database location format: mypai_plugin_data/daemon/agent-<basedir>-<shorthash>.db
     """
-    basedir, shorthash = get_agent_dir_info(project_dir)
+    basedir, shorthash = get_agent_dir_info(agent_dir)
     plugin_data = os.environ.get(
         "MYPAI_PLUGIN_DATA",
         os.path.expanduser("~/.omp/data/omp-mypai"),
@@ -157,9 +162,14 @@ def get_project_db_path(project_dir: str = "") -> str:
     return os.path.join(daemon_db_dir, f"agent-{basedir}-{shorthash}.db")
 
 
-def get_daemon_pid_path(project_dir: str = "") -> str:
-    """Get daemon PID file path for given project directory."""
-    basedir, shorthash = get_agent_dir_info(project_dir)
+def get_project_db_path(agent_dir: str = "") -> str:
+    """Alias for get_agent_db_path."""
+    return get_agent_db_path(agent_dir)
+
+
+def get_daemon_pid_path(agent_dir: str = "") -> str:
+    """Get daemon PID file path for given agent directory."""
+    basedir, shorthash = get_agent_dir_info(agent_dir)
     plugin_data = os.environ.get(
         "MYPAI_PLUGIN_DATA",
         os.path.expanduser("~/.omp/data/omp-mypai"),
@@ -169,9 +179,9 @@ def get_daemon_pid_path(project_dir: str = "") -> str:
     return os.path.join(daemon_dir, f"mypai-daemon-{basedir}-{shorthash}.pid")
 
 
-def is_daemon_running(project_dir: str = "") -> bool:
+def is_daemon_running(agent_dir: str = "") -> bool:
     """Check if daemon process PID exists and is actively running."""
-    pid_path = get_daemon_pid_path(project_dir)
+    pid_path = get_daemon_pid_path(agent_dir)
     if not os.path.isfile(pid_path):
         return False
     try:
@@ -183,9 +193,9 @@ def is_daemon_running(project_dir: str = "") -> bool:
         return False
 
 
-def get_db_session(project_dir: str = ""):
+def get_db_session(agent_dir: str = ""):
     """Create engine with SQLite WAL mode, create database tables, and return Session."""
-    db_path = get_project_db_path(project_dir)
+    db_path = get_agent_db_path(agent_dir)
     engine = create_engine(f"sqlite:///{db_path}", echo=False)
 
     # Enable WAL mode and 30s busy timeout for concurrent safety

@@ -36,14 +36,8 @@ def format_human_uptime(seconds: float) -> str:
 class OMPSessionManager:
     """Manages persistent omp --mode rpc session connected to a workspace directory."""
 
-    def __init__(
-        self,
-        agent_dir: str = "",
-        session_name: str | None = None,
-        project_dir: str = "",
-    ) -> None:
-        self.agent_dir = resolve_agent_dir(agent_dir or project_dir)
-        self.project_dir = self.agent_dir  # Alias for backward compatibility
+    def __init__(self, agent_dir: str = "", session_name: str | None = None) -> None:
+        self.agent_dir = resolve_agent_dir(agent_dir)
         self.session_name = "mypai_daemon - running"
         self.session_uuid = ""
         self.rpc_client: Any | None = None
@@ -335,7 +329,6 @@ class OMPSessionManager:
             "session_name": self.session_name,
             "session_id": self.session_uuid,
             "agent_dir": self.agent_dir,
-            "project_dir": self.agent_dir,
             "is_busy": self.is_busy,
             "queue_depth": queue_depth,
             "uptime_sec": uptime,

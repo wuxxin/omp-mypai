@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The **Cron Task Scheduler** subsystem in `mypai_daemon` manages background execution for **MyPAI**. Tasks are stored per workspace in SQLite databases located at `$HOME/.omp/cron/cron-<project_hash>.db` (with WAL mode and 30s busy timeout enabled).
+The **Cron Task Scheduler** subsystem in `mypai_daemon` manages background execution for **MyPAI**. Tasks are stored per workspace in SQLite databases located at `mypai_plugin_data/daemon/agent-<basedir>-<shorthash>.db` (with WAL mode and 30s busy timeout enabled).
 
 ---
 
