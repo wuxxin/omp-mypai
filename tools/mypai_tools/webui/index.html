@@ -217,6 +217,27 @@
           </div>
         </div>
       </div>
+
+      <div class="card">
+        <div class="card-title">Cron Telemetry & Controls</div>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted);">Global Execution:</span>
+            <span id="cron-exec-status" style="font-weight: 600; color: var(--status-green);">Enabled</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted);">Total Registered Jobs:</span>
+            <span id="cron-total-jobs" style="font-weight: 600;">0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted);">Active / Inactive Jobs:</span>
+            <span><span id="cron-enabled-jobs" style="color: var(--status-green);">0</span> / <span id="cron-disabled-jobs" style="color: var(--status-amber);">0</span></span>
+          </div>
+          <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+            <button id="toggle-cron-btn" onclick="toggleGlobalCron()" style="width: 100%; padding: 0.5rem; font-size: 0.8rem;">Disable Global Cron</button>
+          </div>
+        </div>
+      </div>
     </aside>
   </div>
 
@@ -333,10 +354,57 @@
       } catch (e) {}
     }
 
-    document.getElementById('refresh-cron-btn').addEventListener('click', loadCronJobs);
+    let globalCronEnabled = true;
 
-    setInterval(updateStatus, 3000);
+    async function updateCronStatus() {
+      try {
+        const res = await fetch('/api/v1/cron/status');
+        const data = await res.json();
+        globalCronEnabled = !!data.cron_execution_enabled;
+        const execStatusEl = document.getElementById('cron-exec-status');
+        const toggleBtn = document.getElementById('toggle-cron-btn');
+
+        if (globalCronEnabled) {
+          execStatusEl.textContent = 'Enabled';
+          execStatusEl.style.color = 'var(--status-green)';
+          toggleBtn.textContent = 'Disable Global Cron';
+          toggleBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        } else {
+          execStatusEl.textContent = 'Disabled';
+          execStatusEl.style.color = 'var(--status-amber)';
+          toggleBtn.textContent = 'Enable Global Cron';
+          toggleBtn.style.background = 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))';
+        }
+
+        document.getElementById('cron-total-jobs').textContent = data.total_jobs || 0;
+        document.getElementById('cron-enabled-jobs').textContent = data.enabled_jobs || 0;
+        document.getElementById('cron-disabled-jobs').textContent = data.disabled_jobs || 0;
+      } catch (e) {}
+    }
+
+    async function toggleGlobalCron() {
+      const endpoint = globalCronEnabled ? '/api/v1/cron/disable' : '/api/v1/cron/enable';
+      try {
+        await fetch(endpoint, { method: 'POST' });
+        appendLog(`Global cron execution ${globalCronEnabled ? 'disabled' : 'enabled'}`, 'info');
+        updateCronStatus();
+      } catch (e) {
+        appendLog(`Failed to toggle cron execution: ${e}`, 'error');
+      }
+    }
+
+    document.getElementById('refresh-cron-btn').addEventListener('click', () => {
+      loadCronJobs();
+      updateCronStatus();
+    });
+
+    setInterval(() => {
+      updateStatus();
+      updateCronStatus();
+    }, 3000);
+
     updateStatus();
+    updateCronStatus();
     loadCronJobs();
   </script>
 </body>

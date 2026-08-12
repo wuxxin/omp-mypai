@@ -1,7 +1,7 @@
 [
   {
-    "id": "job_work_sweep",
     "name": "Periodic Work Sweep Audit",
+    "description": "Audit active project tasks, verify pending commitments, and reflect on progress",
     "kind": "omp",
     "action": "prompt",
     "args": [],
@@ -13,8 +13,8 @@
     "enabled": true
   },
   {
-    "id": "job_health_sync",
     "name": "Hindsight Reflection Sweep",
+    "description": "Trigger Hindsight memory reflection sweep across active project memory banks",
     "kind": "http",
     "action": "POST",
     "url": "#[HINDSIGHT_API_URL]/v1/default/banks/#[HINDSIGHT_BANK_ID]/reflect",

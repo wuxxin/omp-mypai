@@ -118,25 +118,38 @@ class OMPSessionManager:
                         rpc_res = client.steer(prompt)
                     else:
                         rpc_res = client.prompt(f"[STEER INTERRUPT] {prompt}")
+                    if hasattr(client, "wait_for_idle"):
+                        client.wait_for_idle()
                 elif clean_mode == "followup":
                     if hasattr(client, "followup"):
                         rpc_res = client.followup(prompt)
                     else:
                         rpc_res = client.prompt(f"[FOLLOWUP] {prompt}")
+                    if hasattr(client, "wait_for_idle"):
+                        client.wait_for_idle()
                 elif clean_mode == "abort_and_prompt":
                     if hasattr(client, "abort"):
                         try:
                             client.abort()
                         except Exception:  # noqa: BLE001, S110
                             pass
-                    rpc_res = client.prompt(prompt)
+                    if hasattr(client, "prompt_and_wait"):
+                        rpc_res = client.prompt_and_wait(prompt)
+                    else:
+                        rpc_res = client.prompt(prompt)
                 else:  # 'prompt'
-                    rpc_res = client.prompt(prompt)
+                    if hasattr(client, "prompt_and_wait"):
+                        rpc_res = client.prompt_and_wait(prompt)
+                    else:
+                        rpc_res = client.prompt(prompt)
 
-                if isinstance(rpc_res, dict):
+                if hasattr(rpc_res, "assistant_text"):
+                    res_output = rpc_res.assistant_text or ""
+                elif isinstance(rpc_res, dict):
                     res_output = (
                         rpc_res.get("response")
                         or rpc_res.get("output")
+                        or rpc_res.get("assistant_text")
                         or rpc_res.get("text")
                         or str(rpc_res)
                     )

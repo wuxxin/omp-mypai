@@ -26,7 +26,8 @@ class CronJobModel(Base):
     __tablename__ = "cron_jobs"
 
     id = Column(String(64), primary_key=True)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, unique=True)
+    description = Column(Text, nullable=True, default="")
     cron = Column(String(255), nullable=False)
     kind = Column(String(32), nullable=False, default="omp")
     action = Column(Text, nullable=False, default="prompt")
@@ -71,6 +72,7 @@ class CronJobModel(Base):
         return {
             "id": self.id,
             "name": self.name,
+            "description": self.description or "",
             "cron": self.cron,
             "kind": self.kind,
             "action": self.action,
@@ -94,11 +96,12 @@ class CronJobModel(Base):
 
 
 def get_project_dir_hash(project_dir: str = "") -> str:
-    """Compute 12-char SHA256 hash for normalized project directory path."""
+    """Compute 12-char SHA256 hash for normalized real project directory path."""
     if not project_dir:
         project_dir = os.getcwd()
-    abs_path = os.path.abspath(os.path.expanduser(project_dir))
-    return hashlib.sha256(abs_path.encode("utf-8")).hexdigest()[:12]
+    real_path = os.path.realpath(os.path.abspath(os.path.expanduser(project_dir)))
+    normalized_path = os.path.normpath(real_path)
+    return hashlib.sha256(normalized_path.encode("utf-8")).hexdigest()[:12]
 
 
 def get_project_db_path(project_dir: str = "") -> str:

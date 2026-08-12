@@ -129,23 +129,45 @@ def test_cron_mcp_all_tools_http_branch(tmp_path: Path) -> None:
         res_rm = cron_mcp.cron_remove_job(job_id="mock_id", project_dir=proj_dir)
         assert res_rm == fake_dict_resp
 
+        res_en_all = cron_mcp.cron_enable_all_jobs(project_dir=proj_dir)
+        assert res_en_all == fake_dict_resp
+
+        res_dis_all = cron_mcp.cron_disable_all_jobs(project_dir=proj_dir)
+        assert res_dis_all == fake_dict_resp
+
+        res_stat = cron_mcp.cron_get_status(project_dir=proj_dir)
+        assert res_stat == fake_dict_resp
+
 
 def test_daemon_import_export_cli(tmp_path: Path) -> None:
     proj_dir = str(tmp_path)
     import_file = tmp_path / "jobs_import.json"
-    import_file.write_text('[{"name": "CLI_Cron", "cron": "0 * * * *"}]', encoding="utf-8")
+    import_file.write_text('[{"name": "CLI_Cron", "description": "Test Title", "cron": "0 * * * *"}]', encoding="utf-8")
 
-    # Test import subcommand
-    with patch("sys.argv", ["mypai_daemon", "import", str(import_file), "--project-dir", proj_dir]):
-        with pytest.raises(SystemExit) as exc_info:
-            daemon_main()
-        assert exc_info.value.code == 0
+    with patch("mypai_tools.cron_mcp._daemon_http_request", return_value={"error": "offline"}):
+        # Test import subcommand (first import creates new job with generated ID)
+        with patch("sys.argv", ["mypai_daemon", "import", str(import_file), "--project-dir", proj_dir]):
+            with pytest.raises(SystemExit) as exc_info:
+                daemon_main()
+            assert exc_info.value.code == 0
 
-    # Test export subcommand
-    export_file = tmp_path / "jobs_export.json"
-    with patch("sys.argv", ["mypai_daemon", "export", str(export_file), "--project-dir", proj_dir]):
-        with pytest.raises(SystemExit) as exc_info:
-            daemon_main()
-        assert exc_info.value.code == 0
-    assert export_file.exists()
+        # Test export subcommand
+        export_file = tmp_path / "jobs_export.json"
+        with patch("sys.argv", ["mypai_daemon", "export", str(export_file), "--project-dir", proj_dir]):
+            with pytest.raises(SystemExit) as exc_info:
+                daemon_main()
+            assert exc_info.value.code == 0
+        assert export_file.exists()
+
+        # Re-importing exported file (with assigned IDs) updates existing job, avoiding duplicates
+        with patch("sys.argv", ["mypai_daemon", "import", str(export_file), "--project-dir", proj_dir]):
+            with pytest.raises(SystemExit) as exc_info:
+                daemon_main()
+            assert exc_info.value.code == 0
+
+        # Verify only 1 job exists in database
+        jobs = cron_mcp.cron_list_jobs(project_dir=proj_dir)
+        assert len(jobs) == 1
+        assert jobs[0]["name"] == "CLI_Cron"
+        assert jobs[0]["description"] == "Test Title"
 

@@ -99,6 +99,7 @@ The following `_`-prefixed variables are populated after job execution and can b
 CREATE TABLE cron_jobs (
     id VARCHAR(64) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
+    description TEXT DEFAULT '',
     cron VARCHAR(255) NOT NULL,
     kind VARCHAR(32) NOT NULL DEFAULT 'omp',
     action TEXT NOT NULL DEFAULT 'prompt',

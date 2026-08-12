@@ -59,6 +59,7 @@ def validate_cron_expression(cron_str: str) -> None:
 def cron_add_job(
     name: str,
     cron: str,
+    description: str = "",
     kind: str = "omp",
     action: str = "prompt",
     url: str = "",
@@ -74,6 +75,7 @@ def cron_add_job(
     validate_cron_expression(cron)
     payload = {
         "name": name,
+        "description": description,
         "cron": cron,
         "kind": kind,
         "action": action,
@@ -107,6 +109,7 @@ def cron_add_job(
     db_job = CronJobModel(
         id=job_id,
         name=name,
+        description=description,
         cron=cron,
         kind=kind,
         action=action,
@@ -137,6 +140,9 @@ def cron_add_job(
             "job": db_job.to_dict(),
             "daemon_running": running,
         }
+    except Exception as exc:  # noqa: BLE001
+        session.rollback()
+        return {"status": "error", "error": f"Failed to add job '{name}': {exc}"}
     finally:
         session.close()
 
@@ -251,19 +257,25 @@ def cron_list_jobs(
 
 
 @mcp.tool()
-def cron_disable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
-    """Disable a scheduled cron job."""
+def cron_disable_job(job_id: str = "", name: str = "", project_dir: str = "") -> dict[str, Any]:
+    """Disable a scheduled cron job, identified by job_id or job name."""
+    target_id = (job_id or "").strip() or (name or "").strip()
+    if not target_id:
+        return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
+
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{job_id}/disable?project_dir={project_dir}", method="POST"
+        f"api/v1/cron/jobs/{target_id}/disable?project_dir={project_dir}", method="POST"
     )
     if isinstance(res, dict) and "error" not in res:
         return res
 
     session = get_db_session(project_dir)
     try:
-        db_job = session.query(CronJobModel).filter_by(id=job_id).first()
+        db_job = session.query(CronJobModel).filter(
+            (CronJobModel.id == target_id) | (CronJobModel.name == target_id)
+        ).first()
         if not db_job:
-            return {"status": "error", "error": f"Job ID '{job_id}' not found"}
+            return {"status": "error", "error": f"Job '{target_id}' not found"}
         db_job.enabled = False
         session.commit()
         return {"status": "disabled", "job": db_job.to_dict()}
@@ -272,19 +284,25 @@ def cron_disable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_enable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
-    """Enable a scheduled cron job."""
+def cron_enable_job(job_id: str = "", name: str = "", project_dir: str = "") -> dict[str, Any]:
+    """Enable a scheduled cron job, identified by job_id or job name."""
+    target_id = (job_id or "").strip() or (name or "").strip()
+    if not target_id:
+        return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
+
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{job_id}/enable?project_dir={project_dir}", method="POST"
+        f"api/v1/cron/jobs/{target_id}/enable?project_dir={project_dir}", method="POST"
     )
     if isinstance(res, dict) and "error" not in res:
         return res
 
     session = get_db_session(project_dir)
     try:
-        db_job = session.query(CronJobModel).filter_by(id=job_id).first()
+        db_job = session.query(CronJobModel).filter(
+            (CronJobModel.id == target_id) | (CronJobModel.name == target_id)
+        ).first()
         if not db_job:
-            return {"status": "error", "error": f"Job ID '{job_id}' not found"}
+            return {"status": "error", "error": f"Job '{target_id}' not found"}
         db_job.enabled = True
         session.commit()
         return {"status": "enabled", "job": db_job.to_dict()}
@@ -294,8 +312,9 @@ def cron_enable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
 
 @mcp.tool()
 def cron_modify_job(
-    job_id: str,
+    job_id: str = "",
     name: str | None = None,
+    description: str | None = None,
     cron: str | None = None,
     kind: str | None = None,
     action: str | None = None,
@@ -309,10 +328,18 @@ def cron_modify_job(
     enabled: bool | None = None,
     project_dir: str = "",
 ) -> dict[str, Any]:
-    """Modify parameters of an existing cron job."""
+    """Modify parameters of an existing cron job, identified by job_id or job name."""
+    target_id = (job_id or "").strip()
+    if not target_id and name:
+        target_id = name.strip()
+    if not target_id:
+        return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
+
     updates: dict[str, Any] = {}
     if name is not None:
         updates["name"] = name
+    if description is not None:
+        updates["description"] = description
     if cron is not None:
         validate_cron_expression(cron)
         updates["cron"] = cron
@@ -323,9 +350,9 @@ def cron_modify_job(
     if url is not None:
         updates["url"] = url
     if args is not None:
-        updates["args"] = args
+        updates["args"] = json.dumps(args) if isinstance(args, (dict, list)) else str(args or "")
     if kwargs is not None:
-        updates["kwargs"] = kwargs
+        updates["kwargs"] = json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
     if result_prompt is not None:
         updates["result_prompt"] = result_prompt
     if result_error_prompt is not None:
@@ -338,7 +365,7 @@ def cron_modify_job(
         updates["enabled"] = enabled
 
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{job_id}?project_dir={project_dir}",
+        f"api/v1/cron/jobs/{target_id}?project_dir={project_dir}",
         method="PUT",
         data=updates,
     )
@@ -347,9 +374,11 @@ def cron_modify_job(
 
     session = get_db_session(project_dir)
     try:
-        db_job = session.query(CronJobModel).filter_by(id=job_id).first()
+        db_job = session.query(CronJobModel).filter(
+            (CronJobModel.id == target_id) | (CronJobModel.name == target_id)
+        ).first()
         if not db_job:
-            return {"status": "error", "error": f"Job ID '{job_id}' not found"}
+            return {"status": "error", "error": f"Job '{target_id}' not found"}
         for k, v in updates.items():
             setattr(db_job, k, v)
         session.commit()
@@ -359,19 +388,25 @@ def cron_modify_job(
 
 
 @mcp.tool()
-def cron_remove_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
-    """Delete a cron job from database."""
+def cron_remove_job(job_id: str = "", name: str = "", project_dir: str = "") -> dict[str, Any]:
+    """Delete a cron job from database, identified by job_id or job name."""
+    target_id = (job_id or "").strip() or (name or "").strip()
+    if not target_id:
+        return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
+
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{job_id}?project_dir={project_dir}", method="DELETE"
+        f"api/v1/cron/jobs/{target_id}?project_dir={project_dir}", method="DELETE"
     )
     if isinstance(res, dict) and "error" not in res:
         return res
 
     session = get_db_session(project_dir)
     try:
-        db_job = session.query(CronJobModel).filter_by(id=job_id).first()
+        db_job = session.query(CronJobModel).filter(
+            (CronJobModel.id == target_id) | (CronJobModel.name == target_id)
+        ).first()
         if not db_job:
-            return {"status": "error", "error": f"Job ID '{job_id}' not found"}
+            return {"status": "error", "error": f"Job '{target_id}' not found"}
         deleted_dict = db_job.to_dict()
         session.delete(db_job)
         session.commit()
@@ -382,7 +417,7 @@ def cron_remove_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
 
 @mcp.tool()
 def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
-    """Import cron jobs from a JSON file into project database."""
+    """Import cron jobs from a JSON file into project database with idempotent upserts by ID or Name."""
     abs_path = os.path.abspath(os.path.expanduser(file_path))
     if not os.path.isfile(abs_path):
         return {"status": "error", "error": f"Import file '{abs_path}' not found"}
@@ -395,10 +430,47 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
             return {"status": "error", "error": "Expected list of jobs"}
 
         imported_count = 0
+        updated_count = 0
+        existing_jobs = cron_list_jobs(project_dir=project_dir, include_disabled=True)
+        id_map = {j["id"]: j for j in existing_jobs if isinstance(j, dict) and "id" in j}
+        name_map = {j["name"]: j for j in existing_jobs if isinstance(j, dict) and "name" in j}
+
         for item in jobs_list:
-            if isinstance(item, dict) and item.get("name") and item.get("cron"):
+            if not (isinstance(item, dict) and item.get("name") and item.get("cron")):
+                continue
+
+            item_id = item.get("id")
+            item_name = item.get("name")
+            existing = None
+
+            if item_id and item_id in id_map:
+                existing = id_map[item_id]
+            elif item_name and item_name in name_map:
+                existing = name_map[item_name]
+
+            if existing:
+                cron_modify_job(
+                    job_id=existing["id"],
+                    name=item_name,
+                    description=item.get("description", existing.get("description", "")),
+                    cron=item.get("cron", existing.get("cron", "")),
+                    kind=item.get("kind", existing.get("kind", "omp")),
+                    action=item.get("action", existing.get("action", "prompt")),
+                    url=item.get("url", existing.get("url", "")),
+                    args=item.get("args", existing.get("args")),
+                    kwargs=item.get("kwargs", existing.get("kwargs")),
+                    result_prompt=item.get("result_prompt", existing.get("result_prompt", "")),
+                    result_error_prompt=item.get("result_error_prompt", existing.get("result_error_prompt", "")),
+                    result_action=item.get("result_action", existing.get("result_action", "ignore")),
+                    result_channel=item.get("result_channel", existing.get("result_channel", "")),
+                    enabled=item.get("enabled", existing.get("enabled", True)),
+                    project_dir=project_dir,
+                )
+                updated_count += 1
+            else:
                 cron_add_job(
-                    name=item["name"],
+                    name=item_name,
+                    description=item.get("description", ""),
                     cron=item["cron"],
                     kind=item.get("kind", "omp"),
                     action=item.get("action", "prompt"),
@@ -412,7 +484,12 @@ def cron_import_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
                     project_dir=project_dir,
                 )
                 imported_count += 1
-        return {"status": "imported", "imported_count": imported_count}
+
+        return {
+            "status": "imported",
+            "imported_count": imported_count,
+            "updated_count": updated_count,
+        }
     except Exception as exc:  # noqa: BLE001
         return {"status": "error", "error": str(exc)}
 
@@ -433,6 +510,62 @@ def cron_export_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
         }
     except Exception as exc:  # noqa: BLE001
         return {"status": "error", "error": str(exc)}
+
+
+@mcp.tool()
+def cron_enable_execution(project_dir: str = "") -> dict[str, Any]:
+    """Temporarily enable global cron task execution in mypai_daemon."""
+    res = _daemon_http_request(f"api/v1/cron/enable?project_dir={project_dir}", method="POST")
+    if isinstance(res, dict) and "error" not in res:
+        return res
+    running = is_daemon_running(project_dir)
+    return {"status": "enabled", "cron_execution_enabled": True, "daemon_running": running}
+
+
+@mcp.tool()
+def cron_disable_execution(project_dir: str = "") -> dict[str, Any]:
+    """Temporarily disable global cron task execution in mypai_daemon."""
+    res = _daemon_http_request(f"api/v1/cron/disable?project_dir={project_dir}", method="POST")
+    if isinstance(res, dict) and "error" not in res:
+        return res
+    running = is_daemon_running(project_dir)
+    return {"status": "disabled", "cron_execution_enabled": False, "daemon_running": running}
+
+
+@mcp.tool()
+def cron_enable_all_jobs(project_dir: str = "") -> dict[str, Any]:
+    """Enable global cron task execution."""
+    return cron_enable_execution(project_dir=project_dir)
+
+
+@mcp.tool()
+def cron_disable_all_jobs(project_dir: str = "") -> dict[str, Any]:
+    """Disable global cron task execution."""
+    return cron_disable_execution(project_dir=project_dir)
+
+
+@mcp.tool()
+def cron_get_status(project_dir: str = "") -> dict[str, Any]:
+    """Get status overview of scheduled cron jobs and daemon connectivity."""
+    res = _daemon_http_request(f"api/v1/cron/status?project_dir={project_dir}")
+    if isinstance(res, dict) and "error" not in res:
+        return res
+
+    session = get_db_session(project_dir)
+    try:
+        all_jobs = session.query(CronJobModel).all()
+        enabled_count = sum(1 for j in all_jobs if j.enabled)
+        running = is_daemon_running(project_dir)
+        return {
+            "status": "active" if running else "daemon_offline",
+            "cron_execution_enabled": True,
+            "total_jobs": len(all_jobs),
+            "enabled_jobs": enabled_count,
+            "disabled_jobs": len(all_jobs) - enabled_count,
+            "daemon_running": running,
+        }
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":

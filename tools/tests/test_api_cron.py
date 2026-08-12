@@ -1,5 +1,12 @@
 """Tests for mypai_daemon REST API cron endpoints."""
 
+import json
+from pathlib import Path
+from unittest.mock import patch
+
+from mypai_tools import cron_mcp
+
+
 def test_cron_jobs_crud(test_client, tmp_path) -> None:
     proj_dir = str(tmp_path)
 
@@ -33,7 +40,97 @@ def test_cron_jobs_crud(test_client, tmp_path) -> None:
     assert res_en.status_code == 200
     assert res_en.json()["job"]["enabled"] is True
 
-    # 5. Delete job
+    # 5. Disable global execution
+    res_dis_all = test_client.post("/api/v1/cron/disable")
+    assert res_dis_all.status_code == 200
+    assert res_dis_all.json()["cron_execution_enabled"] is False
+
+    # 6. Check cron status
+    res_stat = test_client.get(f"/api/v1/cron/status?project_dir={proj_dir}")
+    assert res_stat.status_code == 200
+    assert res_stat.json()["cron_execution_enabled"] is False
+    assert res_stat.json()["status"] == "disabled"
+
+    # 7. Enable global execution
+    res_en_all = test_client.post("/api/v1/cron/enable")
+    assert res_en_all.status_code == 200
+    assert res_en_all.json()["cron_execution_enabled"] is True
+
+    # 8. Delete job
     res_del = test_client.delete(f"/api/v1/cron/jobs/{job_id}?project_dir={proj_dir}")
     assert res_del.status_code == 200
     assert res_del.json()["status"] == "deleted"
+
+
+def test_default_jobs_import_export_cycle(tmp_path: Path) -> None:
+    """Test importing default_jobs.json (without IDs), exporting, verifying generated IDs, and re-importing without duplicates."""
+    proj_dir = str(tmp_path)
+    default_jobs_path = Path(__file__).parent.parent.parent / "config" / "default_jobs.json"
+    assert default_jobs_path.exists()
+
+    with patch("mypai_tools.cron_mcp._daemon_http_request", return_value={"error": "offline"}):
+        # 1. Import default_jobs.json (entries have no IDs) into empty DB
+        res_imp = cron_mcp.cron_import_jobs(file_path=str(default_jobs_path), project_dir=proj_dir)
+        assert res_imp["status"] == "imported"
+        assert res_imp["imported_count"] == 2
+
+        # 2. List jobs from DB
+        jobs_initial = cron_mcp.cron_list_jobs(project_dir=proj_dir)
+        assert len(jobs_initial) == 2
+
+        # 3. Export DB jobs to JSON file
+        export_file = tmp_path / "exported_default_jobs.json"
+        res_exp = cron_mcp.cron_export_jobs(file_path=str(export_file), project_dir=proj_dir)
+        assert res_exp["status"] == "exported"
+        assert res_exp["exported_count"] == 2
+        assert export_file.exists()
+
+        # 4. Read exported file and verify all entries have auto-generated IDs and descriptions
+        exported_data = json.loads(export_file.read_text(encoding="utf-8"))
+        exported_jobs = exported_data.get("jobs", [])
+        assert len(exported_jobs) == 2
+        for job in exported_jobs:
+            assert "id" in job and bool(job["id"])
+            assert "description" in job and bool(job["description"])
+
+        # 5. Re-import the exported file with IDs into DB
+        res_reimp = cron_mcp.cron_import_jobs(file_path=str(export_file), project_dir=proj_dir)
+        assert res_reimp["status"] == "imported"
+        assert res_reimp["updated_count"] == 2
+
+        # 6. Verify total job count remains 2 (no duplicates, replaced/updated existing jobs)
+        jobs_final = cron_mcp.cron_list_jobs(project_dir=proj_dir)
+        assert len(jobs_final) == 2
+        assert {j["name"] for j in jobs_final} == {j["name"] for j in jobs_initial}
+
+
+def test_cron_modify_by_name_and_unique_constraint(tmp_path: Path) -> None:
+    """Test modifying job by name lookup and verifying unique name constraint."""
+    proj_dir = str(tmp_path)
+    with patch("mypai_tools.cron_mcp._daemon_http_request", return_value={"error": "offline"}):
+        # 1. Add initial job
+        res_add = cron_mcp.cron_add_job(
+            name="Unique Audit Job",
+            description="Initial description",
+            cron="0 0 * * *",
+            project_dir=proj_dir,
+        )
+        assert res_add["status"].startswith("scheduled")
+
+        # 2. Modify job by NAME (without passing job_id)
+        res_mod = cron_mcp.cron_modify_job(
+            name="Unique Audit Job",
+            description="Updated description by name lookup",
+            project_dir=proj_dir,
+        )
+        assert res_mod["status"] == "modified"
+        assert res_mod["job"]["description"] == "Updated description by name lookup"
+
+        # 3. Attempt to add another job with duplicate name
+        res_dup = cron_mcp.cron_add_job(
+            name="Unique Audit Job",
+            description="Duplicate attempt",
+            cron="0 12 * * *",
+            project_dir=proj_dir,
+        )
+        assert res_dup.get("status") == "error"

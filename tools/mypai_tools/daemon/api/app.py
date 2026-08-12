@@ -34,6 +34,7 @@ class SessionPromptRequest(BaseModel):
 
 class CronJobSchema(BaseModel):
     name: str
+    description: str = ""
     cron: str
     kind: str = "omp"
     action: str = "prompt"
@@ -124,6 +125,7 @@ async def cron_add_job(job: CronJobSchema, project_dir: str = "") -> dict[str, A
     db_job = CronJobModel(
         id=job_id,
         name=job.name,
+        description=job.description,
         cron=job.cron,
         kind=job.kind,
         action=job.action,
@@ -153,7 +155,9 @@ async def cron_add_job(job: CronJobSchema, project_dir: str = "") -> dict[str, A
 async def cron_modify_job(job_id: str, updates: dict[str, Any], project_dir: str = "") -> dict[str, Any]:
     session = get_db_session(project_dir)
     try:
-        db_job = session.query(CronJobModel).filter_by(id=job_id).first()
+        db_job = session.query(CronJobModel).filter(
+            (CronJobModel.id == job_id) | (CronJobModel.name == job_id)
+        ).first()
         if not db_job:
             raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
         for k, v in updates.items():
@@ -170,7 +174,9 @@ async def cron_modify_job(job_id: str, updates: dict[str, Any], project_dir: str
 async def cron_delete_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
     session = get_db_session(project_dir)
     try:
-        db_job = session.query(CronJobModel).filter_by(id=job_id).first()
+        db_job = session.query(CronJobModel).filter(
+            (CronJobModel.id == job_id) | (CronJobModel.name == job_id)
+        ).first()
         if not db_job:
             raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
         res = db_job.to_dict()
@@ -195,6 +201,43 @@ async def cron_disable_job(job_id: str, project_dir: str = "") -> dict[str, Any]
 async def cron_run_once(job: CronJobSchema, project_dir: str = "") -> dict[str, Any]:
     job.cron = "now"
     return await cron_add_job(job, project_dir)
+
+
+@app.post("/api/v1/cron/enable")
+async def cron_enable_execution(request: Request) -> dict[str, Any]:
+    scheduler = getattr(request.app.state, "scheduler", None)
+    if scheduler:
+        scheduler.enable_cron_execution()
+    return {"status": "enabled", "cron_execution_enabled": True}
+
+
+@app.post("/api/v1/cron/disable")
+async def cron_disable_execution(request: Request) -> dict[str, Any]:
+    scheduler = getattr(request.app.state, "scheduler", None)
+    if scheduler:
+        scheduler.disable_cron_execution()
+    return {"status": "disabled", "cron_execution_enabled": False}
+
+
+@app.get("/api/v1/cron/status")
+async def cron_status(request: Request, project_dir: str = "") -> dict[str, Any]:
+    session = get_db_session(project_dir)
+    try:
+        all_jobs = session.query(CronJobModel).all()
+        enabled_count = sum(1 for j in all_jobs if j.enabled)
+        disabled_count = len(all_jobs) - enabled_count
+        scheduler = getattr(request.app.state, "scheduler", None)
+        is_running = bool(scheduler and getattr(scheduler, "scheduler", None) and scheduler.scheduler.running)
+        exec_enabled = bool(scheduler and scheduler.is_cron_execution_enabled())
+        return {
+            "status": "active" if (is_running and exec_enabled) else ("disabled" if not exec_enabled else "idle"),
+            "cron_execution_enabled": exec_enabled,
+            "total_jobs": len(all_jobs),
+            "enabled_jobs": enabled_count,
+            "disabled_jobs": disabled_count,
+        }
+    finally:
+        session.close()
 
 
 # Signal Webhook Endpoint with Whitelist Filter

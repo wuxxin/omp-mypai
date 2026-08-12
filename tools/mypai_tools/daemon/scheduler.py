@@ -37,6 +37,27 @@ class CronScheduler:
         self.db_path = get_project_db_path(project_dir)
         self.scheduler = AsyncIOScheduler()
         self.scheduled_job_ids: set[str] = set()
+        self.enabled: bool = True
+
+    def enable_cron_execution(self) -> bool:
+        """Enable global cron task execution without modifying DB records."""
+        self.enabled = True
+        if self.scheduler.running and self.scheduler.state == 2:
+            self.scheduler.resume()
+        logger.info("Global cron task execution ENABLED.")
+        return True
+
+    def disable_cron_execution(self) -> bool:
+        """Disable global cron task execution without modifying DB records."""
+        self.enabled = False
+        if self.scheduler.running and self.scheduler.state == 1:
+            self.scheduler.pause()
+        logger.info("Global cron task execution DISABLED.")
+        return False
+
+    def is_cron_execution_enabled(self) -> bool:
+        """Check if global cron execution is currently enabled."""
+        return self.enabled
 
     def start(self) -> None:
         if not self.scheduler.running:
@@ -54,6 +75,10 @@ class CronScheduler:
         kind = str(job.get("kind", "omp")).lower()
         job_id = job.get("id", "unknown")
         name = job.get("name", "Unnamed Job")
+
+        if not self.enabled:
+            logger.info("Global cron execution disabled; skipping task '%s' (ID: %s).", name, job_id)
+            return {"status": "skipped", "reason": "cron_disabled", "job_id": job_id, "name": name}
 
         logger.info("Executing cron task '%s' (ID: %s, kind: %s)...", name, job_id, kind)
         start_time = datetime.now(timezone.utc).isoformat()

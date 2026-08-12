@@ -31,10 +31,15 @@
   - `prompt`: Submits standard turn (`POST /api/v1/session/prompt`).
   - `steer`: Submits high-priority interrupt (`POST /api/v1/session/steer`).
 
-### 2.4 Cron Manager Panel
+### 2.4 Sidebar Telemetry & Global Cron Controls
+- **Session Telemetry**: Displays fixed session name, daemon PID, turn queue depth, and process uptime.
+- **Cron Telemetry**: Displays global execution state (`Enabled` / `Disabled`), total registered jobs count, active vs inactive job counts.
+- **Global Cron Toggle**: Interactive button calling `POST /api/v1/cron/enable` or `POST /api/v1/cron/disable` to temporarily pause/resume engine execution without modifying database records.
+
+### 2.5 Cron Manager Panel
 - Queries `GET /api/v1/cron/jobs` on load.
+- Displays registered cron tasks with job names (titles), 5-field cron schedules, kind, last runtime, and call metrics.
 - Provides one-click action buttons:
   - **Run Now**: Calls `POST /api/v1/cron/jobs/run_once`.
-  - **Toggle**: Calls `/enable` or `/disable`.
+  - **Toggle**: Calls `/enable` or `/disable` for individual jobs.
   - **Delete**: Calls `DELETE /api/v1/cron/jobs/{id}`.
-- Includes a modal form for registering new cron tasks (`cron_add_job`).

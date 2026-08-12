@@ -76,7 +76,8 @@ submodules/omp-mypai/tools/tests/
 
 ### 5.4 `test_api_session.py`, `test_api_cron.py` & `test_webui.py` (REST API & WebUI)
 - `test_session_*_endpoint`: Tests `/api/v1/session/prompt`, `/steer`, `/followup`, `/abort_and_prompt`, and `/status`.
-- `test_cron_jobs_crud`: Tests `GET`, `POST`, `PUT`, `DELETE`, `/enable`, `/disable`, and `/run_once`.
+- `test_cron_jobs_crud`: Tests `GET`, `POST`, `PUT`, `DELETE`, global execution `/enable` & `/disable`, and `/run_once`.
+- `test_default_jobs_import_export_cycle`: Imports `default_jobs.json` (without `id`s), exports to JSON, verifies generated `id`s and `description`s, and re-imports without creating duplicate records.
 - `test_webui_*_endpoint`: Validates static HTML dashboard rendering on `/ui` and `/`.
 
 ### 5.5 `test_api_webhook.py`, `test_signal_client_extended.py` & `test_fault_tolerance.py` (Signal & Visual Feedback)

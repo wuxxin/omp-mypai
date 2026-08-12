@@ -58,15 +58,18 @@ All FastMCP tools in `cron_mcp.py` execute HTTP REST calls targeting `mypai_daem
 
 ### Tools List & API Mapping
 
-1. **`cron_add_job(name, cron, kind='omp', action='prompt', url='', args=None, kwargs=None, result_prompt='', result_error_prompt='', result_action='ignore', result_channel='')`**: Calls `POST /api/v1/cron/jobs`.
+1. **`cron_add_job(name, cron, kind='omp', action='prompt', description='', url='', args=None, kwargs=None, result_prompt='', result_error_prompt='', result_action='ignore', result_channel='')`**: Calls `POST /api/v1/cron/jobs`.
 2. **`cron_run_once(...)`**: Calls `POST /api/v1/cron/jobs/run_once`. Queues/reschedules a one-shot job (`cron="now"`).
 3. **`cron_list_jobs(include_disabled=True)`**: Calls `GET /api/v1/cron/jobs`.
-4. **`cron_disable_job(job_id)`**: Calls `POST /api/v1/cron/jobs/{job_id}/disable`.
-5. **`cron_enable_job(job_id)`**: Calls `POST /api/v1/cron/jobs/{job_id}/enable`.
-6. **`cron_modify_job(job_id, ...)`**: Calls `PUT /api/v1/cron/jobs/{job_id}`.
-7. **`cron_remove_job(job_id)`**: Calls `DELETE /api/v1/cron/jobs/{job_id}`.
-8. **`cron_import_jobs(file_path)`**: Reads JSON file and calls `POST /api/v1/cron/import`.
-9. **`cron_export_jobs(file_path)`**: Calls `GET /api/v1/cron/export` and writes JSON file.
+4. **`cron_disable_job(job_id='', name='')`**: Calls `POST /api/v1/cron/jobs/{job_id_or_name}/disable`.
+5. **`cron_enable_job(job_id='', name='')`**: Calls `POST /api/v1/cron/jobs/{job_id_or_name}/enable`.
+6. **`cron_modify_job(job_id='', name='', ...)`**: Calls `PUT /api/v1/cron/jobs/{job_id_or_name}`. Supports identification by `job_id` or `name`.
+7. **`cron_remove_job(job_id='', name='')`** / **`cron_delete_job(...)`**: Calls `DELETE /api/v1/cron/jobs/{job_id_or_name}`. Supports identification by `job_id` or `name`.
+8. **`cron_import_jobs(file_path)`**: Reads JSON file and performs idempotent upsert matching by ID or Name.
+9. **`cron_export_jobs(file_path)`**: Exports database jobs preserving auto-generated IDs to JSON file.
+10. **`cron_enable_execution()`** / **`cron_enable_all_jobs()`**: Calls `POST /api/v1/cron/enable` to temporarily enable global execution.
+11. **`cron_disable_execution()`** / **`cron_disable_all_jobs()`**: Calls `POST /api/v1/cron/disable` to temporarily disable global execution.
+12. **`cron_get_status()`**: Calls `GET /api/v1/cron/status` to retrieve engine & job telemetry.
 
 ---
 

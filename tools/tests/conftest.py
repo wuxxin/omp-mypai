@@ -36,9 +36,14 @@ class FakeRpcClient:
         self.prompts_received.append((text, "prompt"))
         return {"status": "ok", "response": f"Echo: {text}"}
 
-    def prompt_and_wait(self, text: str, timeout: float = 120.0) -> "FakeRpcClient":
+    def prompt_and_wait(self, text: str, timeout: float = 120.0) -> Any:
         self.prompts_received.append((text, "prompt_and_wait"))
-        return self
+
+        class MockPromptTurn:
+            def __init__(self, t: str) -> None:
+                self.assistant_text = f"Echo: {t}"
+
+        return MockPromptTurn(text)
 
     def require_assistant_text(self) -> str:
         return "Echo Assistant Text"

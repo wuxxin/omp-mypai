@@ -87,13 +87,16 @@ The `/api/v1/session` routes support the complete 4-action OMP RPC feature set m
 * **Description**: Delete cron job from SQLite database.
 
 ### `POST /api/v1/cron/jobs/{job_id}/enable` & `/disable`
-* **Description**: Enable or disable target cron task.
+* **Description**: Enable or disable target individual cron task.
+
+### `POST /api/v1/cron/enable` & `POST /api/v1/cron/disable`
+* **Description**: Temporarily enable or disable global cron task execution across the entire scheduler engine without mutating individual database records.
+
+### `GET /api/v1/cron/status`
+* **Description**: Get telemetry status overview (`active`, `disabled`, `idle`), global execution state, total jobs, enabled jobs, and disabled jobs count.
 
 ### `POST /api/v1/cron/jobs/run_once`
 * **Description**: Reschedule an existing matching task or queue a new one-shot job (`cron="now"`).
-
-### `POST /api/v1/cron/import` & `GET /api/v1/cron/export`
-* **Description**: Import or export cron job JSON arrays.
 
 ---
 

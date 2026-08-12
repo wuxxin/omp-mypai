@@ -21,6 +21,15 @@ class FaultyRpcClient(FakeRpcClient):
             raise ConnectionResetError("OMP RPC socket crashed mid-turn")
         return {"status": "ok", "response": f"Recovered turn: {text}"}
 
+    def prompt_and_wait(self, text: str, timeout: float = 120.0):
+        res = self.prompt(text)
+
+        class MockPromptTurn:
+            def __init__(self, output: str) -> None:
+                self.assistant_text = output
+
+        return MockPromptTurn(res.get("response", ""))
+
 
 @pytest.mark.asyncio
 async def test_session_manager_fault_recovery(tmp_path) -> None:
