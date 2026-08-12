@@ -11,8 +11,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from mypai_tools.db import get_db_session, is_heartbeat_running
-from mypai_tools.models import CronJobModel
+from mypai_tools.persistence import CronJobModel, get_db_session, is_daemon_running
 
 logging.basicConfig(
     level=logging.INFO,
@@ -96,11 +95,14 @@ def cron_add_job(
     # Fallback to direct SQLite DB session if daemon API is offline
     session = get_db_session(project_dir)
     import uuid
+
     job_id = str(uuid.uuid4())[:8]
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     args_str = json.dumps(args) if isinstance(args, (dict, list)) else str(args or "")
-    kwargs_str = json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
+    kwargs_str = (
+        json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
+    )
 
     db_job = CronJobModel(
         id=job_id,
@@ -122,13 +124,19 @@ def cron_add_job(
     try:
         session.add(db_job)
         session.commit()
-        running = is_heartbeat_running(project_dir)
+        running = is_daemon_running(project_dir)
         cron_clean = str(cron or "").strip().lower()
         if cron_clean in ("now", "@now", "@once"):
-            status_msg = "scheduled_once" if running else "scheduled_once_heartbeat_offline"
+            status_msg = (
+                "scheduled_once" if running else "scheduled_once_heartbeat_offline"
+            )
         else:
             status_msg = "scheduled" if running else "scheduled_heartbeat_offline"
-        return {"status": status_msg, "job": db_job.to_dict(), "heartbeat_running": running}
+        return {
+            "status": status_msg,
+            "job": db_job.to_dict(),
+            "heartbeat_running": running,
+        }
     finally:
         session.close()
 
@@ -162,7 +170,9 @@ def cron_run_once(
         "result_channel": result_channel,
     }
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/run_once?project_dir={project_dir}", method="POST", data=payload
+        f"api/v1/cron/jobs/run_once?project_dir={project_dir}",
+        method="POST",
+        data=payload,
     )
     if isinstance(res, dict) and "error" not in res:
         return res
@@ -171,17 +181,23 @@ def cron_run_once(
     session = get_db_session(project_dir)
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     args_str = json.dumps(args) if isinstance(args, (dict, list)) else str(args or "")
-    kwargs_str = json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
+    kwargs_str = (
+        json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
+    )
 
     try:
-        existing = session.query(CronJobModel).filter_by(name=name, kind=kind, action=action).all()
+        existing = (
+            session.query(CronJobModel)
+            .filter_by(name=name, kind=kind, action=action)
+            .all()
+        )
         matching_job = None
         for j in existing:
             if (j.args or "") == args_str and (j.kwargs or "") == kwargs_str:
                 matching_job = j
                 break
 
-        running = is_heartbeat_running(project_dir)
+        running = is_daemon_running(project_dir)
 
         if matching_job:
             matching_job.cron = "now"
@@ -189,7 +205,11 @@ def cron_run_once(
             matching_job.updated_at = now_iso
             session.commit()
             status_msg = "rescheduled" if running else "rescheduled_heartbeat_offline"
-            return {"status": status_msg, "job": matching_job.to_dict(), "heartbeat_running": running}
+            return {
+                "status": status_msg,
+                "job": matching_job.to_dict(),
+                "heartbeat_running": running,
+            }
     finally:
         session.close()
 
@@ -291,23 +311,36 @@ def cron_modify_job(
 ) -> dict[str, Any]:
     """Modify parameters of an existing cron job."""
     updates: dict[str, Any] = {}
-    if name is not None: updates["name"] = name
+    if name is not None:
+        updates["name"] = name
     if cron is not None:
         validate_cron_expression(cron)
         updates["cron"] = cron
-    if kind is not None: updates["kind"] = kind
-    if action is not None: updates["action"] = action
-    if url is not None: updates["url"] = url
-    if args is not None: updates["args"] = args
-    if kwargs is not None: updates["kwargs"] = kwargs
-    if result_prompt is not None: updates["result_prompt"] = result_prompt
-    if result_error_prompt is not None: updates["result_error_prompt"] = result_error_prompt
-    if result_action is not None: updates["result_action"] = result_action
-    if result_channel is not None: updates["result_channel"] = result_channel
-    if enabled is not None: updates["enabled"] = enabled
+    if kind is not None:
+        updates["kind"] = kind
+    if action is not None:
+        updates["action"] = action
+    if url is not None:
+        updates["url"] = url
+    if args is not None:
+        updates["args"] = args
+    if kwargs is not None:
+        updates["kwargs"] = kwargs
+    if result_prompt is not None:
+        updates["result_prompt"] = result_prompt
+    if result_error_prompt is not None:
+        updates["result_error_prompt"] = result_error_prompt
+    if result_action is not None:
+        updates["result_action"] = result_action
+    if result_channel is not None:
+        updates["result_channel"] = result_channel
+    if enabled is not None:
+        updates["enabled"] = enabled
 
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{job_id}?project_dir={project_dir}", method="PUT", data=updates
+        f"api/v1/cron/jobs/{job_id}?project_dir={project_dir}",
+        method="PUT",
+        data=updates,
     )
     if isinstance(res, dict) and "error" not in res:
         return res
@@ -393,7 +426,11 @@ def cron_export_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         with open(abs_path, "w", encoding="utf-8") as f:
             json.dump({"jobs": jobs_list}, f, indent=2)
-        return {"status": "exported", "exported_count": len(jobs_list), "file_path": abs_path}
+        return {
+            "status": "exported",
+            "exported_count": len(jobs_list),
+            "file_path": abs_path,
+        }
     except Exception as exc:  # noqa: BLE001
         return {"status": "error", "error": str(exc)}
 

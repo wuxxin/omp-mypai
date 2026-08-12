@@ -1,15 +1,10 @@
-"""Database session management, SQLite WAL mode, path helpers, and cron normalization."""
+"""Utility functions for macro substitution and cron string normalization."""
 
-import hashlib
 import json
 import os
 from typing import Any
 
 import apscheduler
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
-
-from mypai_tools.models import Base
 
 APSCHEDULER_VERSION = getattr(apscheduler, "__version__", "3.0.0")
 IS_APSCHEDULER_V4 = APSCHEDULER_VERSION.startswith("4")
@@ -102,68 +97,3 @@ def normalize_cron_expression(expr: str) -> str:
         new_dow = remap_token(dow)
 
     return f"{minute} {hour} {dom} {month} {new_dow}"
-
-
-def get_project_dir_hash(project_dir: str = "") -> str:
-    """Compute 12-char SHA256 hash for normalized project directory path."""
-    if not project_dir:
-        project_dir = os.getcwd()
-    abs_path = os.path.abspath(os.path.expanduser(project_dir))
-    return hashlib.sha256(abs_path.encode("utf-8")).hexdigest()[:12]
-
-
-def get_project_db_path(project_dir: str = "") -> str:
-    """Get absolute SQLite database path for given project directory."""
-    p_hash = get_project_dir_hash(project_dir)
-    base_dir = os.environ.get("OMP_DIR", os.path.expanduser("~/.omp"))
-    cron_dir = os.path.join(base_dir, "cron")
-    os.makedirs(cron_dir, exist_ok=True)
-    return os.path.join(cron_dir, f"cron-{p_hash}.db")
-
-
-def get_daemon_pid_path(project_dir: str = "") -> str:
-    """Get daemon PID file path for given project directory."""
-    p_hash = get_project_dir_hash(project_dir)
-    base_dir = os.environ.get("OMP_DIR", os.path.expanduser("~/.omp"))
-    cron_dir = os.path.join(base_dir, "cron")
-    os.makedirs(cron_dir, exist_ok=True)
-    return os.path.join(cron_dir, f"mypai-daemon-{p_hash}.pid")
-
-
-def is_daemon_running(project_dir: str = "") -> bool:
-    """Check if daemon process PID exists and is actively running."""
-    pid_path = get_daemon_pid_path(project_dir)
-    if not os.path.isfile(pid_path):
-        return False
-    try:
-        with open(pid_path, "r", encoding="utf-8") as f:
-            pid = int(f.read().strip())
-        os.kill(pid, 0)
-        return True
-    except (ValueError, OSError):
-        return False
-
-
-def get_heartbeat_pid_path(project_dir: str = "") -> str:
-    return get_daemon_pid_path(project_dir)
-
-
-def is_heartbeat_running(project_dir: str = "") -> bool:
-    return is_daemon_running(project_dir)
-
-
-def get_db_session(project_dir: str = ""):
-    """Create engine with SQLite WAL mode, create database tables, and return Session."""
-    db_path = get_project_db_path(project_dir)
-    engine = create_engine(f"sqlite:///{db_path}", echo=False)
-
-    # Enable WAL mode and 30s busy timeout for concurrent safety
-    with engine.connect() as conn:
-        conn.execute(text("PRAGMA journal_mode=WAL;"))
-        conn.execute(text("PRAGMA busy_timeout=30000;"))
-        conn.commit()
-
-    Base.metadata.create_all(engine)
-
-    Session = sessionmaker(bind=engine)
-    return Session()

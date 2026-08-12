@@ -8,11 +8,10 @@ import pytest
 
 from mypai_tools.daemon.queue import EventQueue
 from mypai_tools.daemon.scheduler import CronScheduler
-from mypai_tools.db import get_db_session
+from mypai_tools.persistence import CronJobModel, get_db_session
 from mypai_tools.executors.http_executor import execute_http_job
 from mypai_tools.executors.python_executor import execute_python_job
 from mypai_tools.executors.shell_executor import execute_shell_job
-from mypai_tools.models import CronJobModel
 from conftest import FakeRpcClient
 
 

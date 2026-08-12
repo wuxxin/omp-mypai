@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Any
 
-from mypai_tools.db import substitute_vars
+from mypai_tools.utils import substitute_vars
 
 try:
     from omp_rpc import RpcClient

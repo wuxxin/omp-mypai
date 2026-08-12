@@ -11,8 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from mypai_tools.daemon.api.ws import router as ws_router
 from mypai_tools.daemon.api.ws import ws_manager
-from mypai_tools.db import get_db_session
-from mypai_tools.models import CronJobModel
+from mypai_tools.persistence import CronJobModel, get_db_session
 from pydantic import BaseModel, Field
 
 app = FastAPI(

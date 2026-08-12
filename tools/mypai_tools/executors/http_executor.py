@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from mypai_tools.db import substitute_vars
+from mypai_tools.utils import substitute_vars
 
 logger = logging.getLogger("mypai_heartbeat.http_executor")
 
