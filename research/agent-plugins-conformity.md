@@ -14,7 +14,7 @@ The `omp-mypai` repository was audited against the **Agent Plugins Specification
 |---|---|---|
 | **`plugin.json` Manifest (§5)** | **CONFORMANT** | Targets `$schema` `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`. Manifest name `omp-mypai` conforms to §5.5 naming rules. All fields conform strictly to closed JSON schema. |
 | **`mcp.json` Registry (§7.2)** | **CONFORMANT** | Targets `$schema` `https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`. Registers 5 stdio MCP servers (`chat-channel`, `cron-scheduler`, `local-speech`, `arbor`, `openadapt`). Uses valid `${PLUGIN_ROOT}` and `${PLUGIN_DATA}` placeholders. |
-| **Agent Skills (§7.1)** | **CONFORMANT** | 4 portable skills (`arbor`, `hindsight-api`, `mypai-tools`, `openadapt`) located in `skills/<skill_name>/SKILL.md`. All skills conform to the Agent Skills specification with valid YAML frontmatter. |
+| **Agent Skills (§7.1)** | **CONFORMANT** | 4 portable skills (`arbor`, `hindsight-api`, `mypai_tools`, `openadapt`) located in `skills/<skill_name>/SKILL.md`. All skills conform to the Agent Skills specification with valid YAML frontmatter. |
 | **Subprocess Environment (§9.1 & §9.2)** | **CONFORMANT** | Standard stdio servers use bare commands (`python3`) and rely on `${PLUGIN_ROOT}` and `${PLUGIN_DATA}` placeholders. Variable substitution rule compliance verified. |
 | **Package Containment (§4.1)** | **CONFORMANT** | All plugin paths remain isolated within filesystem-resolved `${PLUGIN_ROOT}`. |
 
@@ -28,9 +28,9 @@ The `omp-mypai` repository was audited against the **Agent Plugins Specification
 - **Resolution**: Updated `PATH` values to `"${PLUGIN_DATA}/venv/bin"`, ensuring deterministic environment variables without literal `${PATH}` text.
 
 ### 2.2 Replaced Hardcoded Filesystem Paths in Skills & Docs (§4.1)
-- **Issue Identified**: `skills/mypai-tools/SKILL.md` and `README.md` contained hardcoded user-specific file links (`file:///home/wuxxin/...`).
+- **Issue Identified**: `skills/mypai_tools/SKILL.md` and `README.md` contained hardcoded user-specific file links (`file:///home/wuxxin/...`).
 - **Spec Rule (§4.1)**: Package references and documentation within a portable plugin should be relative to maintain portability across hosts and environments.
-- **Resolution**: Replaced all hardcoded absolute URI references with relative paths (`../../mcp.json`, `skills/mypai-tools/SKILL.md`, etc.).
+- **Resolution**: Replaced all hardcoded absolute URI references with relative paths (`../../mcp.json`, `skills/mypai_tools/SKILL.md`, etc.).
 
 ### 2.3 Formatted Codebase Imports & Lint Cleanliness
 - **Issue Identified**: Running `make check` flagged an unsorted import block in `tools/tests/test_heartbeat_and_cron_mcp.py`.

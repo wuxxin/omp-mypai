@@ -61,13 +61,13 @@ All MCP servers comply with **Agent Plugins 1.0.0 Standard** (`https://agent-plu
 
 ## Background Daemons & Services
 
-Each daemon maintains detailed architectural specifications under `skills/mypai-tools/references/`:
+Each daemon maintains detailed architectural specifications under `skills/mypai_tools/references/`:
 
 - **mypai_daemon** (`python3 -m mypai_tools.daemon serve --project-dir "$MYPAI_PROJECT_DIR" --session-name "$MYPAI_SESSION_NAME"`)
-  - **Spec**: [daemon-spec.md](skills/mypai-tools/references/daemon-spec.md) | [daemon-api-spec.md](skills/mypai-tools/references/daemon-api-spec.md) | [web-ui-spec.md](skills/mypai-tools/references/web-ui-spec.md)
+  - **Spec**: [daemon-spec.md](skills/mypai_tools/references/daemon-spec.md) | [daemon-api-spec.md](skills/mypai_tools/references/daemon-api-spec.md) | [web-ui-spec.md](skills/mypai_tools/references/web-ui-spec.md)
   - **Function**: Central coordinator, fixed OMP RPC session manager (`MYPAI_SESSION_NAME`), MPSC turn serializer (`prompt`, `steer`, `followup`, `abort_and_prompt`), FastAPI REST server (Port 52080), Signal webhook whitelist filter, and embedded Glassmorphism SPA WebUI.
 - **input_spooler** (`python3 -m mypai_tools.input_spooler daemon --project-dir "$MYPAI_PROJECT_DIR"`)
-  - **Spec**: [input_spooler.md](skills/mypai-tools/references/input_spooler.md)
+  - **Spec**: [input_spooler.md](skills/mypai_tools/references/input_spooler.md)
   - **Function**: Asynchronous sidecar daemon watching inbox folder (`~/Recordings/Inbox`), SHA256 hashing, sidecar parsing, STT transcription, Hindsight memory bank retention, and `mypai_daemon` REST notification.
 
 ---
@@ -76,7 +76,7 @@ Each daemon maintains detailed architectural specifications under `skills/mypai-
 
 All skills conform to the closed 6-field frontmatter schema ([agentskills.io](https://agentskills.io/specification)):
 
-- **`mypai-tools`**: [SKILL.md](skills/mypai-tools/SKILL.md) — Complete agent guide for `mypai_tools` MCP servers, `mypai_daemon`, and references.
+- **`mypai_tools`**: [SKILL.md](skills/mypai_tools/SKILL.md) — Complete agent guide for `mypai_tools` MCP servers, `mypai_daemon`, and references.
 - **`arbor`**: [SKILL.md](skills/arbor/SKILL.md) — Graph-native AST code intelligence and workspace navigation.
 - **`openadapt`**: [SKILL.md](skills/openadapt/SKILL.md) — Browser capture and UI automation.
 - **`hindsight-api`**: [SKILL.md](skills/hindsight-api/SKILL.md) — REST API guide for Hindsight memory bank management.
