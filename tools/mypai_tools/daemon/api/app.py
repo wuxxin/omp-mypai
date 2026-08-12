@@ -101,9 +101,18 @@ async def session_history(request: Request) -> list[dict[str, Any]]:
 
 
 # Cron Routes
+def _resolve_project_dir(request: Request, project_dir: str = "") -> str:
+    if project_dir:
+        return project_dir
+    daemon_dir = getattr(request.app.state, "project_dir", None)
+    if daemon_dir:
+        return daemon_dir
+    return os.getenv("MYPAI_PROJECT_DIR", "")
+
+
 @app.get("/api/v1/cron/jobs")
-async def cron_list_jobs(include_disabled: bool = True, project_dir: str = "") -> list[dict[str, Any]]:
-    session = get_db_session(project_dir)
+async def cron_list_jobs(request: Request, include_disabled: bool = True, project_dir: str = "") -> list[dict[str, Any]]:
+    session = get_db_session(_resolve_project_dir(request, project_dir))
     try:
         query = session.query(CronJobModel)
         if not include_disabled:
@@ -114,8 +123,8 @@ async def cron_list_jobs(include_disabled: bool = True, project_dir: str = "") -
 
 
 @app.post("/api/v1/cron/jobs")
-async def cron_add_job(job: CronJobSchema, project_dir: str = "") -> dict[str, Any]:
-    session = get_db_session(project_dir)
+async def cron_add_job(request: Request, job: CronJobSchema, project_dir: str = "") -> dict[str, Any]:
+    session = get_db_session(_resolve_project_dir(request, project_dir))
     job_id = str(uuid.uuid4())[:8]
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -152,8 +161,8 @@ async def cron_add_job(job: CronJobSchema, project_dir: str = "") -> dict[str, A
 
 
 @app.put("/api/v1/cron/jobs/{job_id}")
-async def cron_modify_job(job_id: str, updates: dict[str, Any], project_dir: str = "") -> dict[str, Any]:
-    session = get_db_session(project_dir)
+async def cron_modify_job(request: Request, job_id: str, updates: dict[str, Any], project_dir: str = "") -> dict[str, Any]:
+    session = get_db_session(_resolve_project_dir(request, project_dir))
     try:
         db_job = session.query(CronJobModel).filter(
             (CronJobModel.id == job_id) | (CronJobModel.name == job_id)
@@ -171,8 +180,8 @@ async def cron_modify_job(job_id: str, updates: dict[str, Any], project_dir: str
 
 
 @app.delete("/api/v1/cron/jobs/{job_id}")
-async def cron_delete_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
-    session = get_db_session(project_dir)
+async def cron_delete_job(request: Request, job_id: str, project_dir: str = "") -> dict[str, Any]:
+    session = get_db_session(_resolve_project_dir(request, project_dir))
     try:
         db_job = session.query(CronJobModel).filter(
             (CronJobModel.id == job_id) | (CronJobModel.name == job_id)
@@ -188,19 +197,19 @@ async def cron_delete_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
 
 
 @app.post("/api/v1/cron/jobs/{job_id}/enable")
-async def cron_enable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
-    return await cron_modify_job(job_id, {"enabled": True}, project_dir)
+async def cron_enable_job(request: Request, job_id: str, project_dir: str = "") -> dict[str, Any]:
+    return await cron_modify_job(request, job_id, {"enabled": True}, project_dir)
 
 
 @app.post("/api/v1/cron/jobs/{job_id}/disable")
-async def cron_disable_job(job_id: str, project_dir: str = "") -> dict[str, Any]:
-    return await cron_modify_job(job_id, {"enabled": False}, project_dir)
+async def cron_disable_job(request: Request, job_id: str, project_dir: str = "") -> dict[str, Any]:
+    return await cron_modify_job(request, job_id, {"enabled": False}, project_dir)
 
 
 @app.post("/api/v1/cron/jobs/run_once")
-async def cron_run_once(job: CronJobSchema, project_dir: str = "") -> dict[str, Any]:
+async def cron_run_once(request: Request, job: CronJobSchema, project_dir: str = "") -> dict[str, Any]:
     job.cron = "now"
-    return await cron_add_job(job, project_dir)
+    return await cron_add_job(request, job, project_dir)
 
 
 @app.post("/api/v1/cron/enable")
@@ -221,7 +230,7 @@ async def cron_disable_execution(request: Request) -> dict[str, Any]:
 
 @app.get("/api/v1/cron/status")
 async def cron_status(request: Request, project_dir: str = "") -> dict[str, Any]:
-    session = get_db_session(project_dir)
+    session = get_db_session(_resolve_project_dir(request, project_dir))
     try:
         all_jobs = session.query(CronJobModel).all()
         enabled_count = sum(1 for j in all_jobs if j.enabled)

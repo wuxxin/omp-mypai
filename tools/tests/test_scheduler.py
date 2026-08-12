@@ -27,3 +27,20 @@ async def test_scheduler_shell_job_execution(tmp_path) -> None:
     res = await scheduler.run_job(job)
     assert res["status"] == "success" or res["return_code"] == 0
     assert "Hello World" in res.get("output", "")
+
+
+def test_project_dir_hash_stability(tmp_path) -> None:
+    """Test that get_project_dir_hash produces stable hashes across subfolders and MYPAI_PROJECT_DIR."""
+    from mypai_tools.persistence import get_project_db_path, get_project_dir_hash
+
+    # Create dummy project structure with omp.env
+    proj_root = tmp_path / "my_project"
+    sub_dir = proj_root / "tools" / "subfolder"
+    sub_dir.mkdir(parents=True)
+    (proj_root / "omp.env").write_text("MYPAI_SESSION_NAME=test\n")
+
+    # Hash computed for root and subfolder must be identical
+    hash_root = get_project_dir_hash(str(proj_root))
+    hash_sub = get_project_dir_hash(str(sub_dir))
+    assert hash_root == hash_sub
+    assert get_project_db_path(str(proj_root)) == get_project_db_path(str(sub_dir))

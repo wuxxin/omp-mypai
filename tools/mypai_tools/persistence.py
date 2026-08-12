@@ -95,13 +95,30 @@ class CronJobModel(Base):
         }
 
 
+def find_project_root(path: str) -> str:
+    """Find top-most project root containing omp.env or .git starting from path."""
+    if not path:
+        return path
+    real_path = os.path.realpath(os.path.abspath(os.path.expanduser(path)))
+    normalized = os.path.normpath(real_path)
+
+    curr = normalized
+    root_found = None
+    while curr and curr != os.path.dirname(curr):
+        if os.path.exists(os.path.join(curr, "omp.env")) or os.path.exists(os.path.join(curr, ".git")):
+            root_found = curr
+            break
+        curr = os.path.dirname(curr)
+
+    return root_found if root_found else normalized
+
+
 def get_project_dir_hash(project_dir: str = "") -> str:
     """Compute 12-char SHA256 hash for normalized real project directory path."""
     if not project_dir:
-        project_dir = os.getcwd()
-    real_path = os.path.realpath(os.path.abspath(os.path.expanduser(project_dir)))
-    normalized_path = os.path.normpath(real_path)
-    return hashlib.sha256(normalized_path.encode("utf-8")).hexdigest()[:12]
+        project_dir = os.environ.get("MYPAI_PROJECT_DIR", "") or os.environ.get("PROJECT_DIR", "") or os.getcwd()
+    project_root = find_project_root(project_dir)
+    return hashlib.sha256(project_root.encode("utf-8")).hexdigest()[:12]
 
 
 def get_project_db_path(project_dir: str = "") -> str:

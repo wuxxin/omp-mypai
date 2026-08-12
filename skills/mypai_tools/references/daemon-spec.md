@@ -33,6 +33,11 @@ It maintains a persistent `omp --mode rpc --auto-approve --continue` connection 
 * **Process Recovery**: Monitors PID via `proc.poll()`. On crash or broken pipe, cleans up old handles and automatically re-instantiates `RpcClient` with `--resume <MYPAI_SESSION_NAME>` in the configured workspace directory.
 * **Session Actions Supported**: **`prompt`**, **`steer`**, **`followup`**, and **`abort_and_prompt`**.
 
+### 2.3 Database Hash Stability & Root Resolution (`mypai_tools.persistence`)
+* **Project Root Normalization**: `find_project_root()` walks up the filesystem hierarchy from `project_dir` (or `MYPAI_PROJECT_DIR` / `os.getcwd()`) to locate the nearest enclosing project root containing `omp.env` or `.git`.
+* **Stable Hash Computation**: `get_project_dir_hash()` computes a 12-char SHA256 hash derived exclusively from the normalized project root path.
+* **Multi-Subdirectory Persistence**: Invocations originating from `submodules/omp-mypai`, `tools/`, `tools/tests/`, or deep subdirectories map to the exact same top-level root hash (`cron-<hash>.db`), eliminating duplicate database creation across execution contexts.
+
 ---
 
 ## 3. Signal Entanglement & Whitelist Filtering (`mypai_tools.signal_client`)
