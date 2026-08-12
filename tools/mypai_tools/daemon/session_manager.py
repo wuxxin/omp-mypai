@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """OMP RPC Session Manager for mypai_daemon."""
 
 import asyncio
@@ -44,14 +43,14 @@ class OMPSessionManager:
         if self.rpc_client is not None:
             proc = getattr(self.rpc_client, "_process", None)
             if proc is None or proc.poll() is not None:
-                logger.warning("Persistent RpcClient process has died. Restarting...")
+                logger.warning("Persistent RpcClient process has died. Re-connecting to session '%s'...", self.session_name)
                 is_dead = True
 
         if self.rpc_client is None or is_dead:
             if self.rpc_client is not None:
                 try:
                     self.rpc_client.stop()
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001, S110
                     pass
                 self.rpc_client = None
 
@@ -60,8 +59,7 @@ class OMPSessionManager:
                 kwargs: dict[str, Any] = {
                     "extra_args": [
                         "--auto-approve",
-                        "--continue",
-                        "--session",
+                        "--resume",
                         self.session_name,
                     ],
                 }
@@ -69,32 +67,20 @@ class OMPSessionManager:
                     kwargs["cwd"] = target_cwd
 
                 logger.info(
-                    "Starting persistent RpcClient (session: '%s', cwd: '%s')...",
+                    "Connecting persistent RpcClient (resume session: '%s', cwd: '%s')...",
                     self.session_name,
                     target_cwd,
                 )
-                try:
-                    self.rpc_client = RpcClient(**kwargs).start()
-                except Exception as exc:
-                    err_msg = str(exc)
-                    if "not found" in err_msg.lower() or "session" in err_msg.lower():
-                        logger.warning(
-                            "Session '%s' missing. Recovering by creating session without --continue...",
-                            self.session_name,
-                        )
-                        fallback_kwargs = dict(kwargs)
-                        fallback_kwargs["extra_args"] = [
-                            "--auto-approve",
-                            "--session",
-                            self.session_name,
-                        ]
-                        self.rpc_client = RpcClient(**fallback_kwargs).start()
-                    else:
-                        raise
+                self.rpc_client = RpcClient(**kwargs).start()
                 self.rpc_client.install_headless_ui()
-                logger.info("Successfully initialized persistent RpcClient.")
+                logger.info("Successfully resumed persistent RpcClient for session '%s'.", self.session_name)
             except Exception as exc:  # noqa: BLE001
-                logger.warning("Failed to start persistent RpcClient: %s", exc)
+                logger.error(
+                    "Failed to resume persistent RpcClient for session '%s' in '%s': %s",
+                    self.session_name,
+                    self.project_dir,
+                    exc,
+                )
                 self.rpc_client = None
 
         return self.rpc_client
@@ -121,7 +107,9 @@ class OMPSessionManager:
 
             try:
                 if client is None:
-                    raise RuntimeError("RPC Client offline and reconnect failed.")
+                    raise RuntimeError(
+                        f"RPC Client offline. Resume session '{self.session_name}' failed in '{self.project_dir}'."
+                    )
 
                 logger.info("Sending RPC turn (mode: %s, session: %s): %s", clean_mode, self.session_name, prompt[:60])
 
@@ -139,7 +127,7 @@ class OMPSessionManager:
                     if hasattr(client, "abort"):
                         try:
                             client.abort()
-                        except Exception:  # noqa: BLE001
+                        except Exception:  # noqa: BLE001, S110
                             pass
                     rpc_res = client.prompt(prompt)
                 else:  # 'prompt'

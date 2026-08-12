@@ -41,28 +41,20 @@ async def test_session_manager_fault_recovery(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_session_manager_missing_session_recovery(tmp_path) -> None:
-    """Test that session manager recovers when --continue fails with 'Session not found'."""
+async def test_session_manager_missing_session_strict_resume(tmp_path) -> None:
+    """Test that session manager strictly uses --resume and returns None if session resume fails."""
     mgr = OMPSessionManager(project_dir=str(tmp_path), session_name="mypai-missing-test")
-    
+
     mock_rpc_cls = MagicMock()
-    # First call with --continue raises exception; second call without --continue succeeds
     first_client_mock = MagicMock()
     first_client_mock.start.side_effect = RuntimeError("RPC process exited with code 1. Stderr: Error: Session \"mypai-missing-test\" not found.")
-    
-    second_client_mock = MagicMock()
-    second_client_instance = FakeRpcClient()
-    second_client_mock.start.return_value = second_client_instance
-    
-    mock_rpc_cls.side_effect = [first_client_mock, second_client_mock]
+    mock_rpc_cls.return_value = first_client_mock
 
     with patch("mypai_tools.daemon.session_manager.RpcClient", mock_rpc_cls):
         client = mgr.ensure_connected()
-        assert client is second_client_instance
-        call1_args = mock_rpc_cls.call_args_list[0][1]["extra_args"]
-        call2_args = mock_rpc_cls.call_args_list[1][1]["extra_args"]
-        assert "--continue" in call1_args
-        assert call2_args == ["--auto-approve"]
+        assert client is None
+        call_args = mock_rpc_cls.call_args_list[0][1]["extra_args"]
+        assert call_args == ["--auto-approve", "--resume", "mypai-missing-test"]
 
 
 
