@@ -5,7 +5,7 @@
 > [!TIP]
 > **Next-Phase Followup Implementation Targets**:
 > 1. **Live Process E2E Integration Suite**:
->    - Launch real `mypai_daemon` daemon background process (`python3 -m mypai_tools.daemon --port 52089 --session-name mypai-e2e`).
+>    - Launch real `mypai_daemon` daemon background process (`python3 -m mypai_tools.daemon serve --port 52089 --session-name mypai-e2e`).
 >    - Spawn an actual `omp --mode rpc` headless binary in scratch directory, send REST prompts to `/api/v1/session/prompt`, and poll for completion via WebSocket `/api/v1/ws`.
 > 2. **Signal REST API Mock Server Integration**:
 >    - Build a standalone mock `signal-cli-rest-api` HTTP server running on port `50899` to test live multipart attachments upload/download and 2-checkmark receipt delivery without mock monkeypatching.

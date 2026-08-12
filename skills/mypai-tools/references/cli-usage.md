@@ -17,17 +17,22 @@ SIGNAL_ALLOWED_SENDER="+15559992222"    # Whitelisted Signal sender phone number
 ```
 
 ```bash
-# Continuous background daemon mode (default port 52080)
-python3 -m mypai_tools.daemon [--project-dir /path/to/project] [--port 52080] [--session-name mypai-main]
+# Continuous background daemon server mode (default port 52080)
+python3 -m mypai_tools.daemon serve [--project-dir /path/to/project] [--port 52080] [--session-name mypai-main]
 
 # Execute single-pass for all active cron jobs and exit
-python3 -m mypai_tools.daemon --once [--project-dir /path/to/project]
+python3 -m mypai_tools.daemon once [--project-dir /path/to/project]
 ```
 
-### Command Flags
+### Mandatory Subcommands
+- `serve`: Launches continuous HTTP REST/WebSocket server and APScheduler worker daemon. Accepts `--port` (default `52080`) and `--session-name` (default `mypai-main`).
+- `once`: Executes pending active cron jobs once and exits immediately.
+- `import <file_path>`: Imports cron tasks from specified JSON file into SQLite DB.
+- `export <file_path>`: Exports registered cron tasks from SQLite DB to specified JSON file.
+
+### Common Flags
 - `--project-dir`: Target workspace directory path. Defaults to current working directory (`$PWD`).
-- `--port`: HTTP REST and WebSocket server port. Defaults to `52080`.
-- `--once`: Executes pending cron jobs once and exits immediately without running the continuous web server or scheduler.
+- `--verbose` / `-v`: Enables verbose DEBUG logging.
 
 ---
 

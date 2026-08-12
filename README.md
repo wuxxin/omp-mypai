@@ -45,7 +45,7 @@ The plugin environment launcher configuration is defined in [omp.env](../../omp.
   LAUNCHER_SIDECARS="mypai_daemon input_spooler"
 
   LAUNCHER_SIDECAR_MYPAI_DAEMON_CMD="python3"
-  LAUNCHER_SIDECAR_MYPAI_DAEMON_ARGS="-m mypai_tools.daemon --project-dir $MYPAI_PROJECT_DIR --session-name $MYPAI_SESSION_NAME"
+  LAUNCHER_SIDECAR_MYPAI_DAEMON_ARGS="-m mypai_tools.daemon serve --project-dir $MYPAI_PROJECT_DIR --session-name $MYPAI_SESSION_NAME"
 
   LAUNCHER_SIDECAR_INPUT_SPOOLER_CMD="python3"
   LAUNCHER_SIDECAR_INPUT_SPOOLER_ARGS="-m mypai_tools.input_spooler daemon --project-dir $MYPAI_PROJECT_DIR"
@@ -63,7 +63,7 @@ All MCP servers comply with **Agent Plugins 1.0.0 Standard** (`https://agent-plu
 
 Each daemon maintains detailed architectural specifications under `skills/mypai-tools/references/`:
 
-- **mypai_daemon** (`python3 -m mypai_tools.daemon --project-dir "$MYPAI_PROJECT_DIR" --session-name "$MYPAI_SESSION_NAME"`)
+- **mypai_daemon** (`python3 -m mypai_tools.daemon serve --project-dir "$MYPAI_PROJECT_DIR" --session-name "$MYPAI_SESSION_NAME"`)
   - **Spec**: [daemon-spec.md](skills/mypai-tools/references/daemon-spec.md) | [daemon-api-spec.md](skills/mypai-tools/references/daemon-api-spec.md) | [web-ui-spec.md](skills/mypai-tools/references/web-ui-spec.md)
   - **Function**: Central coordinator, fixed OMP RPC session manager (`MYPAI_SESSION_NAME`), MPSC turn serializer (`prompt`, `steer`, `followup`, `abort_and_prompt`), FastAPI REST server (Port 52080), Signal webhook whitelist filter, and embedded Glassmorphism SPA WebUI.
 - **input_spooler** (`python3 -m mypai_tools.input_spooler daemon --project-dir "$MYPAI_PROJECT_DIR"`)

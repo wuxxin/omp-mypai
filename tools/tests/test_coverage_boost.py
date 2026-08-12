@@ -57,7 +57,7 @@ def test_signal_client_attachments_and_errors(tmp_path: Path) -> None:
 
 
 def test_daemon_main_once_flag(tmp_path: Path) -> None:
-    with patch("sys.argv", ["daemon", "--project-dir", str(tmp_path), "--once"]):
+    with patch("sys.argv", ["daemon", "once", "--project-dir", str(tmp_path)]):
         with pytest.raises(SystemExit) as exc_info:
             daemon_main()
         assert exc_info.value.code == 0

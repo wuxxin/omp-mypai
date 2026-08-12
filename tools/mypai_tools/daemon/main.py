@@ -78,7 +78,7 @@ class AccessLogFilter(logging.Filter):
 
 
 def main() -> None:
-    """Parse CLI flags and launch mypai_daemon."""
+    """Parse CLI flags and execute mypai_daemon subcommand."""
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument(
         "--project-dir",
@@ -86,44 +86,62 @@ def main() -> None:
         default=os.getenv("MYPAI_PROJECT_DIR", os.getcwd()),
         help="Target workspace directory path",
     )
-
-    parser = argparse.ArgumentParser(
-        parents=[parent_parser],
-        description="MyPAI Daemon: Central Coordinator, OMP RPC Session Manager & Gateway.",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=52080,
-        help="HTTP REST & WebSocket port (default: 52080)",
-    )
-    parser.add_argument(
-        "--session-name",
-        type=str,
-        default=os.getenv("MYPAI_SESSION_NAME", "mypai-main"),
-        help="Fixed session name for OMP (default: mypai-main)",
-    )
-    parser.add_argument(
-        "--once",
-        action="store_true",
-        help="Run single pass for active cron jobs and exit",
-    )
-    parser.add_argument(
+    parent_parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
         help="Enable verbose DEBUG logging (includes /api/v1/session/status polling logs)",
     )
 
-    subparsers = parser.add_subparsers(dest="command", help="Optional CLI subcommand")
+    parser = argparse.ArgumentParser(
+        parents=[parent_parser],
+        description="MyPAI Daemon: Central Coordinator, OMP RPC Session Manager & Gateway.",
+    )
+    subparsers = parser.add_subparsers(
+        dest="command",
+        required=True,
+        help="Mandatory CLI subcommand: serve, once, import, or export",
+    )
 
+    # Subcommand: serve
+    serve_parser = subparsers.add_parser(
+        "serve",
+        parents=[parent_parser],
+        help="Run persistent background HTTP REST/WebSocket daemon server",
+    )
+    serve_parser.add_argument(
+        "--port",
+        type=int,
+        default=52080,
+        help="HTTP REST & WebSocket port (default: 52080)",
+    )
+    serve_parser.add_argument(
+        "--session-name",
+        type=str,
+        default=os.getenv("MYPAI_SESSION_NAME", "mypai-main"),
+        help="Fixed session name for OMP (default: mypai-main)",
+    )
+
+    # Subcommand: once
+    subparsers.add_parser(
+        "once",
+        parents=[parent_parser],
+        help="Run single-pass execution for active cron jobs and exit",
+    )
+
+    # Subcommand: import
     import_parser = subparsers.add_parser(
-        "import", parents=[parent_parser], help="Import cron jobs from a JSON file"
+        "import",
+        parents=[parent_parser],
+        help="Import cron jobs from a JSON file into project SQLite DB",
     )
     import_parser.add_argument("file_path", type=str, help="Path to input JSON file")
 
+    # Subcommand: export
     export_parser = subparsers.add_parser(
-        "export", parents=[parent_parser], help="Export cron jobs to a JSON file"
+        "export",
+        parents=[parent_parser],
+        help="Export all registered cron jobs from project SQLite DB to a JSON file",
     )
     export_parser.add_argument("file_path", type=str, help="Path to output JSON file")
 
@@ -158,20 +176,23 @@ def main() -> None:
             logger.error("Error exporting cron jobs: %s", res.get("error", "Unknown error"))
             sys.exit(1)
 
-    # Instantiate Core Components
     queue = EventQueue()
-    session_mgr = OMPSessionManager(
-        project_dir=args.project_dir, session_name=args.session_name
-    )
     scheduler = CronScheduler(
         project_dir=args.project_dir, daemon_queue=queue
     )
-    signal_client = SignalClient()
 
-    if args.once:
+    if args.command == "once":
         logger.info("Running single pass execution...")
         scheduler.sync_jobs_from_db()
         sys.exit(0)
+
+    # Subcommand: serve
+    session_name = getattr(args, "session_name", "mypai-main")
+
+    session_mgr = OMPSessionManager(
+        project_dir=args.project_dir, session_name=session_name
+    )
+    signal_client = SignalClient()
 
     # Attach components to FastAPI app state
     app.state.daemon_queue = queue
