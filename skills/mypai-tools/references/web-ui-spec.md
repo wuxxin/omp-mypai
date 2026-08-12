@@ -8,30 +8,9 @@
 
 ## 1. User Interface Layout & Components
 
-```
-+-----------------------------------------------------------------------------------+
-|  [Logo] MyPAI Dashboard  | Status: CONNECTED (PID 12345) | Uptime: 01:23:45       |
-+-----------------------------------------------------------------------------------+
-|                                                                                   |
-|  +-----------------------------------------------------------------------------+  |
-|  | Live Session Transcript & Log Stream (WebSocket Feed)                        |  |
-|  | [12:34:01] System: Session connected to /home/user/project                  |  |
-|  | [12:34:05] Signal: Incoming message from +15559992222                          |  |
-|  | [12:34:06] Agent: Executing tool call 'chat_mcp.get_next_unread_message'...   |  |
-|  +-----------------------------------------------------------------------------+  |
-|                                                                                   |
-|  +-----------------------------------------------------------------------------+  |
-|  | Prompt Input Line: [ Type a prompt or steer command...                   ]  |  |
-|  | Mode: (o) Prompt  ( ) Steer             [ Submit Prompt ]                      |  |
-|  +-----------------------------------------------------------------------------+  |
-|                                                                                   |
-|  +-----------------------------------------------------------------------------+  |
-|  | Cron Task Scheduler Dashboard                                               |  |
-|  | [Name]                [Cron]     [Kind]   [Last Runtime] [Calls] [Actions]  |  |
-|  | Nightly DB Audit      0 3 * * *  shell    0.45s          12      [Run] [Off] |  |
-|  +-----------------------------------------------------------------------------+  |
-+-----------------------------------------------------------------------------------+
-```
+<img src="webui-layout.svg" alt="MyPAI Embedded Single-Page WebUI Layout" width="840" style="max-width: 100%; height: auto;" />
+
+> 💡 *Interactive / Standalone HTML version available at [`webui-layout.html`](webui-layout.html).*
 
 ---
 
