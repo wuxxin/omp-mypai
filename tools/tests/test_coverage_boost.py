@@ -1,11 +1,10 @@
 """Additional unit tests boosting coverage across input_spooler, signal_client, cron_mcp, and daemon main."""
 
-import json
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
+from mypai_tools import cron_mcp
 from mypai_tools.daemon.main import main as daemon_main
 from mypai_tools.input_spooler import (
     compute_content_hash,
@@ -14,7 +13,6 @@ from mypai_tools.input_spooler import (
     save_processed_hashes,
 )
 from mypai_tools.signal_client import SignalClient
-from mypai_tools import cron_mcp
 
 
 def test_input_spooler_helpers(tmp_path: Path) -> None:

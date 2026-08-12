@@ -73,7 +73,24 @@ class OMPSessionManager:
                     self.session_name,
                     target_cwd,
                 )
-                self.rpc_client = RpcClient(**kwargs).start()
+                try:
+                    self.rpc_client = RpcClient(**kwargs).start()
+                except Exception as exc:
+                    err_msg = str(exc)
+                    if "not found" in err_msg.lower() or "session" in err_msg.lower():
+                        logger.warning(
+                            "Session '%s' missing. Recovering by creating session without --continue...",
+                            self.session_name,
+                        )
+                        fallback_kwargs = dict(kwargs)
+                        fallback_kwargs["extra_args"] = [
+                            "--auto-approve",
+                            "--session",
+                            self.session_name,
+                        ]
+                        self.rpc_client = RpcClient(**fallback_kwargs).start()
+                    else:
+                        raise
                 self.rpc_client.install_headless_ui()
                 logger.info("Successfully initialized persistent RpcClient.")
             except Exception as exc:  # noqa: BLE001

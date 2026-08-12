@@ -1,14 +1,14 @@
 """Comprehensive unit tests for executors, input_spooler audio/hindsight APIs, and signal_client error handling."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
-import pytest
 
+import pytest
+from conftest import FakeRpcClient
 from mypai_tools.executors.http_executor import execute_http_job
 from mypai_tools.executors.omp_rpc_executor import execute_omp_rpc_job
 from mypai_tools.executors.python_executor import execute_python_job
 from mypai_tools.input_spooler import InputSpooler
 from mypai_tools.signal_client import SignalClient
-from conftest import FakeRpcClient
 
 
 # Helper to build mock httpx response

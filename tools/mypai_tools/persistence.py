@@ -5,7 +5,16 @@ import json
 import os
 from typing import Any
 
-from sqlalchemy import Boolean, Column, Float, Integer, String, Text, create_engine, text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Float,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    text,
+)
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()

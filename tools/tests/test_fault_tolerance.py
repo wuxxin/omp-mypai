@@ -1,12 +1,11 @@
 """Fault tolerance and resilience unit tests for mypai_daemon."""
 
-import asyncio
 from unittest.mock import MagicMock, patch
-import pytest
 
+import pytest
+from conftest import FakeRpcClient
 from mypai_tools.daemon.session_manager import OMPSessionManager
 from mypai_tools.signal_client import SignalClient
-from conftest import FakeRpcClient
 
 
 class FaultyRpcClient(FakeRpcClient):
@@ -39,6 +38,34 @@ async def test_session_manager_fault_recovery(tmp_path) -> None:
     res_ok = await mgr.execute_turn(prompt="Recovered turn", mode="prompt")
     assert res_ok["status"] == "success"
     assert "Recovered turn" in res_ok["output"]
+
+
+@pytest.mark.asyncio
+async def test_session_manager_missing_session_recovery(tmp_path) -> None:
+    """Test that session manager recovers when --continue fails with 'Session not found'."""
+    mgr = OMPSessionManager(project_dir=str(tmp_path), session_name="mypai-missing-test")
+    
+    mock_rpc_cls = MagicMock()
+    # First call with --continue raises exception; second call without --continue succeeds
+    first_client_mock = MagicMock()
+    first_client_mock.start.side_effect = RuntimeError("RPC process exited with code 1. Stderr: Error: Session \"mypai-missing-test\" not found.")
+    
+    second_client_mock = MagicMock()
+    second_client_instance = FakeRpcClient()
+    second_client_mock.start.return_value = second_client_instance
+    
+    mock_rpc_cls.side_effect = [first_client_mock, second_client_mock]
+
+    with patch("mypai_tools.daemon.session_manager.RpcClient", mock_rpc_cls):
+        client = mgr.ensure_connected()
+        assert client is second_client_instance
+        assert mock_rpc_cls.call_count == 2
+        # Check call 1 had --continue, call 2 omitted --continue
+        call1_args = mock_rpc_cls.call_args_list[0][1]["extra_args"]
+        call2_args = mock_rpc_cls.call_args_list[1][1]["extra_args"]
+        assert "--continue" in call1_args
+        assert "--continue" not in call2_args
+
 
 
 @pytest.mark.asyncio

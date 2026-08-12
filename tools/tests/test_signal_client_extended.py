@@ -1,7 +1,7 @@
 """Hermetic unit tests for SignalClient SDK using unittest.mock."""
 
-import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
 from mypai_tools.signal_client import SignalClient
 
 

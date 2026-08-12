@@ -1,6 +1,7 @@
 """Unit tests for chat_mcp FastMCP tools."""
 
 from unittest.mock import patch
+
 from mypai_tools import chat_mcp
 
 

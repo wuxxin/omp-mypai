@@ -3,16 +3,13 @@
 import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
-import pytest
 
+import pytest
 from mypai_tools.daemon.queue import EventQueue
 from mypai_tools.daemon.scheduler import CronScheduler
-from mypai_tools.persistence import CronJobModel, get_db_session
-from mypai_tools.executors.http_executor import execute_http_job
 from mypai_tools.executors.python_executor import execute_python_job
 from mypai_tools.executors.shell_executor import execute_shell_job
-from conftest import FakeRpcClient
+from mypai_tools.persistence import CronJobModel, get_db_session
 
 
 # 1. Multi-Producer Concurrent Queue Stress Test

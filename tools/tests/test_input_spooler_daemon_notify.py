@@ -1,8 +1,8 @@
 """Tests for InputSpooler daemon HTTP notification."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
-from pathlib import Path
+
+import pytest
 from mypai_tools.input_spooler import InputSpooler
 
 
