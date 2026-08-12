@@ -1,4 +1,6 @@
-.fresh
-scratch/
 __pycache__
+.fresh
+.pytest_cache
+build
 mypai_tools.egg-info
+scratch/
