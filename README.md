@@ -61,8 +61,6 @@ All MCP servers comply with **Agent Plugins 1.0.0 Standard** (`https://agent-plu
 
 - **`chat-channel`**: Signal messaging interface (`mypai_tools.chat_mcp`).
 - **`cron-scheduler`**: Task & cron job scheduler backed by SQLite and `mypai_daemon` REST API (`mypai_tools.cron_mcp`).
-- **`arbor`**: Graph-native AST code intelligence (`arbor mcp`).
-- **`openadapt`**: GUI/Browser capture and process automation (`openadapt`).
 
 ---
 
