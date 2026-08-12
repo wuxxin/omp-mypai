@@ -28,15 +28,15 @@ It maintains a persistent `omp --mode rpc --auto-approve --continue` connection 
 
 ### 2.2 OMP Session Manager (`mypai_daemon.session_manager`)
 * **RPC SDK**: Wraps `omp_rpc.RpcClient`.
-* **Fixed Session Spawning**: Spawns and reuses a single **fixed session** whose name is read from `omp.env` (`MYPAI_SESSION_NAME`, defaulting to `"mypai-main"`).
-* **Launch Arguments**: `omp --mode rpc --auto-approve --resume <MYPAI_SESSION_NAME> --cwd <project_dir>`. All producers (Signal, WebUI, Cron, Spooler) automatically route into this single fixed session.
-* **Process Recovery**: Monitors PID via `proc.poll()`. On crash or broken pipe, cleans up old handles and automatically re-instantiates `RpcClient` with `--resume <MYPAI_SESSION_NAME>` in the configured workspace directory.
+* **Session UUID Persistence & Reattachment**: Reads `session_uuid` from SQLite DB `project_settings` table. Reattaches to existing session via `--resume <session_uuid>` or creates a new session, storing `session_uuid` in DB.
+* **Session Title**: Automatically sets session display name to `"mypai_daemon - running"`.
+* **Process Recovery**: Monitors PID via `proc.poll()`. On crash or broken pipe, cleans up handles and automatically re-instantiates `RpcClient` with session UUID in `MYPAI_AGENT_DIR`.
 * **Session Actions Supported**: **`prompt`**, **`steer`**, **`followup`**, and **`abort_and_prompt`**.
 
-### 2.3 Database Hash Stability & Default Workspace Resolution (`mypai_tools.persistence`)
-* **Canonical Workspace Fallback**: Never falls back to `os.getcwd()` when `project_dir` is empty or omitted. Defaults to `MYPAI_PROJECT_DIR` / `PROJECT_DIR` environment variables or canonical workspace `~/agent-shared/mypai-workspace`.
-* **Project Root Normalization**: `find_project_root()` walks up the filesystem hierarchy from the resolved directory to locate the nearest enclosing project root containing `omp.env` or `.git`.
-* **Stable Single-DB Persistence**: All tools, CLI subcommands (`import`, `export`), FastMCP functions (`cron_mcp`), and daemons (`mypai_daemon`) resolve to the identical canonical project hash (`cron-d7c7335a0ea5.db`), completely eliminating duplicate SQLite database creation across execution contexts.
+### 2.3 Database Isolation & Agent Dir Resolution (`mypai_tools.persistence`)
+* **MYPAI_AGENT_DIR Resolution**: Resolves workspace directory using `MYPAI_AGENT_DIR` environment variable or `--agent-dir` CLI flag.
+* **Single-DB Location**: SQLite database path is isolated per agent directory at `mypai_plugin_data/daemon/agent-<basedir>-<shorthash>.db`.
+* **HTTP-Only Tool Access**: FastMCP tools (`cron_mcp`) communicate strictly via `MYPAI_AGENT_URL` HTTP REST requests with zero direct SQLite DB fallbacks.
 
 ---
 

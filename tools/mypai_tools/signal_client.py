@@ -149,7 +149,8 @@ class SignalClient:
         processed_attachments = []
 
         if raw_attachments:
-            target_dir = attachment_dir or os.path.expanduser("~/agent-shared/mypai-workspace/scratch/signal_attachments")
+            base_agent = os.getenv("MYPAI_AGENT_DIR", "")
+            target_dir = attachment_dir or (os.path.join(base_agent, "scratch", "signal_attachments") if base_agent else os.path.expanduser("~/.omp/signal_attachments"))
             os.makedirs(target_dir, exist_ok=True)
 
             for idx, att in enumerate(raw_attachments):

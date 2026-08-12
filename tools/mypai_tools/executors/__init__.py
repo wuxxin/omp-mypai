@@ -1,4 +1,4 @@
-"""Job executor subpackage for MyPAI Heartbeat."""
+"""Job executor subpackage for MyPAI Daemon."""
 
 from .http_executor import execute_http_job
 from .omp_rpc_executor import execute_omp_rpc_job

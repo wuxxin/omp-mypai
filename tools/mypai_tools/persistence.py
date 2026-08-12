@@ -95,6 +95,15 @@ class CronJobModel(Base):
         }
 
 
+class SettingsModel(Base):
+    """SQLAlchemy model for key-value project settings page (session UUID, daemon metadata)."""
+
+    __tablename__ = "project_settings"
+
+    key = Column(String(64), primary_key=True)
+    value = Column(Text, nullable=True)
+
+
 def find_project_root(path: str) -> str:
     """Find top-most project root containing omp.env or .git starting from path."""
     if not path:
@@ -113,34 +122,51 @@ def find_project_root(path: str) -> str:
     return root_found if root_found else normalized
 
 
+def resolve_agent_dir(agent_dir: str = "") -> str:
+    """Resolve target MYPAI_AGENT_DIR directory path."""
+    resolved = agent_dir or os.environ.get("MYPAI_AGENT_DIR", "")
+    return find_project_root(resolved)
+
+
+def get_agent_dir_info(agent_dir: str = "") -> tuple[str, str]:
+    """Compute (basedir, shorthash) pair for given agent directory."""
+    abs_dir = resolve_agent_dir(agent_dir)
+    basedir = os.path.basename(abs_dir) or "workspace"
+    shorthash = hashlib.sha256(abs_dir.encode("utf-8")).hexdigest()[:8]
+    return basedir, shorthash
+
+
 def get_project_dir_hash(project_dir: str = "") -> str:
     """Compute 12-char SHA256 hash for normalized real project directory path."""
-    if not project_dir:
-        project_dir = (
-            os.environ.get("MYPAI_PROJECT_DIR", "")
-            or os.environ.get("PROJECT_DIR", "")
-            or os.path.expanduser("~/agent-shared/mypai-workspace")
-        )
-    project_root = find_project_root(project_dir)
-    return hashlib.sha256(project_root.encode("utf-8")).hexdigest()[:12]
+    _, shorthash = get_agent_dir_info(project_dir)
+    return shorthash
 
 
 def get_project_db_path(project_dir: str = "") -> str:
-    """Get absolute SQLite database path for given project directory."""
-    p_hash = get_project_dir_hash(project_dir)
-    base_dir = os.environ.get("OMP_DIR", os.path.expanduser("~/.omp"))
-    cron_dir = os.path.join(base_dir, "cron")
-    os.makedirs(cron_dir, exist_ok=True)
-    return os.path.join(cron_dir, f"cron-{p_hash}.db")
+    """Get absolute SQLite database path for given MYPAI_AGENT_DIR.
+    
+    Database location format: mypai_plugin_data/daemon/agent-<basedir>-<shorthash>.db
+    """
+    basedir, shorthash = get_agent_dir_info(project_dir)
+    plugin_data = os.environ.get(
+        "MYPAI_PLUGIN_DATA",
+        os.path.expanduser("~/.omp/data/omp-mypai"),
+    )
+    daemon_db_dir = os.path.join(plugin_data, "daemon")
+    os.makedirs(daemon_db_dir, exist_ok=True)
+    return os.path.join(daemon_db_dir, f"agent-{basedir}-{shorthash}.db")
 
 
 def get_daemon_pid_path(project_dir: str = "") -> str:
     """Get daemon PID file path for given project directory."""
-    p_hash = get_project_dir_hash(project_dir)
-    base_dir = os.environ.get("OMP_DIR", os.path.expanduser("~/.omp"))
-    cron_dir = os.path.join(base_dir, "cron")
-    os.makedirs(cron_dir, exist_ok=True)
-    return os.path.join(cron_dir, f"mypai-daemon-{p_hash}.pid")
+    basedir, shorthash = get_agent_dir_info(project_dir)
+    plugin_data = os.environ.get(
+        "MYPAI_PLUGIN_DATA",
+        os.path.expanduser("~/.omp/data/omp-mypai"),
+    )
+    daemon_dir = os.path.join(plugin_data, "daemon")
+    os.makedirs(daemon_dir, exist_ok=True)
+    return os.path.join(daemon_dir, f"mypai-daemon-{basedir}-{shorthash}.pid")
 
 
 def is_daemon_running(project_dir: str = "") -> bool:
@@ -172,3 +198,21 @@ def get_db_session(project_dir: str = ""):
 
     Session = sessionmaker(bind=engine)
     return Session()
+
+
+def get_setting(session: Any, key: str, default: str = "") -> str:
+    """Read a setting string value from project_settings table."""
+    row = session.query(SettingsModel).filter_by(key=key).first()
+    return row.value if row and row.value is not None else default
+
+
+def set_setting(session: Any, key: str, value: str) -> None:
+    """Save or update a setting string value in project_settings table."""
+    row = session.query(SettingsModel).filter_by(key=key).first()
+    if row:
+        row.value = value
+    else:
+        row = SettingsModel(key=key, value=value)
+        session.add(row)
+    session.commit()
+

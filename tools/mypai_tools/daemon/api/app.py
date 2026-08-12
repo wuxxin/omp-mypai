@@ -94,6 +94,14 @@ async def session_status(request: Request) -> dict[str, Any]:
     return session_mgr.get_status(queue_depth=q_depth)
 
 
+@app.get("/api/v1/session/stats")
+async def session_stats(request: Request) -> dict[str, Any]:
+    session_mgr = getattr(request.app.state, "session_manager", None)
+    if not session_mgr:
+        raise HTTPException(status_code=500, detail="Session Manager uninitialized.")
+    return session_mgr.get_session_stats()
+
+
 @app.get("/api/v1/session/history")
 async def session_history(request: Request) -> list[dict[str, Any]]:
     queue = getattr(request.app.state, "daemon_queue", None)
@@ -104,10 +112,11 @@ async def session_history(request: Request) -> list[dict[str, Any]]:
 def _resolve_project_dir(request: Request, project_dir: str = "") -> str:
     if project_dir:
         return project_dir
-    daemon_dir = getattr(request.app.state, "project_dir", None)
+    daemon_dir = getattr(request.app.state, "agent_dir", getattr(request.app.state, "project_dir", None))
     if daemon_dir:
         return daemon_dir
-    return os.getenv("MYPAI_PROJECT_DIR", "")
+    return os.getenv("MYPAI_AGENT_DIR", "")
+
 
 
 @app.get("/api/v1/cron/jobs")

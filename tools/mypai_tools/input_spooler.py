@@ -450,7 +450,7 @@ class InputSpooler:
         self, title: str, filename: str, transcript: str, item_hash: str
     ) -> None:
         """Send HTTP notification prompt to mypai_daemon REST API."""
-        daemon_url = os.getenv("MYPAI_DAEMON_URL", "http://127.0.0.1:52080")
+        daemon_url = os.getenv("MYPAI_AGENT_URL", "http://127.0.0.1:52080")
         endpoint = f"{daemon_url.rstrip('/')}/api/v1/session/prompt"
         snippet = transcript[:200] if transcript else "File drop registered."
         prompt_text = f"🎙️ New inbox item processed ({filename}): '{title}'. Content: {snippet}"
