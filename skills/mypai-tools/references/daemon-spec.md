@@ -65,11 +65,6 @@ class SignalClient:
         """Fetch oldest unread message from SIGNAL_ALLOWED_SENDER, send read receipt (2 checkmarks) 
         & typing indicator, and extract attachments to local disk."""
         ...
-```
-
-    def fetch_unread_messages(self, limit: int = 10) -> list[dict]:
-        """Fetch pending/unread Signal messages from signal-cli-rest-api."""
-        ...
 
     def send_read_receipt(self, recipient: str, timestamps: list[int]) -> dict:
         """Send POST /v1/receipts/<account> to show two white checkmarks 🗸🗸."""
