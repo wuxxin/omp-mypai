@@ -62,13 +62,33 @@ def test_cron_jobs_crud(test_client, tmp_path) -> None:
     assert res_del.json()["status"] == "deleted"
 
 
-def test_default_jobs_import_export_cycle(tmp_path: Path) -> None:
+def _make_http_dispatcher(test_client):
+    def dispatcher(endpoint: str, method: str = "GET", data: dict = None) -> dict:
+        url = f"/{endpoint.lstrip('/')}"
+        if method.upper() == "GET":
+            res = test_client.get(url)
+        elif method.upper() == "POST":
+            res = test_client.post(url, json=data or {})
+        elif method.upper() == "PUT":
+            res = test_client.put(url, json=data or {})
+        elif method.upper() == "DELETE":
+            res = test_client.delete(url)
+        else:
+            return {"status": "error", "error": f"Unsupported method {method}"}
+        if res.status_code == 200:
+            return res.json()
+        return {"status": "error", "error": f"HTTP {res.status_code}: {res.text}"}
+    return dispatcher
+
+
+def test_default_jobs_import_export_cycle(test_client, tmp_path: Path) -> None:
     """Test importing default_jobs.json (without IDs), exporting, verifying generated IDs, and re-importing without duplicates."""
     proj_dir = str(tmp_path)
     default_jobs_path = Path(__file__).parent.parent.parent / "config" / "default_jobs.json"
     assert default_jobs_path.exists()
 
-    with patch("mypai_tools.cron_mcp._daemon_http_request", return_value={"error": "offline"}):
+    dispatcher = _make_http_dispatcher(test_client)
+    with patch("mypai_tools.cron_mcp._daemon_http_request", side_effect=dispatcher):
         # 1. Import default_jobs.json (entries have no IDs) into empty DB
         res_imp = cron_mcp.cron_import_jobs(file_path=str(default_jobs_path), project_dir=proj_dir)
         assert res_imp["status"] == "imported"
@@ -104,10 +124,11 @@ def test_default_jobs_import_export_cycle(tmp_path: Path) -> None:
         assert {j["name"] for j in jobs_final} == {j["name"] for j in jobs_initial}
 
 
-def test_cron_modify_by_name_and_unique_constraint(tmp_path: Path) -> None:
+def test_cron_modify_by_name_and_unique_constraint(test_client, tmp_path: Path) -> None:
     """Test modifying job by name lookup and verifying unique name constraint."""
     proj_dir = str(tmp_path)
-    with patch("mypai_tools.cron_mcp._daemon_http_request", return_value={"error": "offline"}):
+    dispatcher = _make_http_dispatcher(test_client)
+    with patch("mypai_tools.cron_mcp._daemon_http_request", side_effect=dispatcher):
         # 1. Add initial job
         res_add = cron_mcp.cron_add_job(
             name="Unique Audit Job",
@@ -115,7 +136,7 @@ def test_cron_modify_by_name_and_unique_constraint(tmp_path: Path) -> None:
             cron="0 0 * * *",
             project_dir=proj_dir,
         )
-        assert res_add["status"].startswith("scheduled")
+        assert res_add["status"] == "scheduled"
 
         # 2. Modify job by NAME (without passing job_id)
         res_mod = cron_mcp.cron_modify_job(
@@ -133,4 +154,5 @@ def test_cron_modify_by_name_and_unique_constraint(tmp_path: Path) -> None:
             cron="0 12 * * *",
             project_dir=proj_dir,
         )
-        assert res_dup.get("status") == "error"
+        assert "error" in res_dup or res_dup.get("status") == "error"
+

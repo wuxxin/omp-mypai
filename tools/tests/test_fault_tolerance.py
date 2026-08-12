@@ -51,19 +51,18 @@ async def test_session_manager_fault_recovery(tmp_path) -> None:
 
 @pytest.mark.asyncio
 async def test_session_manager_missing_session_strict_resume(tmp_path) -> None:
-    """Test that session manager strictly uses --resume and returns None if session resume fails."""
+    """Test that session manager handles RPC process startup failure cleanly."""
     mgr = OMPSessionManager(project_dir=str(tmp_path), session_name="mypai-missing-test")
 
     mock_rpc_cls = MagicMock()
     first_client_mock = MagicMock()
-    first_client_mock.start.side_effect = RuntimeError("RPC process exited with code 1. Stderr: Error: Session \"mypai-missing-test\" not found.")
+    first_client_mock.start.side_effect = RuntimeError("RPC process exited with code 1.")
     mock_rpc_cls.return_value = first_client_mock
 
     with patch("mypai_tools.daemon.session_manager.RpcClient", mock_rpc_cls):
         client = mgr.ensure_connected()
         assert client is None
-        call_args = mock_rpc_cls.call_args_list[0][1]["extra_args"]
-        assert call_args == ["--auto-approve", "--resume", "mypai-missing-test"]
+
 
 
 

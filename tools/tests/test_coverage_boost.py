@@ -166,8 +166,14 @@ def test_daemon_import_export_cli(tmp_path: Path) -> None:
             assert exc_info.value.code == 0
 
         # Verify only 1 job exists in database
-        jobs = cron_mcp.cron_list_jobs(project_dir=proj_dir)
-        assert len(jobs) == 1
-        assert jobs[0]["name"] == "CLI_Cron"
-        assert jobs[0]["description"] == "Test Title"
+        from mypai_tools.persistence import CronJobModel, get_db_session
+        db = get_db_session(proj_dir)
+        try:
+            jobs = db.query(CronJobModel).all()
+            assert len(jobs) == 1
+            assert jobs[0].name == "CLI_Cron"
+            assert jobs[0].description == "Test Title"
+        finally:
+            db.close()
+
 

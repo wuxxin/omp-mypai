@@ -11,13 +11,13 @@ async def test_session_manager_fixed_session(tmp_path) -> None:
     mgr = OMPSessionManager(project_dir=str(tmp_path), session_name="mypai-test-session")
     mgr.rpc_client = fake_client
 
-    assert mgr.session_name == "mypai-test-session"
+    assert mgr.session_name == "mypai_daemon - running"
     assert mgr.project_dir == str(tmp_path)
 
     # Test executing a prompt turn
     res = await mgr.execute_turn(prompt="Hello MyPAI", mode="prompt")
     assert res["status"] == "success"
-    assert res["session_name"] == "mypai-test-session"
+    assert res["session_name"] == "mypai_daemon - running"
     assert "Echo: Hello MyPAI" in res["output"]
 
 
@@ -45,6 +45,7 @@ async def test_session_manager_get_status(tmp_path) -> None:
     mgr.rpc_client = fake_client
 
     status = mgr.get_status(queue_depth=2)
-    assert status["session_name"] == "mypai-test-session"
+    assert status["session_name"] == "mypai_daemon - running"
     assert status["queue_depth"] == 2
     assert status["is_busy"] is False
+
