@@ -84,6 +84,29 @@
       align-items: center;
     }
 
+    aside {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      padding-right: 0.3rem;
+    }
+    aside::-webkit-scrollbar {
+      width: 6px;
+    }
+    aside::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.4);
+      border-radius: 4px;
+    }
+    aside::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+    aside::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-blue);
+    }
+
     .log-console {
       font-family: 'Fira Code', monospace;
       font-size: 0.85rem;
@@ -91,7 +114,8 @@
       border: 1px solid var(--card-border);
       border-radius: 8px;
       padding: 1rem;
-      height: 380px;
+      height: calc(100vh - 280px);
+      min-height: 400px;
       overflow-y: auto;
       margin-bottom: 1rem;
     }
@@ -149,7 +173,7 @@
 
   <div class="grid-container">
     <main style="display: flex; flex-direction: column; gap: 1.5rem;">
-      <div class="card">
+      <div class="card" style="flex: 1; display: flex; flex-direction: column;">
         <div class="card-title">
           <span>Live Session Transcript & Event Stream</span>
           <span style="font-size: 0.75rem; color: var(--text-muted);">WebSocket Port 52080</span>
@@ -171,31 +195,9 @@
           </div>
         </form>
       </div>
-
-      <div class="card">
-        <div class="card-title">
-          <span>Registered Cron Tasks</span>
-          <button id="refresh-cron-btn" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">Refresh</button>
-        </div>
-        <table class="cron-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Cron</th>
-              <th>Kind</th>
-              <th>Last Runtime</th>
-              <th>Calls</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="cron-tbody">
-            <tr><td colspan="6" style="color: var(--text-muted); text-align: center;">Loading tasks...</td></tr>
-          </tbody>
-        </table>
-      </div>
     </main>
 
-    <aside style="display: flex; flex-direction: column; gap: 1.5rem;">
+    <aside>
       <div class="card">
         <div class="card-title">Session Telemetry</div>
         <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem;">
@@ -236,6 +238,29 @@
           <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
             <button id="toggle-cron-btn" onclick="toggleGlobalCron()" style="width: 100%; padding: 0.5rem; font-size: 0.8rem;">Disable Global Cron</button>
           </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Registered Cron Tasks</span>
+          <button id="refresh-cron-btn" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">Refresh</button>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="cron-table">
+            <thead>
+              <tr>
+                <th>Task Name</th>
+                <th>Cron</th>
+                <th>Kind</th>
+                <th>Calls</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="cron-tbody">
+              <tr><td colspan="5" style="color: var(--text-muted); text-align: center;">Loading tasks...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </aside>
@@ -324,15 +349,17 @@
         const res = await fetch('/api/v1/cron/jobs');
         const jobs = await res.json();
         if (!jobs.length) {
-          cronTbody.innerHTML = '<tr><td colspan="6" style="color: var(--text-muted); text-align: center;">No scheduled cron jobs found.</td></tr>';
+          cronTbody.innerHTML = '<tr><td colspan="5" style="color: var(--text-muted); text-align: center;">No scheduled cron jobs found.</td></tr>';
           return;
         }
         cronTbody.innerHTML = jobs.map(j => `
           <tr>
-            <td>${j.name}</td>
+            <td>
+              <div style="font-weight: 600; font-size: 0.85rem;">${j.name}</div>
+              ${j.description ? `<div style="font-size: 0.75rem; color: var(--text-muted);">${j.description}</div>` : ''}
+            </td>
             <td><code>${j.cron}</code></td>
-            <td>${j.kind}</td>
-            <td>${j.last_runtime ? j.last_runtime + 's' : '--'}</td>
+            <td><span style="font-size: 0.75rem; padding: 0.1rem 0.4rem; background: rgba(59, 130, 246, 0.2); border-radius: 4px;">${j.kind}</span></td>
             <td>${j.total_calls || 0}</td>
             <td>
               <button onclick="runOnce('${j.name}', '${j.kind}', '${j.action}')" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Run</button>
