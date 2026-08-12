@@ -1,6 +1,6 @@
 # omp-mypai Agent Plugin
 
-Personal Artificial Intelligence (PAI) agent plugin based on **Oh-my-PI** and **Hindsight** adding Cron, Chat, Inbound Spooler and speech tools.
+Personal Artificial Intelligence (PAI) agent plugin based on **Oh-my-PI** and **Hindsight** adding Cron, Signal Chat, Inbound Spooler, and WebUI tools.
 
 ---
 
@@ -10,7 +10,7 @@ The plugin includes a dedicated [Makefile](Makefile) for virtualenv management, 
 
 ```bash
 make buildenv  # Create .venv and install mypai_tools & dependencies
-make test      # Run unit tests inside .venv (auto-builds .venv if missing)
+make test      # Run hermetic unit tests inside .venv (auto-builds .venv if missing)
 make lint      # Run ruff check inside .venv
 make check     # Run linter and execute unit tests
 make clean     # Clean up test caches and Python bytecode
@@ -23,18 +23,18 @@ make cleanenv  # Remove .venv directory
 
 The plugin environment launcher configuration is defined in [omp.env](../../omp.env):
 
-- **Default Headless Service**: Executes `omp --headless` inside the target workspace directory (`$MYPAI_PROJECT_DIR`).
+- **Default Headless Service**: Keeps systemd sandbox service unit active while persistent sidecars run:
   ```bash
   LAUNCHER_SERVICE_ENABLED="true"
-  LAUNCHER_SERVICE_CMD="omp"
-  LAUNCHER_SERVICE_ARGS="--headless"
+  LAUNCHER_SERVICE_CMD="sleep"
+  LAUNCHER_SERVICE_ARGS="infinity"
   ```
-- **Sidecars Project Binding (`sandbox-ctl` spec)**: `heartbeat` and `input_spooler` daemons are launched as background sidecars bound to the target project workspace:
+- **Sidecars Project Binding (`sandbox-ctl` spec)**: `mypai_daemon` and `input_spooler` daemons are launched as background sidecars bound to the target project workspace:
   ```bash
-  LAUNCHER_SIDECARS="heartbeat input_spooler"
+  LAUNCHER_SIDECARS="mypai_daemon input_spooler"
 
-  LAUNCHER_SIDECAR_HEARTBEAT_CMD="python3"
-  LAUNCHER_SIDECAR_HEARTBEAT_ARGS="-m mypai_tools.heartbeat daemon --project-dir $MYPAI_PROJECT_DIR"
+  LAUNCHER_SIDECAR_MYPAI_DAEMON_CMD="python3"
+  LAUNCHER_SIDECAR_MYPAI_DAEMON_ARGS="-m mypai_tools.daemon --project-dir $MYPAI_PROJECT_DIR --session-name $MYPAI_SESSION_NAME"
 
   LAUNCHER_SIDECAR_INPUT_SPOOLER_CMD="python3"
   LAUNCHER_SIDECAR_INPUT_SPOOLER_ARGS="-m mypai_tools.input_spooler daemon --project-dir $MYPAI_PROJECT_DIR"
@@ -47,8 +47,8 @@ The plugin environment launcher configuration is defined in [omp.env](../../omp.
 - `Makefile` — Buildenv, virtualenv, testing, and linting targets
 - `plugin.json` — Plugin root manifest
 - `mcp.json` — MCP server registry configuration
-- `skills/` — Portable skills definitions
-- `tools/mypai_tools/` — Python package (`mypai_tools`), MCP services, and background daemons
+- `skills/` — Portable skills definitions & modular references
+- `tools/mypai_tools/` — Python package (`mypai_tools`), `mypai_daemon`, FastMCP servers, and sidecars
 - `agents/` — Custom subagent prompt profiles
 - `rules/` — Execution policies and guidelines
 - `config/` — Hindsight bank configurations and templates
@@ -60,26 +60,22 @@ The plugin environment launcher configuration is defined in [omp.env](../../omp.
 All MCP servers comply with **Agent Plugins 1.0.0 Standard** (`https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`) and are declared in [mcp.json](mcp.json):
 
 - **`chat-channel`**: Signal messaging interface (`mypai_tools.chat_mcp`).
-- **`cron-scheduler`**: Task & cron job scheduler backed by SQLite (`mypai_tools.cron_mcp`).
-- **`local-speech`**: Speech-to-text (Whisper) & Text-to-speech (`mypai_tools.speech_mcp`).
+- **`cron-scheduler`**: Task & cron job scheduler backed by SQLite and `mypai_daemon` REST API (`mypai_tools.cron_mcp`).
 - **`arbor`**: Graph-native AST code intelligence (`arbor mcp`).
 - **`openadapt`**: GUI/Browser capture and process automation (`openadapt`).
 
 ---
 
-## 5. Background Daemons
+## 5. Background Daemons & Services
 
-Each daemon maintains a standalone architectural specification document under `tools/mypai_tools/`:
+Each daemon maintains detailed architectural specifications under `skills/mypai-tools/references/`:
 
-- **heartbeat** (`python3 -m mypai_tools.heartbeat daemon --project-dir "$MYPAI_PROJECT_DIR"`)
-  - **Spec**: [heartbeat.md](tools/mypai_tools/heartbeat.md)
-  - **Function**: Background cron runner, SQLite WAL manager, & RPC poke engine for periodic work audits and Hindsight reflection sweeps (`daemon`, `once`, `import`, or `export` mode).
+- **mypai_daemon** (`python3 -m mypai_tools.daemon --project-dir "$MYPAI_PROJECT_DIR" --session-name "$MYPAI_SESSION_NAME"`)
+  - **Spec**: [daemon-spec.md](skills/mypai-tools/references/daemon-spec.md) | [daemon-api-spec.md](skills/mypai-tools/references/daemon-api-spec.md) | [web-ui-spec.md](skills/mypai-tools/references/web-ui-spec.md)
+  - **Function**: Central coordinator, fixed OMP RPC session manager (`MYPAI_SESSION_NAME`), MPSC turn serializer (`prompt`, `steer`, `followup`, `abort_and_prompt`), FastAPI REST server (Port 52080), Signal webhook whitelist filter, and embedded Glassmorphism SPA WebUI.
 - **input_spooler** (`python3 -m mypai_tools.input_spooler daemon --project-dir "$MYPAI_PROJECT_DIR"`)
-  - **Spec**: [input_spooler.md](tools/mypai_tools/input_spooler.md)
-  - **Function**: Asynchronous sidecar daemon watching inbox folder (`~/Recordings/Inbox`), SHA256 hashing, sidecar parsing, STT transcription, and Hindsight memory bank retention.
-- **chat_bridge** (`python3 -m mypai_tools.chat_bridge daemon --project-dir "$MYPAI_PROJECT_DIR"`)
-  - **Spec**: [chat_bridge.md](tools/mypai_tools/chat_bridge.md)
-  - **Function**: RPC bridge forwarding incoming Signal messages to active OMP sessions with Hindsight recall.
+  - **Spec**: [input_spooler.md](skills/mypai-tools/references/input_spooler.md)
+  - **Function**: Asynchronous sidecar daemon watching inbox folder (`~/Recordings/Inbox`), SHA256 hashing, sidecar parsing, STT transcription, Hindsight memory bank retention, and `mypai_daemon` REST notification.
 
 ---
 
@@ -87,7 +83,7 @@ Each daemon maintains a standalone architectural specification document under `t
 
 All skills conform to the closed 6-field frontmatter schema ([agentskills.io](https://agentskills.io/specification)):
 
-- **`mypai-tools`**: [SKILL.md](skills/mypai-tools/SKILL.md) — Complete agent guide for `mypai_tools` MCP servers and background daemons.
+- **`mypai-tools`**: [SKILL.md](skills/mypai-tools/SKILL.md) — Complete agent guide for `mypai_tools` MCP servers, `mypai_daemon`, and references.
 - **`arbor`**: [SKILL.md](skills/arbor/SKILL.md) — Graph-native AST code intelligence and workspace navigation.
 - **`openadapt`**: [SKILL.md](skills/openadapt/SKILL.md) — Browser capture and UI automation.
-- **`hindsight-api`**: [SKILL.md](skills/hindsight-api/SKILL.md) — REST API guide for Hindsight memory bank management and mental model updates.
+- **`hindsight-api`**: [SKILL.md](skills/hindsight-api/SKILL.md) — REST API guide for Hindsight memory bank management.
