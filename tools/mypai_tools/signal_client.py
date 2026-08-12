@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Shared SignalClient SDK for mypai_daemon and chat_mcp."""
 
 import json

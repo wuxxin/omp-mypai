@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """WebSocket Manager and Endpoint for real-time WebUI streaming in mypai_daemon."""
 
 import json
@@ -60,7 +59,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 action = msg.get("action")
                 if action == "ping":
                     await websocket.send_text(json.dumps({"event": "pong"}))
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Received non-JSON websocket payload: %s (error: %s)", data_text, exc)
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)

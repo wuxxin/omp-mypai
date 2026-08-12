@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """APScheduler Engine and SQLite DB Task Sync for mypai_daemon."""
 
 import asyncio
@@ -181,8 +180,8 @@ class CronScheduler:
                 if raw_id not in active_ids:
                     try:
                         self.scheduler.remove_job(scheduled_id)
-                    except Exception:  # noqa: BLE001
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug("Ignored exception removing scheduled job '%s': %s", scheduled_id, exc)
                     self.scheduled_job_ids.remove(scheduled_id)
 
         except Exception as exc:  # noqa: BLE001

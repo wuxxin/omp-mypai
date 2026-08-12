@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Multi-Producer Single-Consumer (MPSC) Prioritized Event Queue for mypai_daemon."""
 
 import asyncio

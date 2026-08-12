@@ -63,6 +63,43 @@ def test_daemon_main_once_flag(tmp_path: Path) -> None:
         assert exc_info.value.code == 0
 
 
+def test_access_log_filter() -> None:
+    import logging
+
+    from mypai_tools.daemon.main import AccessLogFilter
+
+    filter_non_verbose = AccessLogFilter(verbose=False)
+    filter_verbose = AccessLogFilter(verbose=True)
+
+    record_status = logging.LogRecord(
+        name="uvicorn.access",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg='127.0.0.1 - "GET /api/v1/session/status HTTP/1.1" 200 OK',
+        args=(),
+        exc_info=None,
+    )
+
+    record_other = logging.LogRecord(
+        name="uvicorn.access",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg='127.0.0.1 - "POST /api/v1/session/prompt HTTP/1.1" 200 OK',
+        args=(),
+        exc_info=None,
+    )
+
+    # In non-verbose mode: status route is silenced, other routes pass
+    assert filter_non_verbose.filter(record_status) is False
+    assert filter_non_verbose.filter(record_other) is True
+
+    # In verbose mode: all routes pass
+    assert filter_verbose.filter(record_status) is True
+    assert filter_verbose.filter(record_other) is True
+
+
 def test_cron_mcp_all_tools_http_branch(tmp_path: Path) -> None:
     proj_dir = str(tmp_path)
     fake_job = {

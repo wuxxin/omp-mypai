@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """FastAPI Application Server for mypai_daemon."""
 
 import json
@@ -8,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from mypai_tools.daemon.api.ws import router as ws_router
 from mypai_tools.daemon.api.ws import ws_manager
 from mypai_tools.persistence import CronJobModel, get_db_session
@@ -206,7 +205,7 @@ async def signal_webhook(request: Request) -> dict[str, Any]:
 
     try:
         payload = await request.json()
-    except Exception:
+    except Exception:  # noqa: BLE001
         return {"status": "error", "error": "Invalid JSON payload"}
 
     env = payload.get("envelope", {}) if isinstance(payload, dict) else {}
@@ -227,9 +226,8 @@ async def signal_webhook(request: Request) -> dict[str, Any]:
 # Static Single-Page WebUI Handler
 @app.get("/ui", response_class=HTMLResponse)
 @app.get("/", response_class=HTMLResponse)
-async def serve_webui() -> HTMLResponse:
+async def serve_webui() -> Any:
     webui_path = os.path.join(os.path.dirname(__file__), "..", "..", "webui", "index.html")
     if os.path.isfile(webui_path):
-        with open(webui_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+        return FileResponse(webui_path, media_type="text/html")
     return HTMLResponse(content="<h1>MyPAI Daemon WebUI (Index File Missing)</h1>")

@@ -4,7 +4,10 @@ VENV ?= .venv
 VENV_BIN = $(VENV)/bin
 PYTHON = $(VENV_BIN)/python3
 RUFF = $(VENV_BIN)/ruff
-OMP_RPC_DIR ?= $(shell pwd)/../../scratch/oh-my-pi/python/omp-rpc
+SYSTEM_OMP_RPC_WHL = $(firstword $(wildcard /usr/share/oh-my-pi/python/omp-rpc/dist/*.whl))
+SYSTEM_OMP_RPC_DIR = /usr/share/oh-my-pi/python/omp-rpc
+
+OMP_RPC_SRC ?= $(if $(SYSTEM_OMP_RPC_WHL),$(SYSTEM_OMP_RPC_WHL),$(SYSTEM_OMP_RPC_DIR))
 
 .PHONY: default help test clean lint check buildenv cleanenv
 
@@ -24,25 +27,25 @@ $(VENV)/bin/activate:
 	@echo "Building virtual environment in $(VENV)..."
 	python3 -m venv $(VENV)
 	$(PYTHON) -m pip install --upgrade pip setuptools wheel 2>/dev/null || true
-	if [ -d "$(OMP_RPC_DIR)" ]; then \
+	if [ -n "$(OMP_RPC_SRC)" ] && [ -e "$(OMP_RPC_SRC)" ]; then \
+		echo "Installing omp-rpc from $(OMP_RPC_SRC)..."; \
 		if command -v uv >/dev/null 2>&1; then \
-			uv pip install --python $(PYTHON) -e "$(OMP_RPC_DIR)"; \
+			uv pip install --python $(PYTHON) "$(OMP_RPC_SRC)"; \
 		else \
-			$(PYTHON) -m pip install -e "$(OMP_RPC_DIR)"; \
+			$(PYTHON) -m pip install "$(OMP_RPC_SRC)"; \
 		fi; \
 	fi
 	if command -v uv >/dev/null 2>&1; then \
-		uv pip install --python $(PYTHON) -e tools/mypai_tools ruff; \
+		uv pip install --python $(PYTHON) -e tools pytest pytest-asyncio ruff; \
 	else \
-		$(PYTHON) -m pip install -e tools/mypai_tools ruff; \
+		$(PYTHON) -m pip install -e tools pytest pytest-asyncio ruff; \
 	fi
 
 buildenv: $(VENV)/bin/activate
 
 test: buildenv
 	@echo "Running unit tests for omp-mypai in $(VENV)..."
-	PYTHONPATH=tools $(PYTHON) -m unittest discover -s tools/tests -p "test_*.py" -v
-
+	PYTHONPATH=tools $(PYTHON) -m pytest tools/tests -v
 lint: buildenv
 	@echo "Running ruff check on omp-mypai tools in $(VENV)..."
 	$(RUFF) check tools/ || true
@@ -61,3 +64,4 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	rm -f .coverage
+

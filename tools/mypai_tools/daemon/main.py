@@ -66,6 +66,17 @@ async def queue_worker_loop(
             await asyncio.sleep(1.0)
 
 
+class AccessLogFilter(logging.Filter):
+    """Filter out GET /api/v1/session/status logs unless verbose is enabled."""
+
+    def __init__(self, verbose: bool = False) -> None:
+        super().__init__()
+        self.verbose = verbose
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return self.verbose or "/api/v1/session/status" not in record.getMessage()
+
+
 def main() -> None:
     """Parse CLI flags and launch mypai_daemon."""
     parser = argparse.ArgumentParser(
@@ -94,7 +105,20 @@ def main() -> None:
         action="store_true",
         help="Run single pass for active cron jobs and exit",
     )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable verbose DEBUG logging (includes /api/v1/session/status polling logs)",
+    )
     args = parser.parse_args()
+
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
+
+    # Attach filter to uvicorn.access logger to silence status polling unless verbose
+    logging.getLogger("uvicorn.access").addFilter(AccessLogFilter(verbose=args.verbose))
 
     # Instantiate Core Components
     queue = EventQueue()
@@ -124,7 +148,10 @@ def main() -> None:
 
         worker_task = asyncio.create_task(queue_worker_loop(queue, session_mgr))
         config = uvicorn.Config(
-            app, host="0.0.0.0", port=args.port, log_level="info"
+            app,
+            host="0.0.0.0",
+            port=args.port,
+            log_level="debug" if args.verbose else "info",
         )
         server = uvicorn.Server(config)
 
@@ -151,7 +178,7 @@ def main() -> None:
             if session_mgr.rpc_client:
                 try:
                     session_mgr.rpc_client.stop()
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001, S110
                     pass
 
     try:

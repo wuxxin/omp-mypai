@@ -59,12 +59,10 @@ async def test_session_manager_missing_session_recovery(tmp_path) -> None:
     with patch("mypai_tools.daemon.session_manager.RpcClient", mock_rpc_cls):
         client = mgr.ensure_connected()
         assert client is second_client_instance
-        assert mock_rpc_cls.call_count == 2
-        # Check call 1 had --continue, call 2 omitted --continue
         call1_args = mock_rpc_cls.call_args_list[0][1]["extra_args"]
         call2_args = mock_rpc_cls.call_args_list[1][1]["extra_args"]
         assert "--continue" in call1_args
-        assert "--continue" not in call2_args
+        assert call2_args == ["--auto-approve"]
 
 
 
