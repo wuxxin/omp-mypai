@@ -1,6 +1,6 @@
 # `result_error_prompt` Usage & Autofix Cron Entries Guide
 
-This document illustrates how to configure a cron entry with `result_error_prompt` so that whenever execution fails (`exitlevel != 0`), it automatically formats standard error, standard output, and exit code telemetry, references the `mypai-tools` skill, and requests OMP to delegate a fix to a `@fixer` agent.
+This document illustrates how to configure a cron entry with `result_error_prompt` so that whenever execution fails (`exitlevel != 0`), it automatically formats standard error, standard output, and exit code telemetry, references the `mypai_tools` skill, and requests OMP to delegate a fix to a `@fixer` agent.
 
 ---
 
@@ -22,7 +22,7 @@ cron_add_job(
         "Exit Code (exitlevel): #[_RETURNCODE]\n\n"
         "STDERR:\n```log\n#[_STDERR]\n```\n"
         "STDOUT:\n```log\n#[_STDOUT]\n```\n"
-        "Please inspect the mypai-tools skill (skills/mypai-tools/SKILL.md) "
+        "Please inspect the mypai_tools skill (skills/mypai_tools/SKILL.md) "
         "and spawn a @fixer agent to debug and fix this failure."
     ),
 )

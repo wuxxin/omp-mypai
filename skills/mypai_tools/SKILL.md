@@ -1,5 +1,5 @@
 ---
-name: mypai-tools
+name: mypai_tools
 description: Guide for mypai_tools MCP services (cron-scheduler, chat-channel, local-speech) and mypai_daemon background environment. Use when scheduling automated jobs, executing one-shot 'now' tasks, processing Signal messages, handling speech STT/TTS, or inspecting daemon session state.
 ---
 

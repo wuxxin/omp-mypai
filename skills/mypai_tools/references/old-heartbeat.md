@@ -52,7 +52,7 @@ The **Heartbeat Daemon** (`mypai_tools.heartbeat`) is the background cron execut
            "Exit Code: #[_RETURN_CODE]\n\n"
            "ERROR:\n#[_ERROR]\n\n"
            "OUTPUT:\n#[_OUTPUT]\n\n"
-           "Please inspect the mypai-tools skill and spawn a @fixer agent to resolve the issue."
+           "Please inspect the mypai_tools skill and spawn a @fixer agent to resolve the issue."
        ),
    )
    ```
