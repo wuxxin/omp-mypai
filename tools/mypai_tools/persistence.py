@@ -116,7 +116,11 @@ def find_project_root(path: str) -> str:
 def get_project_dir_hash(project_dir: str = "") -> str:
     """Compute 12-char SHA256 hash for normalized real project directory path."""
     if not project_dir:
-        project_dir = os.environ.get("MYPAI_PROJECT_DIR", "") or os.environ.get("PROJECT_DIR", "") or os.getcwd()
+        project_dir = (
+            os.environ.get("MYPAI_PROJECT_DIR", "")
+            or os.environ.get("PROJECT_DIR", "")
+            or os.path.expanduser("~/agent-shared/mypai-workspace")
+        )
     project_root = find_project_root(project_dir)
     return hashlib.sha256(project_root.encode("utf-8")).hexdigest()[:12]
 

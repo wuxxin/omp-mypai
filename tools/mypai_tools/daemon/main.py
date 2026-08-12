@@ -83,7 +83,10 @@ def main() -> None:
     parent_parser.add_argument(
         "--project-dir",
         type=str,
-        default=os.getenv("MYPAI_PROJECT_DIR", os.getcwd()),
+        default=os.getenv(
+            "MYPAI_PROJECT_DIR",
+            os.getenv("PROJECT_DIR", os.path.expanduser("~/agent-shared/mypai-workspace")),
+        ),
         help="Target workspace directory path",
     )
     parent_parser.add_argument(
@@ -159,7 +162,12 @@ def main() -> None:
 
         res = cron_import_jobs(file_path=args.file_path, project_dir=args.project_dir)
         if res.get("status") == "imported":
-            logger.info("Successfully imported %d cron jobs from '%s'.", res.get("imported_count", 0), args.file_path)
+            logger.info(
+                "Cron jobs import complete for '%s': %d created, %d updated.",
+                args.file_path,
+                res.get("imported_count", 0),
+                res.get("updated_count", 0),
+            )
             sys.exit(0)
         else:
             logger.error("Error importing cron jobs: %s", res.get("error", "Unknown error"))

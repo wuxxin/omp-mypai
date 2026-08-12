@@ -23,6 +23,16 @@ mcp = FastMCP("cron-scheduler")
 DAEMON_URL = os.getenv("MYPAI_DAEMON_URL", "http://127.0.0.1:52080")
 
 
+def _effective_project_dir(project_dir: str = "") -> str:
+    """Resolve project directory falling back to MYPAI_PROJECT_DIR environment variable or default workspace."""
+    return (
+        project_dir
+        or os.getenv("MYPAI_PROJECT_DIR", "")
+        or os.getenv("PROJECT_DIR", "")
+        or os.path.expanduser("~/agent-shared/mypai-workspace")
+    )
+
+
 def _daemon_http_request(
     endpoint: str, method: str = "GET", data: dict[str, Any] | None = None
 ) -> dict[str, Any] | list[Any]:
@@ -88,14 +98,15 @@ def cron_add_job(
         "result_channel": result_channel,
     }
 
+    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs?project_dir={project_dir}", method="POST", data=payload
+        f"api/v1/cron/jobs?project_dir={eff_dir}", method="POST", data=payload
     )
     if isinstance(res, dict) and "error" not in res:
         return res
 
     # Fallback to direct SQLite DB session if daemon API is offline
-    session = get_db_session(project_dir)
+    session = get_db_session(eff_dir)
     import uuid
 
     job_id = str(uuid.uuid4())[:8]
@@ -127,7 +138,7 @@ def cron_add_job(
     try:
         session.add(db_job)
         session.commit()
-        running = is_daemon_running(project_dir)
+        running = is_daemon_running(eff_dir)
         cron_clean = str(cron or "").strip().lower()
         if cron_clean in ("now", "@now", "@once"):
             status_msg = (
@@ -175,8 +186,9 @@ def cron_run_once(
         "result_action": result_action,
         "result_channel": result_channel,
     }
+    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/run_once?project_dir={project_dir}",
+        f"api/v1/cron/jobs/run_once?project_dir={eff_dir}",
         method="POST",
         data=payload,
     )
@@ -184,7 +196,7 @@ def cron_run_once(
         return res
 
     # Fallback to direct SQLite DB session
-    session = get_db_session(project_dir)
+    session = get_db_session(eff_dir)
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     args_str = json.dumps(args) if isinstance(args, (dict, list)) else str(args or "")
     kwargs_str = (
@@ -203,7 +215,7 @@ def cron_run_once(
                 matching_job = j
                 break
 
-        running = is_daemon_running(project_dir)
+        running = is_daemon_running(eff_dir)
 
         if matching_job:
             matching_job.cron = "now"
@@ -231,7 +243,7 @@ def cron_run_once(
         result_error_prompt=result_error_prompt,
         result_action=result_action,
         result_channel=result_channel,
-        project_dir=project_dir,
+        project_dir=eff_dir,
     )
 
 
@@ -240,13 +252,14 @@ def cron_list_jobs(
     project_dir: str = "", include_disabled: bool = True
 ) -> list[dict[str, Any]]:
     """List registered cron jobs and execution telemetry."""
+    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs?include_disabled={include_disabled}&project_dir={project_dir}"
+        f"api/v1/cron/jobs?include_disabled={include_disabled}&project_dir={eff_dir}"
     )
     if isinstance(res, list):
         return res
 
-    session = get_db_session(project_dir)
+    session = get_db_session(eff_dir)
     try:
         query = session.query(CronJobModel)
         if not include_disabled:
@@ -263,13 +276,14 @@ def cron_disable_job(job_id: str = "", name: str = "", project_dir: str = "") ->
     if not target_id:
         return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
 
+    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{target_id}/disable?project_dir={project_dir}", method="POST"
+        f"api/v1/cron/jobs/{target_id}/disable?project_dir={eff_dir}", method="POST"
     )
     if isinstance(res, dict) and "error" not in res:
         return res
 
-    session = get_db_session(project_dir)
+    session = get_db_session(eff_dir)
     try:
         db_job = session.query(CronJobModel).filter(
             (CronJobModel.id == target_id) | (CronJobModel.name == target_id)
@@ -290,13 +304,14 @@ def cron_enable_job(job_id: str = "", name: str = "", project_dir: str = "") -> 
     if not target_id:
         return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
 
+    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{target_id}/enable?project_dir={project_dir}", method="POST"
+        f"api/v1/cron/jobs/{target_id}/enable?project_dir={eff_dir}", method="POST"
     )
     if isinstance(res, dict) and "error" not in res:
         return res
 
-    session = get_db_session(project_dir)
+    session = get_db_session(eff_dir)
     try:
         db_job = session.query(CronJobModel).filter(
             (CronJobModel.id == target_id) | (CronJobModel.name == target_id)
@@ -364,15 +379,16 @@ def cron_modify_job(
     if enabled is not None:
         updates["enabled"] = enabled
 
+    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{target_id}?project_dir={project_dir}",
+        f"api/v1/cron/jobs/{target_id}?project_dir={eff_dir}",
         method="PUT",
         data=updates,
     )
     if isinstance(res, dict) and "error" not in res:
         return res
 
-    session = get_db_session(project_dir)
+    session = get_db_session(eff_dir)
     try:
         db_job = session.query(CronJobModel).filter(
             (CronJobModel.id == target_id) | (CronJobModel.name == target_id)
@@ -394,13 +410,14 @@ def cron_remove_job(job_id: str = "", name: str = "", project_dir: str = "") -> 
     if not target_id:
         return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
 
+    eff_dir = _effective_project_dir(project_dir)
     res = _daemon_http_request(
-        f"api/v1/cron/jobs/{target_id}?project_dir={project_dir}", method="DELETE"
+        f"api/v1/cron/jobs/{target_id}?project_dir={eff_dir}", method="DELETE"
     )
     if isinstance(res, dict) and "error" not in res:
         return res
 
-    session = get_db_session(project_dir)
+    session = get_db_session(eff_dir)
     try:
         db_job = session.query(CronJobModel).filter(
             (CronJobModel.id == target_id) | (CronJobModel.name == target_id)
@@ -515,20 +532,22 @@ def cron_export_jobs(file_path: str, project_dir: str = "") -> dict[str, Any]:
 @mcp.tool()
 def cron_enable_execution(project_dir: str = "") -> dict[str, Any]:
     """Temporarily enable global cron task execution in mypai_daemon."""
-    res = _daemon_http_request(f"api/v1/cron/enable?project_dir={project_dir}", method="POST")
+    eff_dir = _effective_project_dir(project_dir)
+    res = _daemon_http_request(f"api/v1/cron/enable?project_dir={eff_dir}", method="POST")
     if isinstance(res, dict) and "error" not in res:
         return res
-    running = is_daemon_running(project_dir)
+    running = is_daemon_running(eff_dir)
     return {"status": "enabled", "cron_execution_enabled": True, "daemon_running": running}
 
 
 @mcp.tool()
 def cron_disable_execution(project_dir: str = "") -> dict[str, Any]:
     """Temporarily disable global cron task execution in mypai_daemon."""
-    res = _daemon_http_request(f"api/v1/cron/disable?project_dir={project_dir}", method="POST")
+    eff_dir = _effective_project_dir(project_dir)
+    res = _daemon_http_request(f"api/v1/cron/disable?project_dir={eff_dir}", method="POST")
     if isinstance(res, dict) and "error" not in res:
         return res
-    running = is_daemon_running(project_dir)
+    running = is_daemon_running(eff_dir)
     return {"status": "disabled", "cron_execution_enabled": False, "daemon_running": running}
 
 
@@ -547,15 +566,16 @@ def cron_disable_all_jobs(project_dir: str = "") -> dict[str, Any]:
 @mcp.tool()
 def cron_get_status(project_dir: str = "") -> dict[str, Any]:
     """Get status overview of scheduled cron jobs and daemon connectivity."""
-    res = _daemon_http_request(f"api/v1/cron/status?project_dir={project_dir}")
+    eff_dir = _effective_project_dir(project_dir)
+    res = _daemon_http_request(f"api/v1/cron/status?project_dir={eff_dir}")
     if isinstance(res, dict) and "error" not in res:
         return res
 
-    session = get_db_session(project_dir)
+    session = get_db_session(eff_dir)
     try:
         all_jobs = session.query(CronJobModel).all()
         enabled_count = sum(1 for j in all_jobs if j.enabled)
-        running = is_daemon_running(project_dir)
+        running = is_daemon_running(eff_dir)
         return {
             "status": "active" if running else "daemon_offline",
             "cron_execution_enabled": True,

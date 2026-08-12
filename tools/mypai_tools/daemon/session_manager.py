@@ -22,7 +22,12 @@ class OMPSessionManager:
         project_dir: str = "",
         session_name: str | None = None,
     ) -> None:
-        self.project_dir = project_dir or os.getenv("MYPAI_PROJECT_DIR", os.getcwd())
+        self.project_dir = (
+            project_dir
+            or os.getenv("MYPAI_PROJECT_DIR", "")
+            or os.getenv("PROJECT_DIR", "")
+            or os.path.expanduser("~/agent-shared/mypai-workspace")
+        )
         self.session_name = (
             session_name
             or os.getenv("MYPAI_SESSION_NAME")
