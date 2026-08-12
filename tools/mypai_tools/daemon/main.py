@@ -117,12 +117,11 @@ def main() -> None:
     app.state.scheduler = scheduler
     app.state.signal_client = signal_client
 
-    # Launch Cron Scheduler
-    scheduler.start()
-    scheduler.sync_jobs_from_db()
-
     # Start Queue Worker Loop & Uvicorn Server
     async def run_server() -> None:
+        scheduler.start()
+        scheduler.sync_jobs_from_db()
+
         worker_task = asyncio.create_task(queue_worker_loop(queue, session_mgr))
         config = uvicorn.Config(
             app, host="0.0.0.0", port=args.port, log_level="info"
