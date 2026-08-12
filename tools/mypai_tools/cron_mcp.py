@@ -128,14 +128,14 @@ def cron_add_job(
         cron_clean = str(cron or "").strip().lower()
         if cron_clean in ("now", "@now", "@once"):
             status_msg = (
-                "scheduled_once" if running else "scheduled_once_heartbeat_offline"
+                "scheduled_once" if running else "scheduled_once_daemon_offline"
             )
         else:
-            status_msg = "scheduled" if running else "scheduled_heartbeat_offline"
+            status_msg = "scheduled" if running else "scheduled_daemon_offline"
         return {
             "status": status_msg,
             "job": db_job.to_dict(),
-            "heartbeat_running": running,
+            "daemon_running": running,
         }
     finally:
         session.close()
@@ -204,11 +204,11 @@ def cron_run_once(
             matching_job.enabled = True
             matching_job.updated_at = now_iso
             session.commit()
-            status_msg = "rescheduled" if running else "rescheduled_heartbeat_offline"
+            status_msg = "rescheduled" if running else "rescheduled_daemon_offline"
             return {
                 "status": status_msg,
                 "job": matching_job.to_dict(),
-                "heartbeat_running": running,
+                "daemon_running": running,
             }
     finally:
         session.close()

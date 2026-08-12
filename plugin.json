@@ -14,7 +14,7 @@
     "hindsight",
     "signal",
     "cron",
-    "heartbeat",
+    "daemon",
     "spooler",
     "speech",
     "stt",

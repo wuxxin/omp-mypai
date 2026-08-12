@@ -128,3 +128,24 @@ def test_cron_mcp_all_tools_http_branch(tmp_path: Path) -> None:
 
         res_rm = cron_mcp.cron_remove_job(job_id="mock_id", project_dir=proj_dir)
         assert res_rm == fake_dict_resp
+
+
+def test_daemon_import_export_cli(tmp_path: Path) -> None:
+    proj_dir = str(tmp_path)
+    import_file = tmp_path / "jobs_import.json"
+    import_file.write_text('[{"name": "CLI_Cron", "cron": "0 * * * *"}]', encoding="utf-8")
+
+    # Test import subcommand
+    with patch("sys.argv", ["mypai_daemon", "import", str(import_file), "--project-dir", proj_dir]):
+        with pytest.raises(SystemExit) as exc_info:
+            daemon_main()
+        assert exc_info.value.code == 0
+
+    # Test export subcommand
+    export_file = tmp_path / "jobs_export.json"
+    with patch("sys.argv", ["mypai_daemon", "export", str(export_file), "--project-dir", proj_dir]):
+        with pytest.raises(SystemExit) as exc_info:
+            daemon_main()
+        assert exc_info.value.code == 0
+    assert export_file.exists()
+

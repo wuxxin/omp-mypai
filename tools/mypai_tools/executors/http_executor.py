@@ -9,7 +9,7 @@ import httpx
 
 from mypai_tools.utils import substitute_vars
 
-logger = logging.getLogger("mypai_heartbeat.http_executor")
+logger = logging.getLogger("mypai_daemon.executors.http")
 
 
 async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:

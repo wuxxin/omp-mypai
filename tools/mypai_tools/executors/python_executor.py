@@ -13,7 +13,7 @@ try:
 except ImportError:
     RpcClient = None
 
-logger = logging.getLogger("mypai_heartbeat.python_executor")
+logger = logging.getLogger("mypai_daemon.executors.python")
 
 
 async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:

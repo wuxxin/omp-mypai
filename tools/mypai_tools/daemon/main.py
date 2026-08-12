@@ -79,14 +79,17 @@ class AccessLogFilter(logging.Filter):
 
 def main() -> None:
     """Parse CLI flags and launch mypai_daemon."""
-    parser = argparse.ArgumentParser(
-        description="MyPAI Daemon: Central Coordinator, OMP RPC Session Manager & Gateway."
-    )
-    parser.add_argument(
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument(
         "--project-dir",
         type=str,
         default=os.getenv("MYPAI_PROJECT_DIR", os.getcwd()),
         help="Target workspace directory path",
+    )
+
+    parser = argparse.ArgumentParser(
+        parents=[parent_parser],
+        description="MyPAI Daemon: Central Coordinator, OMP RPC Session Manager & Gateway.",
     )
     parser.add_argument(
         "--port",
@@ -111,6 +114,19 @@ def main() -> None:
         action="store_true",
         help="Enable verbose DEBUG logging (includes /api/v1/session/status polling logs)",
     )
+
+    subparsers = parser.add_subparsers(dest="command", help="Optional CLI subcommand")
+
+    import_parser = subparsers.add_parser(
+        "import", parents=[parent_parser], help="Import cron jobs from a JSON file"
+    )
+    import_parser.add_argument("file_path", type=str, help="Path to input JSON file")
+
+    export_parser = subparsers.add_parser(
+        "export", parents=[parent_parser], help="Export cron jobs to a JSON file"
+    )
+    export_parser.add_argument("file_path", type=str, help="Path to output JSON file")
+
     args = parser.parse_args()
 
     if args.verbose:
@@ -119,6 +135,28 @@ def main() -> None:
 
     # Attach filter to uvicorn.access logger to silence status polling unless verbose
     logging.getLogger("uvicorn.access").addFilter(AccessLogFilter(verbose=args.verbose))
+
+    if args.command == "import":
+        from mypai_tools.cron_mcp import cron_import_jobs
+
+        res = cron_import_jobs(file_path=args.file_path, project_dir=args.project_dir)
+        if res.get("status") == "imported":
+            logger.info("Successfully imported %d cron jobs from '%s'.", res.get("imported_count", 0), args.file_path)
+            sys.exit(0)
+        else:
+            logger.error("Error importing cron jobs: %s", res.get("error", "Unknown error"))
+            sys.exit(1)
+
+    if args.command == "export":
+        from mypai_tools.cron_mcp import cron_export_jobs
+
+        res = cron_export_jobs(file_path=args.file_path, project_dir=args.project_dir)
+        if res.get("status") == "exported":
+            logger.info("Successfully exported %d cron jobs to '%s'.", res.get("exported_count", 0), args.file_path)
+            sys.exit(0)
+        else:
+            logger.error("Error exporting cron jobs: %s", res.get("error", "Unknown error"))
+            sys.exit(1)
 
     # Instantiate Core Components
     queue = EventQueue()

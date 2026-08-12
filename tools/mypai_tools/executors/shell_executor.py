@@ -15,7 +15,7 @@ try:
 except ImportError:
     RpcClient = None
 
-logger = logging.getLogger("mypai_heartbeat.shell_executor")
+logger = logging.getLogger("mypai_daemon.executors.shell")
 
 
 def build_full_command(cmd: str, args_val: Any = None, kwargs_val: Any = None) -> str:

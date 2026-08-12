@@ -13,7 +13,7 @@ try:
 except ImportError:
     RpcClient = None
 
-logger = logging.getLogger("mypai_heartbeat.omp_rpc_executor")
+logger = logging.getLogger("mypai_daemon.executors.omp_rpc")
 
 
 async def execute_omp_rpc_job(
