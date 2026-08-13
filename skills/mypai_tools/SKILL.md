@@ -79,15 +79,13 @@ Persistent asynchronous sidecar daemon (`python3 -m mypai_tools.input_spooler da
 
 For detailed architectural specifications, REST API schemas, UI designs, and command guides, consult these reference documents:
 
-| Component | Module / Entrypoint | Spec / Reference File | Description & Technical Focus |
-| :--- | :--- | :--- | :--- |
-| **Daemon Host** | `mypai_tools.daemon` | [daemon-spec.md](references/daemon-spec.md) | Central coordinator, OMP RPC session manager, MPSC Event Queue serializer, & Signal entanglement. |
-| **REST & WS API** | `mypai_tools.daemon.api` | [daemon-api-spec.md](references/daemon-api-spec.md) | OpenAPI REST endpoints (`/api/v1/...`) supporting `prompt`, `steer`, `followup`, `abort_and_prompt` & WS stream (`/api/v1/ws`). |
-| **ACP Delegation** | `mypai_tools.acp` | [acp-delegation-spec.md](references/acp-delegation-spec.md) | ACP worker process pool, stdio JSON-RPC framing, 8 host tools (`acp_task`, etc.), REST state control, & SQLite settings. |
-| **Embedded WebUI** | `mypai_tools.webui` | [web-ui-spec.md](references/web-ui-spec.md) | Glassmorphism Single-Page SPA served at `http://127.0.0.1:52080/` with live transcript stream & cron manager. |
-| **Cron Scheduler** | `mypai_tools.scheduler` | [cron-usage.md](references/cron-usage.md) | Per-project SQLite task scheduler (`cron-<hash>.db`), `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), & telemetry macros. |
-| **Input Spooler** | `mypai_tools.input_spooler` | [input_spooler.md](references/input_spooler.md) | Inbox directory watcher, 10s quiescence gating, Whisper STT pipeline, Hindsight memory retention, & REST notifications. |
-| **FastMCP Tools** | `cron_mcp`, `chat_mcp`, `speech_mcp` | [mcp-spec.md](references/mcp-spec.md) | FastMCP tool signatures & return schemas for `cron` (`mcp__cron_*`), `signal_chat` (`mcp__signal_chat_*`), and `local-speech`. |
-| **Daemon CLI** | `mypai_tools.daemon.main` | [daemon-cli-usage.md](references/daemon-cli-usage.md) | Command line interface (`serve`, `once`, `import`, `export`) & environment flags (`--agent-dir`, `--port`). |
-| **Test Architecture** | `tests/` | [daemon-testing.md](references/daemon-testing.md) | Hermetic test suite structure, fixtures (`FakeRpcClient`, `in_memory_db`), and test coverage matrix. |
-| **Legacy Heartbeat** | `heartbeat` | [old-heartbeat.md](references/old-heartbeat.md) | Historical specification for the former standalone heartbeat daemon. |
+- **[Daemon Core Architecture](references/daemon-spec.md)** (`mypai_tools.daemon`): Central coordinator, OMP RPC session manager, MPSC Event Queue turn serializer, & Signal entanglement.
+- **[Daemon REST & WebSocket API](references/daemon-api-spec.md)** (`mypai_tools.daemon.api`): OpenAPI REST endpoints (`/api/v1/...`) supporting `prompt`, `steer`, `followup`, `abort_and_prompt`, & WebSocket stream (`/api/v1/ws`).
+- **[ACP Intra-Agent Delegation Specification](references/acp-delegation-spec.md)** (`mypai_tools.acp`): ACP worker process pool, stdio JSON-RPC framing, 8 host tools (`acp_task`, etc.), REST state control (`/api/v1/acp/*`), & SQLite settings.
+- **[Embedded Single-Page WebUI](references/web-ui-spec.md)** (`mypai_tools.webui`): Glassmorphism SPA served at `http://127.0.0.1:52080/` with live transcript stream & cron manager.
+- **[Cron Scheduler Usage](references/cron-usage.md)** (`mypai_tools.scheduler`): Per-project SQLite task scheduler (`cron-<hash>.db`), `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), & telemetry macros.
+- **[Input Spooler Specification](references/input_spooler.md)** (`mypai_tools.input_spooler`): Inbox directory watcher, 10s quiescence gating, Whisper STT pipeline, Hindsight memory retention, & REST notifications.
+- **[FastMCP Tool Servers Specification](references/mcp-spec.md)** (`cron_mcp`, `chat_mcp`, `speech_mcp`): FastMCP tool signatures & return schemas for `cron` (`mcp__cron_*`), `signal_chat` (`mcp__signal_chat_*`), and `local-speech`.
+- **[Daemon CLI Command Usage](references/daemon-cli-usage.md)** (`mypai_tools.daemon.main`): Command line interface (`serve`, `once`, `import`, `export`) & environment flags (`--agent-dir`, `--port`).
+- **[Daemon Test Architecture](references/daemon-testing.md)** (`src/tests/`): Hermetic test suite structure, fixtures (`FakeRpcClient`, `in_memory_db`), and test coverage matrix.
+- **[Legacy Heartbeat Specification](references/old-heartbeat.md)** (`heartbeat`): Historical specification for the former standalone heartbeat daemon.
