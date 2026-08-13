@@ -262,7 +262,7 @@ def cron_remove_job(job_id: str = "", name: str = "") -> dict[str, Any]:
 @mcp.tool()
 def cron_import_jobs(file_path: str) -> dict[str, Any]:
     """Import cron jobs from a YAML or JSON file into mypai_daemon via API."""
-    from mypai_tools.utils import load_jobs_file
+    from mypai_tools.tools import load_jobs_file
 
     try:
         jobs_list = load_jobs_file(file_path)
@@ -352,7 +352,7 @@ def cron_export_jobs(
     file_path: str = "jobs.yaml", fmt: str | None = None
 ) -> dict[str, Any]:
     """Export all registered cron jobs to a YAML or JSON file via mypai_daemon API (defaults to YAML)."""
-    from mypai_tools.utils import dump_jobs_file
+    from mypai_tools.tools import dump_jobs_file
 
     jobs_res = cron_list_jobs(include_disabled=True)
     if isinstance(jobs_res, dict) and "error" in jobs_res:

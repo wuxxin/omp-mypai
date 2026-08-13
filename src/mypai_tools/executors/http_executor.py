@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 
 from mypai_tools.executors.omp_rpc_executor import dispatch_result_to_omp
-from mypai_tools.utils import substitute_vars
+from mypai_tools.tools import substitute_vars
 
 logger = logging.getLogger("mypai_daemon.executors.http")
 

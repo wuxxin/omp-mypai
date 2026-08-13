@@ -184,7 +184,7 @@ def main() -> None:
 
     if args.command == "import":
         from mypai_tools.persistence import get_db_session, import_jobs_to_db
-        from mypai_tools.utils import load_jobs_file
+        from mypai_tools.tools import load_jobs_file
 
         db = get_db_session(args.agent_dir)
         try:
@@ -206,7 +206,7 @@ def main() -> None:
 
     if args.command == "export":
         from mypai_tools.persistence import export_jobs_from_db, get_db_session
-        from mypai_tools.utils import dump_jobs_file
+        from mypai_tools.tools import dump_jobs_file
 
         db = get_db_session(args.agent_dir)
         try:

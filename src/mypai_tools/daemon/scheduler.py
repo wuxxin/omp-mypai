@@ -20,7 +20,7 @@ from mypai_tools.persistence import (
     get_db_session,
     get_project_db_path,
 )
-from mypai_tools.utils import (
+from mypai_tools.tools import (
     normalize_cron_expression,
     substitute_vars,
 )

@@ -1,4 +1,4 @@
-"""Utility functions for macro substitution and cron string normalization."""
+"""Utility functions for macro substitution, cron string normalization, and file I/O."""
 
 import json
 import os

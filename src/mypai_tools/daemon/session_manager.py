@@ -181,6 +181,15 @@ class OMPSessionManager:
                     client.install_headless_ui()
 
                 self._setup_event_listeners(client)
+
+                if hasattr(client, "set_custom_tools"):
+                    try:
+                        from mypai_tools.acp.tools import get_acp_host_tools
+                        client.set_custom_tools(get_acp_host_tools())
+                        logger.info("Registered 8 ACP host tools into persistent RpcClient.")
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug("Failed to register ACP host tools into RpcClient: %s", exc)
+
                 self.rpc_client = client
                 self.session_name = "mypai_daemon - running"
 

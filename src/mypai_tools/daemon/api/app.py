@@ -9,6 +9,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
+from mypai_tools.daemon.api.acp_router import router as acp_router
 from mypai_tools.daemon.api.ws import router as ws_router
 from mypai_tools.daemon.api.ws import ws_manager
 from mypai_tools.persistence import CronJobModel, get_db_session
@@ -23,6 +24,7 @@ app = FastAPI(
 )
 
 app.include_router(ws_router)
+app.include_router(acp_router)
 
 
 # Pydantic Request Models
