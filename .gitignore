@@ -1,9 +1,11 @@
+.plugin-venv/
+.ruff_cache/
+.venv/
+
+scratch/
+
+mypai_tools.egg-info
+build
 __pycache__
 .fresh
 .pytest_cache
-.plugin-venv/
-.ruff_cache/
-build
-mypai_tools.egg-info
-scratch/
-.venv/
