@@ -8,6 +8,7 @@
 - `agents/` — Custom subagent prompt profiles
 - `config/` — Hindsight bank configurations and templates
 - `research/` — Plugin related research
+  - `omp_rpc_functions.md` — documentation of omp_rpc usage
 - `rules/` — Execution policies and guidelines
 - `scripts/` — Installation and Maintenance Scripts
 - `skills/` — Portable skills definitions & modular references
