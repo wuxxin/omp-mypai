@@ -20,8 +20,8 @@ Flags:
   -h, --help   Show this help message and exit
 
 Examples:
-  ./update-memory-banks.sh ./hindsight-bankconfig http://localhost:8888 --yes
-  ./update-memory-banks.sh ./hindsight-bankconfig http://localhost:8888 --yes --prune
+  ./update-memory-banks.sh ./memorybanks http://localhost:8888 --yes
+  ./update-memory-banks.sh ./memorybanks http://localhost:8888 --yes --prune
 EOF
 }
 
@@ -32,32 +32,32 @@ API_URL=""
 
 while [ "${#}" -gt 0 ]; do
     case "${1}" in
-        -y|--yes)
-            CONFIRMED="true"
-            shift
-            ;;
-        -p|--prune)
-            PRUNE="true"
-            shift
-            ;;
-        -h|--help)
-            usage
-            exit 0
-            ;;
-        -*)
-            echo "Error: Unknown option '${1}'" >&2
-            echo "" >&2
-            usage
-            exit 1
-            ;;
-        *)
-            if [ -z "${BANKS_DIR}" ]; then
-                BANKS_DIR="${1}"
-            elif [ -z "${API_URL}" ]; then
-                API_URL="${1}"
-            fi
-            shift
-            ;;
+    -y | --yes)
+        CONFIRMED="true"
+        shift
+        ;;
+    -p | --prune)
+        PRUNE="true"
+        shift
+        ;;
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    -*)
+        echo "Error: Unknown option '${1}'" >&2
+        echo "" >&2
+        usage
+        exit 1
+        ;;
+    *)
+        if [ -z "${BANKS_DIR}" ]; then
+            BANKS_DIR="${1}"
+        elif [ -z "${API_URL}" ]; then
+            API_URL="${1}"
+        fi
+        shift
+        ;;
     esac
 done
 
@@ -181,7 +181,7 @@ for mm in local_mms:
         continue
     expected_ids.add(mm_id)
     remote_mm = remote_mms.get(mm_id)
-    
+
     # Compare local vs remote fields
     needs_mm_update = True
     if remote_mm:
