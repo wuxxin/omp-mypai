@@ -110,17 +110,21 @@ def load_jobs_file(file_path: str) -> list[dict[str, Any]]:
     with open(abs_path, "r", encoding="utf-8") as f:
         try:
             data = yaml.safe_load(f)
-        except Exception:
+        except Exception:  # noqa: BLE001
             f.seek(0)
             data = json.load(f)
 
     jobs_list = data.get("jobs", data) if isinstance(data, dict) else data
     if not isinstance(jobs_list, list):
-        raise ValueError(f"Expected list of jobs in '{abs_path}', got {type(jobs_list).__name__}")
+        raise ValueError(  # noqa: TRY004
+            f"Expected list of jobs in '{abs_path}', got {type(jobs_list).__name__}"
+        )
     return jobs_list
 
 
-def dump_jobs_file(file_path: str, jobs: list[dict[str, Any]], fmt: str | None = None) -> str:
+def dump_jobs_file(
+    file_path: str, jobs: list[dict[str, Any]], fmt: str | None = None
+) -> str:
     """Dump cron jobs list to a YAML or JSON file.
 
     Defaults to YAML format unless fmt is 'json' or file_path ends with '.json'.

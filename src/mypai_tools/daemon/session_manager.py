@@ -55,7 +55,9 @@ class OMPSessionManager:
             def broadcast_event(event_type: str, data: dict[str, Any]) -> None:
                 if loop.is_running():
                     payload = {"event": event_type, **data}
-                    asyncio.run_coroutine_threadsafe(ws_manager.broadcast(payload), loop)
+                    asyncio.run_coroutine_threadsafe(
+                        ws_manager.broadcast(payload), loop
+                    )
 
             if hasattr(client, "on_message_update"):
                 client.on_message_update(
@@ -91,7 +93,9 @@ class OMPSessionManager:
         if self.rpc_client is not None:
             proc = getattr(self.rpc_client, "_process", None)
             if proc is None or proc.poll() is not None:
-                logger.warning("Persistent RpcClient process has died. Re-connecting...")
+                logger.warning(
+                    "Persistent RpcClient process has died. Re-connecting..."
+                )
                 is_dead = True
 
         if self.rpc_client is None or is_dead:
@@ -110,7 +114,11 @@ class OMPSessionManager:
                 # Attempt 1: Reattach to existing session_uuid if saved in DB
                 if saved_uuid:
                     try:
-                        logger.info("Attempting to reattach to saved session UUID '%s' in '%s'...", saved_uuid, self.agent_dir)
+                        logger.info(
+                            "Attempting to reattach to saved session UUID '%s' in '%s'...",
+                            saved_uuid,
+                            self.agent_dir,
+                        )
                         kwargs: dict[str, Any] = {
                             "extra_args": ["--auto-approve", "--resume", saved_uuid],
                         }
@@ -120,7 +128,9 @@ class OMPSessionManager:
                         if hasattr(client, "set_session_name"):
                             client.set_session_name("mypai_daemon - running")
                         self.session_uuid = saved_uuid
-                        logger.info("Successfully reattached to session UUID '%s'.", saved_uuid)
+                        logger.info(
+                            "Successfully reattached to session UUID '%s'.", saved_uuid
+                        )
                     except Exception as exc:  # noqa: BLE001
                         logger.warning(
                             "Failed to reattach to session UUID '%s': %s. Creating new session...",
@@ -137,7 +147,9 @@ class OMPSessionManager:
                     if os.path.isdir(self.agent_dir):
                         kwargs["cwd"] = self.agent_dir
 
-                    logger.info("Spawning new persistent RpcClient in '%s'...", self.agent_dir)
+                    logger.info(
+                        "Spawning new persistent RpcClient in '%s'...", self.agent_dir
+                    )
                     client = RpcClient(**kwargs).start()
                     if hasattr(client, "new_session"):
                         try:
@@ -155,6 +167,7 @@ class OMPSessionManager:
 
                     if not new_uuid:
                         import uuid
+
                         new_uuid = str(uuid.uuid4())
 
                     set_setting(db, "session_uuid", new_uuid)
@@ -190,7 +203,7 @@ class OMPSessionManager:
         context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Execute a prompt turn through the persistent RPC client.
-        
+
         Supports 4 modes: 'prompt', 'steer', 'followup', 'abort_and_prompt'.
         """
         async with self._lock:
@@ -209,7 +222,12 @@ class OMPSessionManager:
                         f"RPC Client offline. Session '{self.session_name}' failed in '{self.agent_dir}'."
                     )
 
-                logger.info("Sending RPC turn (mode: %s, session: %s): %s", clean_mode, self.session_uuid, prompt[:60])
+                logger.info(
+                    "Sending RPC turn (mode: %s, session: %s): %s",
+                    clean_mode,
+                    self.session_uuid,
+                    prompt[:60],
+                )
 
                 if clean_mode == "steer":
                     if hasattr(client, "steer"):
@@ -334,4 +352,3 @@ class OMPSessionManager:
             "uptime_sec": uptime,
             "human_uptime": format_human_uptime(uptime),
         }
-

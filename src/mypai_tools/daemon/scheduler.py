@@ -77,10 +77,21 @@ class CronScheduler:
         name = job.get("name", "Unnamed Job")
 
         if not self.enabled:
-            logger.info("Global cron execution disabled; skipping task '%s' (ID: %s).", name, job_id)
-            return {"status": "skipped", "reason": "cron_disabled", "job_id": job_id, "name": name}
+            logger.info(
+                "Global cron execution disabled; skipping task '%s' (ID: %s).",
+                name,
+                job_id,
+            )
+            return {
+                "status": "skipped",
+                "reason": "cron_disabled",
+                "job_id": job_id,
+                "name": name,
+            }
 
-        logger.info("Executing cron task '%s' (ID: %s, kind: %s)...", name, job_id, kind)
+        logger.info(
+            "Executing cron task '%s' (ID: %s, kind: %s)...", name, job_id, kind
+        )
         start_time = datetime.now(timezone.utc).isoformat()
         t0 = asyncio.get_event_loop().time()
 
@@ -151,7 +162,9 @@ class CronScheduler:
                 session.commit()
         except Exception as db_exc:  # noqa: BLE001
             session.rollback()
-            logger.warning("Failed to update DB telemetry for job %s: %s", job_id, db_exc)
+            logger.warning(
+                "Failed to update DB telemetry for job %s: %s", job_id, db_exc
+            )
         finally:
             session.close()
 
@@ -186,7 +199,11 @@ class CronScheduler:
                                 day_of_week=parts[4],
                             )
                         else:
-                            logger.warning("Invalid cron expression '%s' for job '%s'", job.cron, job.name)
+                            logger.warning(
+                                "Invalid cron expression '%s' for job '%s'",
+                                job.cron,
+                                job.name,
+                            )
                             continue
 
                     self.scheduler.add_job(
@@ -206,7 +223,11 @@ class CronScheduler:
                     try:
                         self.scheduler.remove_job(scheduled_id)
                     except Exception as exc:  # noqa: BLE001
-                        logger.debug("Ignored exception removing scheduled job '%s': %s", scheduled_id, exc)
+                        logger.debug(
+                            "Ignored exception removing scheduled job '%s': %s",
+                            scheduled_id,
+                            exc,
+                        )
                     self.scheduled_job_ids.remove(scheduled_id)
 
         except Exception as exc:  # noqa: BLE001

@@ -1,5 +1,6 @@
 """Tests for mypai_daemon REST API session endpoints."""
 
+
 def test_session_prompt_endpoint(test_client) -> None:
     res = test_client.post(
         "/api/v1/session/prompt",
@@ -48,4 +49,3 @@ def test_session_status_endpoint(test_client) -> None:
     assert data["session_name"] == "mypai_daemon - running"
     assert data["version"] == "1.0.0"
     assert "uptime_sec" in data
-

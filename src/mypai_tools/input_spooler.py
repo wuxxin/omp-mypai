@@ -453,7 +453,9 @@ class InputSpooler:
         daemon_url = os.getenv("MYPAI_AGENT_URL", "http://127.0.0.1:52080")
         endpoint = f"{daemon_url.rstrip('/')}/api/v1/session/prompt"
         snippet = transcript[:200] if transcript else "File drop registered."
-        prompt_text = f"🎙️ New inbox item processed ({filename}): '{title}'. Content: {snippet}"
+        prompt_text = (
+            f"🎙️ New inbox item processed ({filename}): '{title}'. Content: {snippet}"
+        )
 
         payload = {
             "prompt": prompt_text,
@@ -466,9 +468,13 @@ class InputSpooler:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.post(endpoint, json=payload)
                 if res.status_code == 200:
-                    logger.info("Notified mypai_daemon of spooler ingestion for '%s'.", filename)
+                    logger.info(
+                        "Notified mypai_daemon of spooler ingestion for '%s'.", filename
+                    )
                 else:
-                    logger.warning("mypai_daemon notification returned HTTP %d", res.status_code)
+                    logger.warning(
+                        "mypai_daemon notification returned HTTP %d", res.status_code
+                    )
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to notify mypai_daemon: %s", exc)
 

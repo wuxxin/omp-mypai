@@ -61,7 +61,9 @@ def test_cron_jobs_crud(test_client, tmp_path) -> None:
 
 
 def _make_http_dispatcher(test_client):
-    def dispatcher(endpoint: str, method: str = "GET", data: dict = None) -> dict:
+    def dispatcher(
+        endpoint: str, method: str = "GET", data: dict | None = None
+    ) -> dict:
         url = f"/{endpoint.lstrip('/')}"
         if method.upper() == "GET":
             res = test_client.get(url)
@@ -76,12 +78,15 @@ def _make_http_dispatcher(test_client):
         if res.status_code == 200:
             return res.json()
         return {"status": "error", "error": f"HTTP {res.status_code}: {res.text}"}
+
     return dispatcher
 
 
 def test_default_jobs_import_export_cycle(test_client, tmp_path: Path) -> None:
     """Test importing default_jobs.json (without IDs), exporting, verifying generated IDs, and re-importing without duplicates."""
-    default_jobs_path = Path(__file__).parent.parent.parent / "config" / "default_jobs.yaml"
+    default_jobs_path = (
+        Path(__file__).parent.parent.parent / "config" / "default_jobs.yaml"
+    )
     assert default_jobs_path.exists()
 
     dispatcher = _make_http_dispatcher(test_client)
@@ -148,4 +153,3 @@ def test_cron_modify_by_name_and_unique_constraint(test_client, tmp_path: Path) 
             cron="0 12 * * *",
         )
         assert "error" in res_dup or res_dup.get("status") == "error"
-

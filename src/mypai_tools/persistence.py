@@ -114,7 +114,9 @@ def find_project_root(path: str) -> str:
     curr = normalized
     root_found = None
     while curr and curr != os.path.dirname(curr):
-        if os.path.exists(os.path.join(curr, "omp.env")) or os.path.exists(os.path.join(curr, ".git")):
+        if os.path.exists(os.path.join(curr, "omp.env")) or os.path.exists(
+            os.path.join(curr, ".git")
+        ):
             root_found = curr
             break
         curr = os.path.dirname(curr)
@@ -272,7 +274,9 @@ def import_jobs_to_db(session: Any, jobs_list: list[dict[str, Any]]) -> tuple[in
                     if isinstance(item["kwargs"], (dict, list))
                     else str(item["kwargs"] or "")
                 )
-            existing.updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            existing.updated_at = datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
             updated_count += 1
         else:
             new_id = item_id or str(uuid.uuid4())[:8]
@@ -314,5 +318,3 @@ def import_jobs_to_db(session: Any, jobs_list: list[dict[str, Any]]) -> tuple[in
 def export_jobs_from_db(session: Any) -> list[dict[str, Any]]:
     """Export all cron job records from SQLite database session as dictionary list."""
     return [j.to_dict() for j in session.query(CronJobModel).all()]
-
-

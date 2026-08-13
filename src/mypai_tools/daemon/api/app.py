@@ -24,12 +24,19 @@ app = FastAPI(
 
 app.include_router(ws_router)
 
+
 # Pydantic Request Models
 class SessionPromptRequest(BaseModel):
     prompt: str = Field(..., description="Prompt text to submit to OMP session")
-    mode: str = Field("prompt", description="Turn mode: prompt, steer, followup, or abort_and_prompt")
-    source: str = Field("webui", description="Event source: webui, signal, spooler, or cron")
-    context: dict[str, Any] = Field(default_factory=dict, description="Optional turn context")
+    mode: str = Field(
+        "prompt", description="Turn mode: prompt, steer, followup, or abort_and_prompt"
+    )
+    source: str = Field(
+        "webui", description="Event source: webui, signal, spooler, or cron"
+    )
+    context: dict[str, Any] = Field(
+        default_factory=dict, description="Optional turn context"
+    )
     sender: str | None = Field(None, description="Optional sender identifier")
 
 
@@ -73,13 +80,17 @@ async def session_steer(req: SessionPromptRequest, request: Request) -> dict[str
 
 
 @app.post("/api/v1/session/followup")
-async def session_followup(req: SessionPromptRequest, request: Request) -> dict[str, Any]:
+async def session_followup(
+    req: SessionPromptRequest, request: Request
+) -> dict[str, Any]:
     req.mode = "followup"
     return await session_prompt(req, request)
 
 
 @app.post("/api/v1/session/abort_and_prompt")
-async def session_abort_and_prompt(req: SessionPromptRequest, request: Request) -> dict[str, Any]:
+async def session_abort_and_prompt(
+    req: SessionPromptRequest, request: Request
+) -> dict[str, Any]:
     req.mode = "abort_and_prompt"
     return await session_prompt(req, request)
 
@@ -111,7 +122,9 @@ async def session_history(request: Request) -> list[dict[str, Any]]:
 
 # Cron Routes
 @app.get("/api/v1/cron/jobs")
-async def cron_list_jobs(request: Request, include_disabled: bool = True) -> list[dict[str, Any]]:
+async def cron_list_jobs(
+    request: Request, include_disabled: bool = True
+) -> list[dict[str, Any]]:
     session = get_db_session(request.app.state.agent_dir)
     try:
         query = session.query(CronJobModel)
@@ -128,8 +141,16 @@ async def cron_add_job(request: Request, job: CronJobSchema) -> dict[str, Any]:
     job_id = str(uuid.uuid4())[:8]
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    args_str = json.dumps(job.args) if isinstance(job.args, (dict, list)) else str(job.args or "")
-    kwargs_str = json.dumps(job.kwargs) if isinstance(job.kwargs, (dict, list)) else str(job.kwargs or "")
+    args_str = (
+        json.dumps(job.args)
+        if isinstance(job.args, (dict, list))
+        else str(job.args or "")
+    )
+    kwargs_str = (
+        json.dumps(job.kwargs)
+        if isinstance(job.kwargs, (dict, list))
+        else str(job.kwargs or "")
+    )
 
     db_job = CronJobModel(
         id=job_id,
@@ -169,12 +190,16 @@ async def cron_add_job(request: Request, job: CronJobSchema) -> dict[str, Any]:
 
 
 @app.put("/api/v1/cron/jobs/{job_id}")
-async def cron_modify_job(request: Request, job_id: str, updates: dict[str, Any]) -> dict[str, Any]:
+async def cron_modify_job(
+    request: Request, job_id: str, updates: dict[str, Any]
+) -> dict[str, Any]:
     session = get_db_session(request.app.state.agent_dir)
     try:
-        db_job = session.query(CronJobModel).filter(
-            (CronJobModel.id == job_id) | (CronJobModel.name == job_id)
-        ).first()
+        db_job = (
+            session.query(CronJobModel)
+            .filter((CronJobModel.id == job_id) | (CronJobModel.name == job_id))
+            .first()
+        )
         if not db_job:
             raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
         for k, v in updates.items():
@@ -191,9 +216,11 @@ async def cron_modify_job(request: Request, job_id: str, updates: dict[str, Any]
 async def cron_delete_job(request: Request, job_id: str) -> dict[str, Any]:
     session = get_db_session(request.app.state.agent_dir)
     try:
-        db_job = session.query(CronJobModel).filter(
-            (CronJobModel.id == job_id) | (CronJobModel.name == job_id)
-        ).first()
+        db_job = (
+            session.query(CronJobModel)
+            .filter((CronJobModel.id == job_id) | (CronJobModel.name == job_id))
+            .first()
+        )
         if not db_job:
             raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
         res = db_job.to_dict()
@@ -218,9 +245,11 @@ async def cron_disable_job(request: Request, job_id: str) -> dict[str, Any]:
 async def cron_run_once(request: Request, job: CronJobSchema) -> dict[str, Any]:
     session = get_db_session(request.app.state.agent_dir)
     try:
-        db_job = session.query(CronJobModel).filter(
-            (CronJobModel.id == job.name) | (CronJobModel.name == job.name)
-        ).first()
+        db_job = (
+            session.query(CronJobModel)
+            .filter((CronJobModel.id == job.name) | (CronJobModel.name == job.name))
+            .first()
+        )
         if db_job:
             db_job_dict = db_job.to_dict()
             db_job_dict["cron"] = "now"
@@ -261,10 +290,16 @@ async def cron_status(request: Request) -> dict[str, Any]:
         enabled_count = sum(1 for j in all_jobs if j.enabled)
         disabled_count = len(all_jobs) - enabled_count
         scheduler = getattr(request.app.state, "scheduler", None)
-        is_running = bool(scheduler and getattr(scheduler, "scheduler", None) and scheduler.scheduler.running)
+        is_running = bool(
+            scheduler
+            and getattr(scheduler, "scheduler", None)
+            and scheduler.scheduler.running
+        )
         exec_enabled = bool(scheduler and scheduler.is_cron_execution_enabled())
         return {
-            "status": "active" if (is_running and exec_enabled) else ("disabled" if not exec_enabled else "idle"),
+            "status": "active"
+            if (is_running and exec_enabled)
+            else ("disabled" if not exec_enabled else "idle"),
             "cron_execution_enabled": exec_enabled,
             "total_jobs": len(all_jobs),
             "enabled_jobs": enabled_count,
@@ -293,7 +328,9 @@ async def signal_webhook(request: Request) -> dict[str, Any]:
 
     if queue and sender:
         prompt_text = f"📬 NEW Signal message received from {sender}. Use 'chat_mcp.get_next_unread_message' to read."
-        await queue.enqueue(prompt=prompt_text, mode="prompt", source="signal", sender=sender)
+        await queue.enqueue(
+            prompt=prompt_text, mode="prompt", source="signal", sender=sender
+        )
         await ws_manager.broadcast({"event": "signal_webhook", "sender": sender})
         return {"status": "acknowledged", "sender": sender}
 
@@ -304,7 +341,9 @@ async def signal_webhook(request: Request) -> dict[str, Any]:
 @app.get("/ui", response_class=HTMLResponse)
 @app.get("/", response_class=HTMLResponse)
 async def serve_webui() -> Any:
-    webui_path = os.path.join(os.path.dirname(__file__), "..", "..", "webui", "index.html")
+    webui_path = os.path.join(
+        os.path.dirname(__file__), "..", "..", "webui", "index.html"
+    )
     if os.path.isfile(webui_path):
         return FileResponse(webui_path, media_type="text/html")
     return HTMLResponse(content="<h1>MyPAI Daemon WebUI (Index File Missing)</h1>")

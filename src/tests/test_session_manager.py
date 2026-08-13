@@ -48,4 +48,3 @@ async def test_session_manager_get_status(tmp_path) -> None:
     assert status["session_name"] == "mypai_daemon - running"
     assert status["queue_depth"] == 2
     assert status["is_busy"] is False
-

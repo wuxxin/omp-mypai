@@ -20,7 +20,7 @@
 
 ## 2. Executive Summary & Implemented Test Suite
 
-The test suite for `mypai_daemon` and `mypai_tools` is located at `submodules/omp-mypai/tools/tests/`. It uses a **Fast, Hermetic, Mock-Based Architecture** (`pytest` + `fastapi.testclient.TestClient` + `FakeRpcClient` + `in_memory_db`). 
+The test suite for `mypai_daemon` and `mypai_tools` is located at `submodules/omp-mypai/src/tests/`. It uses a **Fast, Hermetic, Mock-Based Architecture** (`pytest` + `fastapi.testclient.TestClient` + `FakeRpcClient` + `in_memory_db`). 
 
 It requires **zero external services** (no live LLM, no running `signal-cli`, no SQLite disk locks) and executes the **entire 46-test suite in ~1 second**.
 

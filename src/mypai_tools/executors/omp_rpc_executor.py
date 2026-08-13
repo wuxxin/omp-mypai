@@ -76,7 +76,7 @@ async def execute_omp_rpc_job(
             rpc_c.steer(prompt)
             output = f"Steered: {prompt}"
             raw_obj = {"steered": prompt}
-        elif action in ("followup", "follow_up"):
+        elif action == "followup":
             rpc_c.follow_up(prompt)
             output = f"Follow-up queued: {prompt}"
             raw_obj = {"followup": prompt}
@@ -84,7 +84,7 @@ async def execute_omp_rpc_job(
             rpc_c.abort_and_prompt(prompt)
             output = f"Aborted and prompted: {prompt}"
             raw_obj = {"aborted_and_prompted": prompt}
-        elif action in ("switch_session", "branch"):
+        elif action == "switch_session":
             res_raw = rpc_c.request_raw(action, *rpc_args, **rpc_kwargs)
             output = json.dumps(res_raw)
             raw_obj = res_raw
@@ -109,7 +109,10 @@ async def execute_omp_rpc_job(
         try:
             return _dispatch_on_client(client)
         except Exception as client_exc:  # noqa: BLE001
-            logger.warning("Persistent RPC client call failed: %s. Retrying with new client...", client_exc)
+            logger.warning(
+                "Persistent RPC client call failed: %s. Retrying with new client...",
+                client_exc,
+            )
 
     if RpcClient is None:
         duration = round(time.time() - start_time, 3)
@@ -157,14 +160,13 @@ def dispatch_result_to_omp(result_action: str, final_output: str) -> None:
     try:
         with RpcClient() as client:
             client.install_headless_ui()
-            if act in ("prompt", "prompt_and_wait"):
+            if act == "prompt":
                 client.prompt(final_output)
             elif act == "steer":
                 client.steer(final_output)
-            elif act in ("followup", "follow_up"):
+            elif act == "followup":
                 client.follow_up(final_output)
             elif act == "abort_and_prompt":
                 client.abort_and_prompt(final_output)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Failed to route output to OMP via RpcClient: %s", exc)
-

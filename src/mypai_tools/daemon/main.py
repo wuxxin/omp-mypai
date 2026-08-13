@@ -3,7 +3,6 @@
 
 import argparse
 import asyncio
-import json
 import logging
 import os
 import sys
@@ -24,9 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger("mypai_daemon")
 
 
-async def queue_worker_loop(
-    queue: EventQueue, session_mgr: OMPSessionManager
-) -> None:
+async def queue_worker_loop(queue: EventQueue, session_mgr: OMPSessionManager) -> None:
     """Background task pulling items from EventQueue and executing turns in OMP."""
     logger.info("Started Queue Worker Loop.")
     while True:
@@ -44,7 +41,12 @@ async def queue_worker_loop(
                 source,
             )
             await ws_manager.broadcast(
-                {"event": "turn_started", "task_id": task_id, "mode": mode, "source": source}
+                {
+                    "event": "turn_started",
+                    "task_id": task_id,
+                    "mode": mode,
+                    "source": source,
+                }
             )
 
             res = await session_mgr.execute_turn(
@@ -84,10 +86,10 @@ class AccessLogFilter(logging.Filter):
         if self.verbose:
             return True
         msg = record.getMessage()
-        if any(endpoint in msg for endpoint in self.SILENT_ENDPOINTS):
-            if " 200 " in msg or " 200 OK" in msg or msg.endswith(" 200"):
-                return False
-        return True
+        return not (
+            any(endpoint in msg for endpoint in self.SILENT_ENDPOINTS)
+            and (" 200 " in msg or " 200 OK" in msg or msg.endswith(" 200"))
+        )
 
 
 def main() -> None:
@@ -210,7 +212,9 @@ def main() -> None:
         try:
             jobs = export_jobs_from_db(db)
             output_file = dump_jobs_file(args.file_path, jobs, fmt=args.format)
-            logger.info("Successfully exported %d cron jobs to '%s'.", len(jobs), output_file)
+            logger.info(
+                "Successfully exported %d cron jobs to '%s'.", len(jobs), output_file
+            )
             sys.exit(0)
         except Exception as exc:  # noqa: BLE001
             logger.error("Error exporting cron jobs: %s", exc)
@@ -219,9 +223,7 @@ def main() -> None:
             db.close()
 
     queue = EventQueue()
-    scheduler = CronScheduler(
-        agent_dir=args.agent_dir, daemon_queue=queue
-    )
+    scheduler = CronScheduler(agent_dir=args.agent_dir, daemon_queue=queue)
 
     if args.command == "once":
         logger.info("Running single pass execution...")

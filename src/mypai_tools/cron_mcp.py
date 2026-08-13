@@ -131,11 +131,11 @@ def cron_run_once(
 
 
 @mcp.tool()
-def cron_list_jobs(include_disabled: bool = True) -> list[dict[str, Any]] | dict[str, Any]:
+def cron_list_jobs(
+    include_disabled: bool = True,
+) -> list[dict[str, Any]] | dict[str, Any]:
     """List registered cron jobs and execution telemetry via mypai_daemon API."""
-    res = _daemon_http_request(
-        f"api/v1/cron/jobs?include_disabled={include_disabled}"
-    )
+    res = _daemon_http_request(f"api/v1/cron/jobs?include_disabled={include_disabled}")
     return res
 
 
@@ -144,11 +144,12 @@ def cron_disable_job(job_id: str = "", name: str = "") -> dict[str, Any]:
     """Disable a scheduled cron job via mypai_daemon API."""
     target_id = (job_id or "").strip() or (name or "").strip()
     if not target_id:
-        return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
+        return {
+            "status": "error",
+            "error": "Either 'job_id' or 'name' must be provided to identify target job.",
+        }
 
-    res = _daemon_http_request(
-        f"api/v1/cron/jobs/{target_id}/disable", method="POST"
-    )
+    res = _daemon_http_request(f"api/v1/cron/jobs/{target_id}/disable", method="POST")
     if isinstance(res, dict):
         return res
     return {"status": "error", "error": f"Unexpected response from daemon: {res}"}
@@ -159,11 +160,12 @@ def cron_enable_job(job_id: str = "", name: str = "") -> dict[str, Any]:
     """Enable a scheduled cron job via mypai_daemon API."""
     target_id = (job_id or "").strip() or (name or "").strip()
     if not target_id:
-        return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
+        return {
+            "status": "error",
+            "error": "Either 'job_id' or 'name' must be provided to identify target job.",
+        }
 
-    res = _daemon_http_request(
-        f"api/v1/cron/jobs/{target_id}/enable", method="POST"
-    )
+    res = _daemon_http_request(f"api/v1/cron/jobs/{target_id}/enable", method="POST")
     if isinstance(res, dict):
         return res
     return {"status": "error", "error": f"Unexpected response from daemon: {res}"}
@@ -191,7 +193,10 @@ def cron_modify_job(
     if not target_id and name:
         target_id = name.strip()
     if not target_id:
-        return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
+        return {
+            "status": "error",
+            "error": "Either 'job_id' or 'name' must be provided to identify target job.",
+        }
 
     updates: dict[str, Any] = {}
     if name is not None:
@@ -208,9 +213,15 @@ def cron_modify_job(
     if url is not None:
         updates["url"] = url
     if args is not None:
-        updates["args"] = json.dumps(args) if isinstance(args, (dict, list)) else str(args or "")
+        updates["args"] = (
+            json.dumps(args) if isinstance(args, (dict, list)) else str(args or "")
+        )
     if kwargs is not None:
-        updates["kwargs"] = json.dumps(kwargs) if isinstance(kwargs, (dict, list)) else str(kwargs or "")
+        updates["kwargs"] = (
+            json.dumps(kwargs)
+            if isinstance(kwargs, (dict, list))
+            else str(kwargs or "")
+        )
     if result_prompt is not None:
         updates["result_prompt"] = result_prompt
     if result_error_prompt is not None:
@@ -237,11 +248,12 @@ def cron_remove_job(job_id: str = "", name: str = "") -> dict[str, Any]:
     """Delete a cron job via mypai_daemon API."""
     target_id = (job_id or "").strip() or (name or "").strip()
     if not target_id:
-        return {"status": "error", "error": "Either 'job_id' or 'name' must be provided to identify target job."}
+        return {
+            "status": "error",
+            "error": "Either 'job_id' or 'name' must be provided to identify target job.",
+        }
 
-    res = _daemon_http_request(
-        f"api/v1/cron/jobs/{target_id}", method="DELETE"
-    )
+    res = _daemon_http_request(f"api/v1/cron/jobs/{target_id}", method="DELETE")
     if isinstance(res, dict):
         return res
     return {"status": "error", "error": f"Unexpected response from daemon: {res}"}
@@ -261,8 +273,12 @@ def cron_import_jobs(file_path: str) -> dict[str, Any]:
             return existing_res
 
         existing_jobs = existing_res if isinstance(existing_res, list) else []
-        id_map = {j["id"]: j for j in existing_jobs if isinstance(j, dict) and "id" in j}
-        name_map = {j["name"]: j for j in existing_jobs if isinstance(j, dict) and "name" in j}
+        id_map = {
+            j["id"]: j for j in existing_jobs if isinstance(j, dict) and "id" in j
+        }
+        name_map = {
+            j["name"]: j for j in existing_jobs if isinstance(j, dict) and "name" in j
+        }
 
         for item in jobs_list:
             if not (isinstance(item, dict) and item.get("name") and item.get("cron")):
@@ -281,17 +297,27 @@ def cron_import_jobs(file_path: str) -> dict[str, Any]:
                 cron_modify_job(
                     job_id=existing["id"],
                     name=item_name,
-                    description=item.get("description", existing.get("description", "")),
+                    description=item.get(
+                        "description", existing.get("description", "")
+                    ),
                     cron=item.get("cron", existing.get("cron", "")),
                     kind=item.get("kind", existing.get("kind", "omp")),
                     action=item.get("action", existing.get("action", "prompt")),
                     url=item.get("url", existing.get("url", "")),
                     args=item.get("args", existing.get("args")),
                     kwargs=item.get("kwargs", existing.get("kwargs")),
-                    result_prompt=item.get("result_prompt", existing.get("result_prompt", "")),
-                    result_error_prompt=item.get("result_error_prompt", existing.get("result_error_prompt", "")),
-                    result_action=item.get("result_action", existing.get("result_action", "ignore")),
-                    result_channel=item.get("result_channel", existing.get("result_channel", "")),
+                    result_prompt=item.get(
+                        "result_prompt", existing.get("result_prompt", "")
+                    ),
+                    result_error_prompt=item.get(
+                        "result_error_prompt", existing.get("result_error_prompt", "")
+                    ),
+                    result_action=item.get(
+                        "result_action", existing.get("result_action", "ignore")
+                    ),
+                    result_channel=item.get(
+                        "result_channel", existing.get("result_channel", "")
+                    ),
                     enabled=item.get("enabled", existing.get("enabled", True)),
                 )
                 updated_count += 1
@@ -322,7 +348,9 @@ def cron_import_jobs(file_path: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_export_jobs(file_path: str = "jobs.yaml", fmt: str | None = None) -> dict[str, Any]:
+def cron_export_jobs(
+    file_path: str = "jobs.yaml", fmt: str | None = None
+) -> dict[str, Any]:
     """Export all registered cron jobs to a YAML or JSON file via mypai_daemon API (defaults to YAML)."""
     from mypai_tools.utils import dump_jobs_file
 
@@ -383,4 +411,3 @@ def cron_get_status() -> dict[str, Any]:
 
 if __name__ == "__main__":
     mcp.run()
-

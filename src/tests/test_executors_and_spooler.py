@@ -12,7 +12,9 @@ from mypai_tools.signal_client import SignalClient
 
 
 # Helper to build mock httpx response
-def make_mock_response(status_code: int = 200, text: str = '{"status": "ok"}', json_val: dict | None = None):
+def make_mock_response(
+    status_code: int = 200, text: str = '{"status": "ok"}', json_val: dict | None = None
+):
     mock_resp = MagicMock()
     mock_resp.status_code = status_code
     mock_resp.text = text
@@ -134,7 +136,9 @@ async def test_spooler_transcribe_audio(tmp_path) -> None:
     audio_file = tmp_path / "voice_memo.mp3"
     audio_file.write_bytes(b"FakeAudioData")
 
-    mock_resp = make_mock_response(status_code=200, json_val={"text": "Transcribed voice audio."})
+    mock_resp = make_mock_response(
+        status_code=200, json_val={"text": "Transcribed voice audio."}
+    )
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_resp
@@ -147,7 +151,9 @@ async def test_spooler_transcribe_audio(tmp_path) -> None:
 async def test_spooler_retain_hindsight(tmp_path) -> None:
     spooler = InputSpooler(inbox=tmp_path, bank_id="test_bank")
 
-    mock_resp_success = make_mock_response(status_code=200, json_val={"status": "retained"})
+    mock_resp_success = make_mock_response(
+        status_code=200, json_val={"status": "retained"}
+    )
 
     # Primary /retain endpoint success
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
@@ -169,6 +175,7 @@ def test_signal_client_http_exceptions() -> None:
 
     with patch("urllib.request.urlopen") as mock_open:
         import urllib.error
+
         mock_open.side_effect = urllib.error.HTTPError(
             url="http://localhost/v1/test",
             code=403,

@@ -36,7 +36,9 @@ async def test_queue_enqueue_and_priority() -> None:
 @pytest.mark.asyncio
 async def test_queue_history() -> None:
     queue = EventQueue()
-    item = await queue.enqueue(prompt="Test history prompt", mode="prompt", source="webui")
+    item = await queue.enqueue(
+        prompt="Test history prompt", mode="prompt", source="webui"
+    )
     task_id = item["task_id"]
 
     next_item = await queue.get_next()

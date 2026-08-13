@@ -44,7 +44,9 @@ def test_signal_client_attachments_and_errors(tmp_path: Path) -> None:
     att_file = tmp_path / "sample.png"
     att_file.write_bytes(b"\x89PNG\r\n\x1a\nTestImageData")
 
-    with patch.object(client, "_http_request", return_value={"status": "sent"}) as mock_req:
+    with patch.object(
+        client, "_http_request", return_value={"status": "sent"}
+    ) as mock_req:
         res = client.send_message(
             recipient="+15559992222",
             text="Here is attachment",
@@ -125,7 +127,7 @@ def test_access_log_filter() -> None:
 
 
 def test_cron_mcp_all_tools_http_branch(tmp_path: Path) -> None:
-    proj_dir = str(tmp_path)
+    str(tmp_path)
     fake_job = {
         "id": "mock_id",
         "name": "T1",
@@ -166,31 +168,46 @@ def test_cron_mcp_all_tools_http_branch(tmp_path: Path) -> None:
 def test_daemon_import_export_cli(tmp_path: Path) -> None:
     proj_dir = str(tmp_path)
     import_file = tmp_path / "jobs_import.json"
-    import_file.write_text('[{"name": "CLI_Cron", "description": "Test Title", "cron": "0 * * * *"}]', encoding="utf-8")
+    import_file.write_text(
+        '[{"name": "CLI_Cron", "description": "Test Title", "cron": "0 * * * *"}]',
+        encoding="utf-8",
+    )
 
-    with patch("mypai_tools.cron_mcp._daemon_http_request", return_value={"error": "offline"}):
+    with patch(
+        "mypai_tools.cron_mcp._daemon_http_request", return_value={"error": "offline"}
+    ):
         # Test import subcommand (first import creates new job with generated ID)
-        with patch("sys.argv", ["mypai_daemon", "import", str(import_file), "--agent-dir", proj_dir]):
+        with patch(
+            "sys.argv",
+            ["mypai_daemon", "import", str(import_file), "--agent-dir", proj_dir],
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 daemon_main()
             assert exc_info.value.code == 0
 
         # Test export subcommand
         export_file = tmp_path / "jobs_export.json"
-        with patch("sys.argv", ["mypai_daemon", "export", str(export_file), "--agent-dir", proj_dir]):
+        with patch(
+            "sys.argv",
+            ["mypai_daemon", "export", str(export_file), "--agent-dir", proj_dir],
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 daemon_main()
             assert exc_info.value.code == 0
         assert export_file.exists()
 
         # Re-importing exported file (with assigned IDs) updates existing job, avoiding duplicates
-        with patch("sys.argv", ["mypai_daemon", "import", str(export_file), "--agent-dir", proj_dir]):
+        with patch(
+            "sys.argv",
+            ["mypai_daemon", "import", str(export_file), "--agent-dir", proj_dir],
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 daemon_main()
             assert exc_info.value.code == 0
 
         # Verify only 1 job exists in database
         from mypai_tools.persistence import CronJobModel, get_db_session
+
         db = get_db_session(proj_dir)
         try:
             jobs = db.query(CronJobModel).all()
@@ -209,16 +226,24 @@ def test_daemon_import_export_yaml_and_json(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    with patch("mypai_tools.cron_mcp._daemon_http_request", return_value={"error": "offline"}):
+    with patch(
+        "mypai_tools.cron_mcp._daemon_http_request", return_value={"error": "offline"}
+    ):
         # 1. Import from YAML file
-        with patch("sys.argv", ["mypai_daemon", "import", str(yaml_import), "--agent-dir", proj_dir]):
+        with patch(
+            "sys.argv",
+            ["mypai_daemon", "import", str(yaml_import), "--agent-dir", proj_dir],
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 daemon_main()
             assert exc_info.value.code == 0
 
         # 2. Export to default YAML file (jobs.yaml)
         yaml_export = tmp_path / "jobs.yaml"
-        with patch("sys.argv", ["mypai_daemon", "export", str(yaml_export), "--agent-dir", proj_dir]):
+        with patch(
+            "sys.argv",
+            ["mypai_daemon", "export", str(yaml_export), "--agent-dir", proj_dir],
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 daemon_main()
             assert exc_info.value.code == 0
@@ -227,7 +252,18 @@ def test_daemon_import_export_yaml_and_json(tmp_path: Path) -> None:
 
         # 3. Export explicitly to JSON via --format json
         json_export = tmp_path / "jobs_out.json"
-        with patch("sys.argv", ["mypai_daemon", "export", str(json_export), "--format", "json", "--agent-dir", proj_dir]):
+        with patch(
+            "sys.argv",
+            [
+                "mypai_daemon",
+                "export",
+                str(json_export),
+                "--format",
+                "json",
+                "--agent-dir",
+                proj_dir,
+            ],
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 daemon_main()
             assert exc_info.value.code == 0
@@ -279,7 +315,11 @@ def test_run_once_preserves_stored_cron_schedule(tmp_path: Path) -> None:
     # 2. Trigger run_once on the existing recurring job
     res_run = client.post(
         "/api/v1/cron/jobs/run_once",
-        json={"name": "Daily Report", "kind": "omp", "action": "Generate daily summary"},
+        json={
+            "name": "Daily Report",
+            "kind": "omp",
+            "action": "Generate daily summary",
+        },
     )
     assert res_run.status_code == 200
 
@@ -292,6 +332,3 @@ def test_run_once_preserves_stored_cron_schedule(tmp_path: Path) -> None:
         assert db_job.enabled is True
     finally:
         session.close()
-
-
-

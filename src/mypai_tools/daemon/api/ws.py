@@ -20,12 +20,16 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info("WebSocket client connected (%d total)", len(self.active_connections))
+        logger.info(
+            "WebSocket client connected (%d total)", len(self.active_connections)
+        )
 
     def disconnect(self, websocket: WebSocket) -> None:
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-            logger.info("WebSocket client disconnected (%d total)", len(self.active_connections))
+            logger.info(
+                "WebSocket client disconnected (%d total)", len(self.active_connections)
+            )
 
     async def broadcast(self, message: dict[str, Any]) -> None:
         """Broadcast a JSON message to all active WebSocket clients."""
@@ -60,6 +64,10 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 if action == "ping":
                     await websocket.send_text(json.dumps({"event": "pong"}))
             except Exception as exc:  # noqa: BLE001
-                logger.debug("Received non-JSON websocket payload: %s (error: %s)", data_text, exc)
+                logger.debug(
+                    "Received non-JSON websocket payload: %s (error: %s)",
+                    data_text,
+                    exc,
+                )
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)

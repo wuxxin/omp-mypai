@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 
+from mypai_tools.executors.omp_rpc_executor import dispatch_result_to_omp
 from mypai_tools.utils import substitute_vars
 
 logger = logging.getLogger("mypai_daemon.executors.http")
@@ -111,6 +112,38 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
             logger.info(
                 "HTTP %s '%s' returned status %d", method, name, resp.status_code
             )
+
+            internal_vars = {
+                "_RETURN_CODE": 0 if is_success else resp.status_code,
+                "_OUTPUT": output_str,
+                "_ERROR": error_str,
+                "_OBJECT": res_obj,
+                "_HTTP_CODE": resp.status_code,
+                "_DURATION": duration,
+                "_JOB_ID": job.get("id", ""),
+                "_JOB_NAME": name,
+            }
+
+            if not is_success:
+                result_prompt_template = (
+                    job.get("result_error_prompt") or job.get("result_prompt") or ""
+                )
+            else:
+                result_prompt_template = job.get("result_prompt") or ""
+
+            if result_prompt_template:
+                if "#" in result_prompt_template:
+                    final_output = substitute_vars(
+                        result_prompt_template, extra_vars=internal_vars
+                    )
+                else:
+                    final_output = f"{result_prompt_template}\n{output_str if is_success else error_str}"
+            else:
+                final_output = output_str if is_success else error_str
+
+            result_action = job.get("result_action") or ""
+            dispatch_result_to_omp(result_action, final_output)
+
             return {
                 "status": status_str,
                 "kind": "http",
@@ -124,13 +157,42 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001
         logger.error("HTTP execution error for job '%s': %s", name, exc)
         duration = round(time.time() - start_time, 3)
+        err_str = str(exc)
+
+        internal_vars = {
+            "_RETURN_CODE": 1,
+            "_OUTPUT": "",
+            "_ERROR": err_str,
+            "_OBJECT": None,
+            "_HTTP_CODE": 0,
+            "_DURATION": duration,
+            "_JOB_ID": job.get("id", ""),
+            "_JOB_NAME": name,
+        }
+
+        result_prompt_template = (
+            job.get("result_error_prompt") or job.get("result_prompt") or ""
+        )
+        if result_prompt_template:
+            if "#" in result_prompt_template:
+                final_output = substitute_vars(
+                    result_prompt_template, extra_vars=internal_vars
+                )
+            else:
+                final_output = f"{result_prompt_template}\n{err_str}"
+        else:
+            final_output = err_str
+
+        result_action = job.get("result_action") or ""
+        dispatch_result_to_omp(result_action, final_output)
+
         return {
             "status": "error",
             "kind": "http",
             "action": method,
             "return_code": 1,
-            "output": "",
-            "error": str(exc),
+            "output": final_output,
+            "error": err_str,
             "object": None,
             "duration_sec": duration,
         }

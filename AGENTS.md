@@ -10,7 +10,7 @@
 - `research/` — Plugin related research
   - `omp_rpc_functions.md` — documentation of omp_rpc usage
 - `rules/` — Execution policies and guidelines
-- `scripts/` — Installation and Maintenance Scripts
+- `bin/` — Executable CLI control utilities (e.g. `membank-ctl`)
 - `skills/` — Portable skills definitions & modular references
 - `src/`
   - `mypai_tools/` — Python package (`mypai_tools`), `mypai_daemon`, FastMCP servers, and sidecars
@@ -21,12 +21,12 @@
 
 - **Style:** dont use long visual lines for comment sections, eg. "# -----------"
 
-### Shell Scripts (`.sh`)
+### Shell Scripts (`.sh` / CLI Utilities)
 
 - **Style:** `#!/usr/bin/env bash`, 4-space indent, `set -euo pipefail`, quote `"$var"`, use `$(...)`, `lowercase_vars`, `UPPERCASE_CONSTANTS`.
 - **Lint & Format:**
   ```bash
-  shellcheck scripts/*.sh && shfmt -i 4 -w scripts/*.sh
+  shellcheck bin/* && shfmt -i 4 -w bin/*
   ```
 
 ### Python Scripts (`.py`)

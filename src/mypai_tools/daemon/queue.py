@@ -10,7 +10,7 @@ logger = logging.getLogger("mypai_daemon.queue")
 
 class EventQueue:
     """Prioritized asyncio Queue serializing prompt turns from multiple producers.
-    
+
     Priority ordering (lowest number = highest priority):
       Priority 0: 'steer', 'abort_and_prompt' (High-priority interrupts)
       Priority 1: 'webui', 'signal' (Interactive human turns)

@@ -7,7 +7,6 @@ import pytest
 from mypai_tools import cron_mcp
 from mypai_tools.daemon.session_manager import OMPSessionManager, format_human_uptime
 from mypai_tools.persistence import (
-    SettingsModel,
     get_agent_dir_info,
     get_db_session,
     get_project_db_path,
@@ -112,8 +111,11 @@ def test_session_stats_api_endpoint(test_client) -> None:
 
 def test_cron_mcp_no_database_fallback(tmp_path: Path) -> None:
     """Test that cron_mcp tools return explicit MYPAI_AGENT_URL errors when daemon is offline without touching DB."""
-    agent_dir = str(tmp_path)
-    with patch("mypai_tools.cron_mcp._daemon_http_request", return_value={"status": "error", "error": "MYPAI_AGENT_URL unreachable"}):
+    str(tmp_path)
+    with patch(
+        "mypai_tools.cron_mcp._daemon_http_request",
+        return_value={"status": "error", "error": "MYPAI_AGENT_URL unreachable"},
+    ):
         res_add = cron_mcp.cron_add_job(
             name="Offline Task",
             cron="0 * * * *",

@@ -1,5 +1,6 @@
 """Tests for Signal Webhook endpoint and whitelist filtering."""
 
+
 def test_signal_webhook_authorized_sender(test_client) -> None:
     payload = {
         "envelope": {

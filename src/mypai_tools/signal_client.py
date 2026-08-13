@@ -42,7 +42,9 @@ class SignalClient:
                 return json.loads(body) if body else {}
         except urllib.error.HTTPError as e:
             error_body = e.fp.read().decode("utf-8") if e.fp else ""
-            logger.error("Signal API HTTPError %d on %s %s: %s", e.code, method, url, error_body)
+            logger.error(
+                "Signal API HTTPError %d on %s %s: %s", e.code, method, url, error_body
+            )
             return {"error": f"HTTP {e.code}: {e.reason}", "details": error_body}
         except urllib.error.URLError as e:
             logger.error("Signal API URLError on %s %s: %s", method, url, e.reason)
@@ -59,7 +61,9 @@ class SignalClient:
         clean_allowed = self.allowed_sender.strip().lstrip("+")
         return clean_sender == clean_allowed or sender == self.allowed_sender
 
-    def send_read_receipt(self, recipient: str, timestamps: list[int]) -> dict[str, Any]:
+    def send_read_receipt(
+        self, recipient: str, timestamps: list[int]
+    ) -> dict[str, Any]:
         """Send POST /v1/receipts/<account> to display two white checkmarks 🗸🗸."""
         if not recipient or not timestamps:
             return {"status": "skipped"}
@@ -87,9 +91,7 @@ class SignalClient:
 
     def fetch_unread_messages(self, limit: int = 10) -> list[dict[str, Any]]:
         """Fetch unread/pending Signal messages."""
-        endpoint = (
-            f"v1/receive/{self.account}" if self.account else "v1/receive"
-        )
+        endpoint = f"v1/receive/{self.account}" if self.account else "v1/receive"
         res = self._http_request(endpoint, method="GET")
         if isinstance(res, list):
             return res[:limit]
@@ -103,7 +105,7 @@ class SignalClient:
         attachment_dir: str | None = None,
     ) -> dict[str, Any]:
         """Fetch oldest unread message (FIFO) matching allowed sender filter.
-        
+
         Triggers read receipt (2 checkmarks) and typing indicator before returning.
         Extracted attachments are saved to attachment_dir ($PROJECT_DIR/scratch/signal_attachments).
         """
@@ -123,7 +125,9 @@ class SignalClient:
                 or item.get("sender", "")
             )
             if target_sender and not self.is_sender_allowed(item_sender):
-                logger.info("Ignoring Signal message from unauthorized sender '%s'", item_sender)
+                logger.info(
+                    "Ignoring Signal message from unauthorized sender '%s'", item_sender
+                )
                 continue
 
             selected_msg = item
@@ -145,12 +149,18 @@ class SignalClient:
         data_msg = env.get("dataMessage", {}) if isinstance(env, dict) else {}
         text = data_msg.get("message", "") or selected_msg.get("message", "")
 
-        raw_attachments = data_msg.get("attachments", []) or selected_msg.get("attachments", [])
+        raw_attachments = data_msg.get("attachments", []) or selected_msg.get(
+            "attachments", []
+        )
         processed_attachments = []
 
         if raw_attachments:
             base_agent = os.getenv("MYPAI_AGENT_DIR", "")
-            target_dir = attachment_dir or (os.path.join(base_agent, "scratch", "signal_attachments") if base_agent else os.path.expanduser("~/.omp/signal_attachments"))
+            target_dir = attachment_dir or (
+                os.path.join(base_agent, "scratch", "signal_attachments")
+                if base_agent
+                else os.path.expanduser("~/.omp/signal_attachments")
+            )
             os.makedirs(target_dir, exist_ok=True)
 
             for idx, att in enumerate(raw_attachments):
@@ -163,18 +173,25 @@ class SignalClient:
                     target_path = os.path.join(target_dir, f"{msg_timestamp}_{fname}")
                     if stored_path and os.path.isfile(stored_path):
                         try:
-                            with open(stored_path, "rb") as rf, open(target_path, "wb") as wf:
+                            with (
+                                open(stored_path, "rb") as rf,
+                                open(target_path, "wb") as wf,
+                            ):
                                 wf.write(rf.read())
                         except Exception as exc:  # noqa: BLE001
-                            logger.warning("Failed to copy attachment %s: %s", stored_path, exc)
+                            logger.warning(
+                                "Failed to copy attachment %s: %s", stored_path, exc
+                            )
                             target_path = stored_path
-                    
-                    processed_attachments.append({
-                        "filename": fname,
-                        "content_type": content_type,
-                        "file_path": target_path,
-                        "size_bytes": size_bytes,
-                    })
+
+                    processed_attachments.append(
+                        {
+                            "filename": fname,
+                            "content_type": content_type,
+                            "file_path": target_path,
+                            "size_bytes": size_bytes,
+                        }
+                    )
 
         return {
             "status": "success",
@@ -208,6 +225,7 @@ class SignalClient:
                 abs_path = os.path.abspath(os.path.expanduser(path))
                 if os.path.isfile(abs_path):
                     import base64
+
                     with open(abs_path, "rb") as f:
                         encoded = base64.b64encode(f.read()).decode("utf-8")
                         base64_files.append(encoded)
