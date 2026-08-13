@@ -1,6 +1,6 @@
 ---
 name: mypai_tools
-description: Guide for mypai_tools MCP services (cron-scheduler, chat-channel, local-speech) and mypai_daemon background environment. Use when scheduling automated jobs, executing one-shot 'now' tasks, processing Signal messages, handling speech STT/TTS, or inspecting daemon session state.
+description: Guide for mypai_tools MCP services (cron, signal_chat, local-speech) and mypai_daemon background environment. Use when scheduling automated jobs, executing one-shot 'now' tasks, processing Signal messages, handling speech STT/TTS, or inspecting daemon session state.
 ---
 
 # `mypai_tools` MCP Services & Daemon Environment
@@ -9,38 +9,24 @@ description: Guide for mypai_tools MCP services (cron-scheduler, chat-channel, l
 
 ---
 
-## Architecture & Location Index
-
-| Component Type | Name | Module | Spec File / Reference | Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| **Daemon** | `mypai_daemon` | `mypai_tools.daemon` | [daemon-spec.md](references/daemon-spec.md) | Central coordinator, OMP RPC session manager, Event Queue turn serializer |
-| **REST/WS API** | `daemon API` | `mypai_tools.daemon.api` | [daemon-api-spec.md](references/daemon-api-spec.md) | REST endpoints (`/api/v1/...`) supporting `prompt`, `steer`, `followup`, `abort_and_prompt` & WS stream |
-| **ACP Engine** | `acp_task` | `mypai_tools.acp` | [acp-delegation-spec.md](references/acp-delegation-spec.md) | ACP subagent worker process pool, stdio JSON-RPC, & intra-agent delegation |
-| **WebUI** | `Single-Page SPA` | `mypai_tools.webui` | [web-ui-spec.md](references/web-ui-spec.md) | Embedded glassmorphism dashboard served at `http://127.0.0.1:52080/` |
-| **Scheduler** | `Cron Engine` | `mypai_tools.scheduler` | [cron-usage.md](references/cron-usage.md) | Per-project SQLite task scheduler (`cron-<hash>.db`) and macro engine |
-| **Sidecar** | `input_spooler` | `mypai_tools.input_spooler` | [input_spooler.md](references/input_spooler.md) | Inbox directory watcher, STT pipeline, & Hindsight retention sidecar |
-| **MCP Server** | `cron-scheduler` | `mypai_tools.cron_mcp` | [mcp.json](../../mcp.json) | Cron schedule CRUD operations & one-shot `cron_run_once` execution |
-| **MCP Server** | `chat-channel` | `mypai_tools.chat_mcp` | [mcp.json](../../mcp.json) | Signal messaging tools using `mypai_tools.signal_client` SDK |
-| **MCP Server** | `local-speech` | `mypai_tools.speech_mcp` | [mcp.json](../../mcp.json) | Local Speech-to-Text (Whisper :50090) & Text-to-Speech synthesis (:50095) |
-
----
-
-## 1. Cron Task Scheduler (`cron-scheduler`)
+## 1. Cron Task Scheduler (`cron`)
 
 Per-project cron entries are stored in SQLite databases located at `mypai_plugin_data/daemon/agent-<basedir>-<shorthash>.db`. `cron_mcp` calls `mypai_daemon` REST API (`/api/v1/cron/jobs`) to avoid DB WAL locking.
 
-### MCP Tools List
-- **`cron_add_job(name, cron, kind, action, url, args, kwargs, result_prompt, result_error_prompt, result_action, result_channel)`**: Register a recurring crontab task.
+### MCP Tools List (`mcp__cron_*`)
+- **`add_job(name, cron, kind, action, url, args, kwargs, result_prompt, result_error_prompt, result_action, result_channel)`**: Register a recurring crontab task.
   - `cron`: Standard 5-field cron string (e.g. `'0 3 * * *'`) or `'now'` for immediate execution.
   - `kind`: Execution engine (`'omp'`, `'http'`, `'shell'`, `'python'`).
   - `action`: Execution verb (`'prompt'`, `'POST'`, binary name, or Python lambda).
-- **`cron_run_once(...)`**: Queue or reschedule an immediate one-shot task (`cron="now"`).
+- **`run_once(...)`**: Queue or reschedule an immediate one-shot task (`cron="now"`).
   - Uses APScheduler `DateTrigger`. Upon execution completion, updates telemetry stats and sets `enabled=False`.
-- **`cron_list_jobs(include_disabled=True)`**: List registered jobs with execution telemetry.
-- **`cron_disable_job(job_id)`** / **`cron_enable_job(job_id)`**: Toggle job enabled state.
-- **`cron_modify_job(job_id, ...)`**: Update parameters of existing job.
-- **`cron_remove_job(job_id)`**: Delete job entry.
-- **`cron_import_jobs(file_path)`** / **`cron_export_jobs(file_path)`**: JSON backup & restore.
+- **`list_jobs(include_disabled=True)`**: List registered jobs with execution telemetry.
+- **`disable_job(job_id)`** / **`enable_job(job_id)`**: Toggle job enabled state.
+- **`modify_job(job_id, ...)`**: Update parameters of existing job.
+- **`delete_job(job_id)`**: Delete job entry.
+- **`import_jobs(file_path)`** / **`export_jobs(file_path)`**: JSON/YAML backup & restore.
+- **`global_enable()`** / **`global_disable()`**: Toggle global daemon cron execution state.
+- **`status()`**: Get status overview of scheduled cron jobs.
 
 ### Telemetry Macros & Result Actions
 - **Input Substitution**: `#{VAR}` and `#[VAR]` expand environment variables.
@@ -49,18 +35,18 @@ Per-project cron entries are stored in SQLite databases located at `mypai_plugin
 
 ---
 
-## 2. Signal Messaging (`chat-channel`)
+## 2. Signal Messaging (`signal_chat`)
 
 Integrates with local `signal-cli-rest-api` daemon via `mypai_tools.signal_client.SignalClient` SDK.
 
-### MCP Tools List
-- **`get_next_unread_message(sender=None)`**: Fetch the single oldest unread message (FIFO order).
+### MCP Tools List (`mcp__signal_chat_*`)
+- **`read_message(sender=None)`**: Fetch the single oldest unread message (FIFO order).
   - Automatically dispatches **Read Receipt** (`POST /v1/receipts`) $\rightarrow$ shows **two white checkmarks** 🗸🗸.
   - Automatically dispatches **Typing Indicator** (`POST /v1/typing-indicator`) $\rightarrow$ shows **"Typing..."**.
   - Automatically saves incoming attachments to `$PROJECT_DIR/scratch/signal_attachments/` and returns local file paths in payload.
   - Returns `{"status": "empty"}` when queue is drained.
-- **`send_signal_message(recipient, message, attachments=None)`**: Dispatch outbound Signal message. Accepts local file paths in `attachments` list.
-- **`list_signal_chats()`**: List registered Signal contacts and group IDs.
+- **`send_message(recipient, message, attachments=None)`**: Dispatch outbound Signal message. Accepts local file paths in `attachments` list.
+- **`list_chats()`**: List registered Signal contacts and group IDs.
 
 ---
 
@@ -89,16 +75,19 @@ Persistent asynchronous sidecar daemon (`python3 -m mypai_tools.input_spooler da
 
 ---
 
-## References & Technical Guides
+## 6. References & Technical Guides
 
-For detailed specifications, API schemas, UI design, and implementation references, read these reference documents:
+For detailed architectural specifications, REST API schemas, UI designs, and command guides, consult these reference documents:
 
-- [Daemon Core Architecture](references/daemon-spec.md): Process lifecycle, MPSC event queue, RPC session manager, Signal entanglement, & `SignalClient` SDK.
-- [Daemon REST & WebSocket API](references/daemon-api-spec.md): OpenAPI endpoint schemas (`/api/v1/...`) supporting `prompt`, `steer`, `followup`, `abort_and_prompt`, & WebSocket stream (`/api/v1/ws`).
-- [FastMCP Tool Servers Specification](references/mcp-spec.md): FastMCP tool signatures & return schemas for `chat-channel`, `cron-scheduler`, and `local-speech`.
-- [Embedded Single-Page WebUI](references/web-ui-spec.md): Glassmorphism SPA design, live transcript stream, prompt/steer input box, & cron dashboard.
-- [Cron Scheduler Usage](references/cron-usage.md): Cron expression syntax, `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), telemetry macros, & SQLite schema.
-- [Input Spooler Specification](references/input_spooler.md): Inbox directory watcher, STT transcription pipeline, Hindsight memory retention, & `mypai_daemon` REST notifications.
-- [Daemon Test Architecture](references/daemon-testing.md): Hermetic test suite structure, fixtures (`FakeRpcClient`, `in_memory_db`), and test coverage matrix.
-- [ACP Intra-Agent Delegation Specification](references/acp-delegation-spec.md): ACP worker process pool lifecycle, stdio JSON-RPC framing, 8 host tools (`acp_task`, etc.), REST API state control (`/api/v1/acp/*`), and SQLite settings persistence.
-- [Daemon CLI Command Usage](references/daemon-cli-usage.md): Command line options (`--agent-dir`, `--port`, `--once`, `import`, `export`, `pytest`).
+| Component | Module / Entrypoint | Spec / Reference File | Description & Technical Focus |
+| :--- | :--- | :--- | :--- |
+| **Daemon Host** | `mypai_tools.daemon` | [daemon-spec.md](references/daemon-spec.md) | Central coordinator, OMP RPC session manager, MPSC Event Queue serializer, & Signal entanglement. |
+| **REST & WS API** | `mypai_tools.daemon.api` | [daemon-api-spec.md](references/daemon-api-spec.md) | OpenAPI REST endpoints (`/api/v1/...`) supporting `prompt`, `steer`, `followup`, `abort_and_prompt` & WS stream (`/api/v1/ws`). |
+| **ACP Delegation** | `mypai_tools.acp` | [acp-delegation-spec.md](references/acp-delegation-spec.md) | ACP worker process pool, stdio JSON-RPC framing, 8 host tools (`acp_task`, etc.), REST state control, & SQLite settings. |
+| **Embedded WebUI** | `mypai_tools.webui` | [web-ui-spec.md](references/web-ui-spec.md) | Glassmorphism Single-Page SPA served at `http://127.0.0.1:52080/` with live transcript stream & cron manager. |
+| **Cron Scheduler** | `mypai_tools.scheduler` | [cron-usage.md](references/cron-usage.md) | Per-project SQLite task scheduler (`cron-<hash>.db`), `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), & telemetry macros. |
+| **Input Spooler** | `mypai_tools.input_spooler` | [input_spooler.md](references/input_spooler.md) | Inbox directory watcher, 10s quiescence gating, Whisper STT pipeline, Hindsight memory retention, & REST notifications. |
+| **FastMCP Tools** | `cron_mcp`, `chat_mcp`, `speech_mcp` | [mcp-spec.md](references/mcp-spec.md) | FastMCP tool signatures & return schemas for `cron` (`mcp__cron_*`), `signal_chat` (`mcp__signal_chat_*`), and `local-speech`. |
+| **Daemon CLI** | `mypai_tools.daemon.main` | [daemon-cli-usage.md](references/daemon-cli-usage.md) | Command line interface (`serve`, `once`, `import`, `export`) & environment flags (`--agent-dir`, `--port`). |
+| **Test Architecture** | `tests/` | [daemon-testing.md](references/daemon-testing.md) | Hermetic test suite structure, fixtures (`FakeRpcClient`, `in_memory_db`), and test coverage matrix. |
+| **Legacy Heartbeat** | `heartbeat` | [old-heartbeat.md](references/old-heartbeat.md) | Historical specification for the former standalone heartbeat daemon. |
