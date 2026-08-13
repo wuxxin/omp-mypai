@@ -4,76 +4,9 @@ This document details the architectural specification for **ACP (Agent Control P
 
 ---
 
-## 1. Overview & Architecture
+<img src="acp-architecture.svg" alt="ACP Intra-Agent Delegation Architecture" width="1024" style="max-width: 100%; height: auto;" />
 
-<svg viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
-    </marker>
-    <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
-    </marker>
-    <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
-    </marker>
-  </defs>
-
-  <rect width="100%" height="100%" fill="#ffffff" rx="6"/>
-  <rect x="40" y="40" width="820" height="320" rx="8" fill="rgba(28,25,23,0.02)" stroke="#1c1917" stroke-width="1" stroke-dasharray="6,4"/>
-  <rect x="52" y="48" width="220" height="20" rx="2" fill="#ffffff" stroke="rgba(28,25,23,0.2)" stroke-width="0.8"/>
-  <text x="162" y="62" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em" font-weight="600">MYPAI DAEMON HOST (PORT 52080)</text>
-
-  <path d="M 260 160 L 340 160" stroke="#eb6c36" stroke-width="1.5" marker-end="url(#arrow-accent)"/>
-  <path d="M 340 176 L 260 176" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-  <rect x="268" y="142" width="64" height="14" rx="2" fill="#ffffff" stroke="rgba(28,25,23,0.1)"/>
-  <text x="300" y="152" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" font-weight="600">8 HOST TOOLS</text>
-
-  <path d="M 440 215 L 440 255" stroke="#4f5d75" stroke-width="1.5" marker-end="url(#arrow)"/>
-
-  <path d="M 540 285 L 630 285" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
-  <rect x="555" y="272" width="60" height="12" rx="2" fill="#ffffff"/>
-  <text x="585" y="281" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle">STATE CHECK</text>
-
-  <path d="M 440 315 L 440 405" stroke="#2e5aa8" stroke-width="1.8" marker-end="url(#arrow-link)"/>
-  <rect x="380" y="348" width="120" height="16" rx="2" fill="#ffffff" stroke="#2e5aa8" stroke-width="0.8"/>
-  <text x="440" y="359" fill="#2e5aa8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" font-weight="600">ACP PROTOCOL (STDIO)</text>
-
-  <rect x="70" y="110" width="190" height="105" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.5"/>
-  <rect x="78" y="118" width="60" height="14" rx="2" fill="#ffffff" stroke="#eb6c36" stroke-width="0.8"/>
-  <text x="108" y="128" fill="#eb6c36" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" font-weight="600">PRIMARY AGENT</text>
-  <text x="165" y="158" fill="#1c1917" font-size="13" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Primary Daemon Agent</text>
-  <text x="165" y="178" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">omp --mode rpc</text>
-
-  <rect x="340" y="110" width="200" height="105" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
-  <rect x="348" y="118" width="64" height="14" rx="2" fill="transparent" stroke="rgba(28,25,23,0.3)" stroke-width="0.8"/>
-  <text x="380" y="128" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle">SESSION HOST</text>
-  <text x="440" y="158" fill="#1c1917" font-size="13" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">OMPSessionManager</text>
-  <text x="440" y="178" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">set_custom_tools()</text>
-
-  <rect x="340" y="255" width="200" height="60" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
-  <text x="440" y="282" fill="#1c1917" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">AcpDelegationManager</text>
-  <text x="440" y="298" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">process pool & auto-restart</text>
-
-  <rect x="630" y="255" width="190" height="60" rx="6" fill="rgba(28,25,23,0.04)" stroke="#4f5d75" stroke-width="1"/>
-  <text x="725" y="280" fill="#1c1917" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">SQLite SettingsModel</text>
-  <text x="725" y="296" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">acp_execution_state</text>
-
-  <rect x="300" y="410" width="280" height="70" rx="6" fill="#ffffff" stroke="#2e5aa8" stroke-width="1.5"/>
-  <rect x="308" y="418" width="70" rx="2" fill="rgba(46,90,168,0.08)" stroke="#2e5aa8" stroke-width="0.8" height="14"/>
-  <text x="343" y="428" fill="#2e5aa8" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" font-weight="600">WORKER PROCESS</text>
-  <text x="440" y="448" fill="#1c1917" font-size="13" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Worker Subprocess in cwd</text>
-  <text x="440" y="466" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">omp --mode acp (target workspace)</text>
-
-  <line x1="40" y1="495" x2="860" y2="495" stroke="rgba(28,25,23,0.12)" stroke-width="0.8"/>
-  <text x="50" y="510" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
-  <circle cx="120" cy="507" r="4" fill="#eb6c36"/>
-  <text x="130" y="510" fill="#1c1917" font-size="8" font-family="'Geist', sans-serif">Focal Primary Agent</text>
-  <circle cx="250" cy="507" r="4" fill="#2e5aa8"/>
-  <text x="260" y="510" fill="#1c1917" font-size="8" font-family="'Geist', sans-serif">ACP Stdio Protocol</text>
-  <circle cx="380" cy="507" r="4" fill="#4f5d75"/>
-  <text x="390" y="510" fill="#1c1917" font-size="8" font-family="'Geist', sans-serif">Host Engine & SQLite</text>
-</svg>
+---
 
 The ACP delegation system enables a primary `mypai_daemon` agent (`omp --mode rpc`) to delegate tasks to isolated sub-processes (`omp --mode acp`) running in target workspace directories.
 
