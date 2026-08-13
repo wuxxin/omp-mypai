@@ -15,6 +15,7 @@ description: Guide for mypai_tools MCP services (cron-scheduler, chat-channel, l
 | :--- | :--- | :--- | :--- | :--- |
 | **Daemon** | `mypai_daemon` | `mypai_tools.daemon` | [daemon-spec.md](references/daemon-spec.md) | Central coordinator, OMP RPC session manager, Event Queue turn serializer |
 | **REST/WS API** | `daemon API` | `mypai_tools.daemon.api` | [daemon-api-spec.md](references/daemon-api-spec.md) | REST endpoints (`/api/v1/...`) supporting `prompt`, `steer`, `followup`, `abort_and_prompt` & WS stream |
+| **ACP Engine** | `acp_task` | `mypai_tools.acp` | [acp-delegation-spec.md](references/acp-delegation-spec.md) | ACP subagent worker process pool, stdio JSON-RPC, & intra-agent delegation |
 | **WebUI** | `Single-Page SPA` | `mypai_tools.webui` | [web-ui-spec.md](references/web-ui-spec.md) | Embedded glassmorphism dashboard served at `http://127.0.0.1:52080/` |
 | **Scheduler** | `Cron Engine` | `mypai_tools.scheduler` | [cron-usage.md](references/cron-usage.md) | Per-project SQLite task scheduler (`cron-<hash>.db`) and macro engine |
 | **Sidecar** | `input_spooler` | `mypai_tools.input_spooler` | [input_spooler.md](references/input_spooler.md) | Inbox directory watcher, STT pipeline, & Hindsight retention sidecar |
@@ -99,5 +100,5 @@ For detailed specifications, API schemas, UI design, and implementation referenc
 - [Cron Scheduler Usage](references/cron-usage.md): Cron expression syntax, `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), telemetry macros, & SQLite schema.
 - [Input Spooler Specification](references/input_spooler.md): Inbox directory watcher, STT transcription pipeline, Hindsight memory retention, & `mypai_daemon` REST notifications.
 - [Daemon Test Architecture](references/daemon-testing.md): Hermetic test suite structure, fixtures (`FakeRpcClient`, `in_memory_db`), and test coverage matrix.
+- [ACP Intra-Agent Delegation Specification](references/acp-delegation-spec.md): ACP worker process pool lifecycle, stdio JSON-RPC framing, 8 host tools (`acp_task`, etc.), REST API state control (`/api/v1/acp/*`), and SQLite settings persistence.
 - [Daemon CLI Command Usage](references/daemon-cli-usage.md): Command line options (`--agent-dir`, `--port`, `--once`, `import`, `export`, `pytest`).
-- [Legacy Heartbeat Specification](references/old-heartbeat.md): Historical spec for the former heartbeat daemon.
