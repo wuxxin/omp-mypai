@@ -7,11 +7,10 @@ Personal Artificial Intelligence (PAI) agent plugin based on **Oh-my-PI** and **
 ## Repository Structure
 
 - `Makefile` — Buildenv, virtualenv, testing, and linting targets
-- `plugin.json` — Plugin root manifest
-- `package.json` — Compatibility manifest
-- `mcp.json` — MCP server registry configuration
+- `package.json` — OMP extension manifest
+- `.mcp.json` — MCP server registry configuration
 - `skills/` — Portable skills definitions & modular references
-- `tools/mypai_tools/` — Python package (`mypai_tools`), `mypai_daemon`, FastMCP servers, and sidecars
+- `src/mypai_tools/` — Python package (`mypai_tools`), `mypai_daemon`, FastMCP servers, and sidecars
 - `agents/` — Custom subagent prompt profiles
 - `rules/` — Execution policies and guidelines
 - `config/` — Hindsight bank configurations and templates
@@ -51,9 +50,9 @@ The plugin environment launcher configuration is defined in [omp.env](../../omp.
   LAUNCHER_SIDECAR_INPUT_SPOOLER_ARGS="-m mypai_tools.input_spooler daemon --project-dir $MYPAI_PROJECT_DIR"
   ```
 
-## Configured MCP Servers (`mcp.json`)
+## Configured MCP Servers (`.mcp.json`)
 
-All MCP servers comply with **Agent Plugins 1.0.0 Standard** (`https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`) and are declared in [mcp.json](mcp.json):
+All MCP servers are declared in the OMP-native [`.mcp.json`](.mcp.json):
 
 - **`chat-channel`**: Signal messaging interface (`mypai_tools.chat_mcp`).
 - **`cron-scheduler`**: Task & cron job scheduler backed by SQLite and `mypai_daemon` REST API (`mypai_tools.cron_mcp`).
@@ -77,6 +76,4 @@ Each daemon maintains detailed architectural specifications under `skills/mypai_
 All skills conform to the closed 6-field frontmatter schema ([agentskills.io](https://agentskills.io/specification)):
 
 - **`mypai_tools`**: [SKILL.md](skills/mypai_tools/SKILL.md) — Complete agent guide for `mypai_tools` MCP servers, `mypai_daemon`, and references.
-- **`arbor`**: [SKILL.md](skills/arbor/SKILL.md) — Graph-native AST code intelligence and workspace navigation.
-- **`openadapt`**: [SKILL.md](skills/openadapt/SKILL.md) — Browser capture and UI automation.
 - **`hindsight-api`**: [SKILL.md](skills/hindsight-api/SKILL.md) — REST API guide for Hindsight memory bank management.

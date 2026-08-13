@@ -1,6 +1,9 @@
 __pycache__
 .fresh
 .pytest_cache
+.plugin-venv/
+.ruff_cache/
 build
 mypai_tools.egg-info
 scratch/
+.venv/

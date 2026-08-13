@@ -9,7 +9,7 @@ SYSTEM_OMP_RPC_DIR = /usr/share/oh-my-pi/python/omp-rpc
 
 OMP_RPC_SRC ?= $(if $(SYSTEM_OMP_RPC_WHL),$(SYSTEM_OMP_RPC_WHL),$(SYSTEM_OMP_RPC_DIR))
 
-.PHONY: default help test clean lint check buildenv cleanenv
+.PHONY: default help test clean lint check buildenv installenv cleanenv
 
 # Default target prints usage instructions when invoked without arguments
 default: help
@@ -22,6 +22,7 @@ help:
 	@echo "  make check    - Run linter and execute unit tests inside venv"
 	@echo "  make clean    - Clean up temporary test caches and Python bytecode"
 	@echo "  make cleanenv - Remove local virtualenv (.venv)"
+	@echo "  make installenv - Build independent plugin runtime venv (snapshot) into .plugin-venv"
 
 $(VENV)/bin/activate:
 	@echo "Building virtual environment in $(VENV)..."
@@ -36,19 +37,23 @@ $(VENV)/bin/activate:
 		fi; \
 	fi
 	if command -v uv >/dev/null 2>&1; then \
-		uv pip install --python $(PYTHON) -e tools pytest pytest-asyncio ruff; \
+		uv pip install --python $(PYTHON) -e src pytest pytest-asyncio ruff; \
 	else \
-		$(PYTHON) -m pip install -e tools pytest pytest-asyncio ruff; \
+		$(PYTHON) -m pip install -e src pytest pytest-asyncio ruff; \
 	fi
 
 buildenv: $(VENV)/bin/activate
 
+installenv:
+	@echo "Building independent plugin runtime environment..."
+	python3 scripts/build_runtime_env.py
+
 test: buildenv
 	@echo "Running unit tests for omp-mypai in $(VENV)..."
-	PYTHONPATH=tools $(PYTHON) -m pytest tools/tests -v
+	PYTHONPATH=src $(PYTHON) -m pytest src/tests -v
 lint: buildenv
 	@echo "Running ruff check on omp-mypai tools in $(VENV)..."
-	$(RUFF) check tools/ || true
+	$(RUFF) check src/ || true
 
 check: test lint
 
@@ -56,12 +61,13 @@ cleanenv:
 	@echo "Removing virtual environment $(VENV)..."
 	rm -rf $(VENV)
 
-clean:
+clean: cleanenv
 	@echo "Cleaning temporary files, SQLite test caches, and Python bytecode..."
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	find . -type f -name "*.pyo" -delete 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "mypai_tools.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	rm -f .coverage
 
