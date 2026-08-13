@@ -1,16 +1,14 @@
-# ACP Intra-Agent Delegation Specification (`acp-delegation-spec.md`)
+# ACP Intra-Agent Tool Specification (`acp-tool-spec.md`)
 
-This document details the architectural specification for **ACP (Agent Control Protocol)** intra-agent delegation engine, SQLite state management, custom host tools, and REST API endpoints in `mypai_tools.acp` and `mypai_daemon`.
-
----
-
-<img src="acp-architecture.svg" alt="ACP Intra-Agent Delegation Architecture" width="1024" style="max-width: 100%; height: auto;" />
-
-> 💡 *Interactive / Standalone HTML version available at [`acp-architecture.html`](acp-architecture.html).*
+This document details the architectural specification for **ACP (Agent Control Protocol)** intra-agent task delegation engine, SQLite state management, custom host tools, and REST API endpoints in `mypai_tools.acp` and `mypai_daemon`.
 
 ---
 
-The ACP delegation system enables a primary `mypai_daemon` agent (`omp --mode rpc`) to delegate tasks to isolated sub-processes (`omp --mode acp`) running in target workspace directories.
+<img src="acp-tool-architecture.svg" alt="ACP Intra-Agent Tool Architecture" width="1024" style="max-width: 100%; height: auto;" />
+
+---
+
+The ACP tool task delegation system enables a primary `mypai_daemon` agent (`omp --mode rpc`) to delegate tasks to isolated sub-processes (`omp --mode acp`) running in target workspace directories.
 
 ---
 

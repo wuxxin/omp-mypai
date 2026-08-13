@@ -81,7 +81,7 @@ For detailed architectural specifications, REST API schemas, UI designs, and com
 
 - **[Daemon Core Architecture](references/daemon-spec.md)** (`mypai_tools.daemon`): Central coordinator, OMP RPC session manager, MPSC Event Queue turn serializer, & Signal entanglement.
 - **[Daemon REST & WebSocket API](references/daemon-api-spec.md)** (`mypai_tools.daemon.api`): OpenAPI REST endpoints (`/api/v1/...`) supporting `prompt`, `steer`, `followup`, `abort_and_prompt`, & WebSocket stream (`/api/v1/ws`).
-- **[ACP Intra-Agent Delegation Specification](references/acp-delegation-spec.md)** (`mypai_tools.acp`): ACP worker process pool, stdio JSON-RPC framing, 8 host tools (`acp_task`, etc.), REST state control (`/api/v1/acp/*`), & SQLite settings.
+- **[ACP Intra-Agent Tool Specification](references/acp-tool-spec.md)** (`mypai_tools.acp`): ACP worker process pool, stdio JSON-RPC framing, 8 host tools (`acp_task`, etc.), REST state control (`/api/v1/acp/*`), & SQLite settings.
 - **[Embedded Single-Page WebUI](references/web-ui-spec.md)** (`mypai_tools.webui`): Glassmorphism SPA served at `http://127.0.0.1:52080/` with live transcript stream & cron manager.
 - **[Cron Scheduler Usage](references/cron-usage.md)** (`mypai_tools.scheduler`): Per-project SQLite task scheduler (`cron-<hash>.db`), `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), & telemetry macros.
 - **[Input Spooler Specification](references/input_spooler.md)** (`mypai_tools.input_spooler`): Inbox directory watcher, 10s quiescence gating, Whisper STT pipeline, Hindsight memory retention, & REST notifications.
