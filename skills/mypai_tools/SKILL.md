@@ -88,4 +88,4 @@ For detailed architectural specifications, REST API schemas, UI designs, and com
 - **[FastMCP Tool Servers Specification](references/mcp-spec.md)** (`cron_mcp`, `chat_mcp`, `speech_mcp`): FastMCP tool signatures & return schemas for `cron` (`mcp__cron_*`), `signal_chat` (`mcp__signal_chat_*`), and `local-speech`.
 - **[Daemon CLI Command Usage](references/daemon-cli-usage.md)** (`mypai_tools.daemon.main`): Command line interface (`serve`, `once`, `import`, `export`) & environment flags (`--agent-dir`, `--port`).
 - **[Daemon Test Architecture](references/daemon-testing.md)** (`src/tests/`): Hermetic test suite structure, fixtures (`FakeRpcClient`, `in_memory_db`), and test coverage matrix.
-- **[Legacy Heartbeat Specification](references/old-heartbeat.md)** (`heartbeat`): Historical specification for the former standalone heartbeat daemon.
+

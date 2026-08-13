@@ -46,8 +46,8 @@ The plugin environment launcher configuration is defined in [omp.env](../../omp.
 
 All MCP servers are declared in the OMP-native [`.mcp.json`](.mcp.json):
 
-- **`chat-channel`**: Signal messaging interface (`mypai_tools.chat_mcp`).
-- **`cron-scheduler`**: Task & cron job scheduler backed by SQLite and `mypai_daemon` REST API (`mypai_tools.cron_mcp`).
+- **`signal_chat`**: Signal messaging interface (`mypai_tools.chat_mcp`).
+- **`cron`**: Task & cron job scheduler backed by SQLite and `mypai_daemon` REST API (`mypai_tools.cron_mcp`).
 
 
 ## Background Daemons & Services
