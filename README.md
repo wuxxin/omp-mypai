@@ -42,12 +42,17 @@ The plugin environment launcher configuration is defined in [omp.env](../../omp.
   LAUNCHER_SIDECAR_INPUT_SPOOLER_ARGS="-m mypai_tools.input_spooler daemon --project-dir $MYPAI_PROJECT_DIR"
   ```
 
-## Configured MCP Servers (`.mcp.json`)
 
-All MCP servers are declared in the OMP-native [`.mcp.json`](.mcp.json):
+## Configured MCP Servers and Agent Skills
+
+MCP servers are declared in the OMP-native [`.mcp.json`](.mcp.json):
 
 - **`signal_chat`**: Signal messaging interface (`mypai_tools.chat_mcp`).
 - **`cron`**: Task & cron job scheduler backed by SQLite and `mypai_daemon` REST API (`mypai_tools.cron_mcp`).
+
+Agent Skills ([agentskills.io](https://agentskills.io/specification)):
+
+- **`mypai_tools`**: [SKILL.md](skills/mypai_tools/SKILL.md) — Complete agent guide for `mypai_tools` MCP servers, `mypai_daemon`, and references.
 
 
 ## Background Daemons & Services
@@ -57,15 +62,9 @@ Each daemon maintains detailed architectural specifications under `skills/mypai_
 - **mypai_daemon** (`python3 -m mypai_tools.daemon serve --project-dir "$MYPAI_PROJECT_DIR" --session-name "$MYPAI_SESSION_NAME"`)
   - **Spec**: [daemon-spec.md](skills/mypai_tools/references/daemon-spec.md) | [daemon-api-spec.md](skills/mypai_tools/references/daemon-api-spec.md) | [acp-delegation-spec.md](skills/mypai_tools/references/acp-delegation-spec.md) | [web-ui-spec.md](skills/mypai_tools/references/web-ui-spec.md)
   - **Function**: Central coordinator, fixed OMP RPC session manager (`MYPAI_SESSION_NAME`), MPSC turn serializer (`prompt`, `steer`, `followup`, `abort_and_prompt`), FastAPI REST server (Port 52080), Signal webhook whitelist filter, and embedded Glassmorphism SPA WebUI.
+
+
 - **input_spooler** (`python3 -m mypai_tools.input_spooler daemon --project-dir "$MYPAI_PROJECT_DIR"`)
   - **Spec**: [input_spooler.md](skills/mypai_tools/references/input_spooler.md)
   - **Function**: Asynchronous sidecar daemon watching inbox folder (`~/Recordings/Inbox`), SHA256 hashing, sidecar parsing, STT transcription, Hindsight memory bank retention, and `mypai_daemon` REST notification.
 
----
-
-## Agent Skills
-
-All skills conform to the closed 6-field frontmatter schema ([agentskills.io](https://agentskills.io/specification)):
-
-- **`mypai_tools`**: [SKILL.md](skills/mypai_tools/SKILL.md) — Complete agent guide for `mypai_tools` MCP servers, `mypai_daemon`, and references.
-- **`hindsight-api`**: [SKILL.md](skills/hindsight-api/SKILL.md) — REST API guide for Hindsight memory bank management.
