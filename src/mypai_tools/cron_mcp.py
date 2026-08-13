@@ -16,7 +16,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mypai_cron_mcp")
 
-mcp = FastMCP("cron-scheduler")
+mcp = FastMCP("cron")
 DAEMON_URL = os.getenv("MYPAI_AGENT_URL", "http://127.0.0.1:52080")
 
 
@@ -56,7 +56,7 @@ def validate_cron_expression(cron_str: str) -> None:
 
 
 @mcp.tool()
-def cron_add_job(
+def add_job(
     name: str,
     cron: str,
     description: str = "",
@@ -94,7 +94,7 @@ def cron_add_job(
 
 
 @mcp.tool()
-def cron_run_once(
+def run_once(
     name: str,
     kind: str = "omp",
     action: str = "prompt",
@@ -131,7 +131,7 @@ def cron_run_once(
 
 
 @mcp.tool()
-def cron_list_jobs(
+def list_jobs(
     include_disabled: bool = True,
 ) -> list[dict[str, Any]] | dict[str, Any]:
     """List registered cron jobs and execution telemetry via mypai_daemon API."""
@@ -140,7 +140,7 @@ def cron_list_jobs(
 
 
 @mcp.tool()
-def cron_disable_job(job_id: str = "", name: str = "") -> dict[str, Any]:
+def disable_job(job_id: str = "", name: str = "") -> dict[str, Any]:
     """Disable a scheduled cron job via mypai_daemon API."""
     target_id = (job_id or "").strip() or (name or "").strip()
     if not target_id:
@@ -156,7 +156,7 @@ def cron_disable_job(job_id: str = "", name: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_enable_job(job_id: str = "", name: str = "") -> dict[str, Any]:
+def enable_job(job_id: str = "", name: str = "") -> dict[str, Any]:
     """Enable a scheduled cron job via mypai_daemon API."""
     target_id = (job_id or "").strip() or (name or "").strip()
     if not target_id:
@@ -172,7 +172,7 @@ def cron_enable_job(job_id: str = "", name: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_modify_job(
+def modify_job(
     job_id: str = "",
     name: str | None = None,
     description: str | None = None,
@@ -244,7 +244,7 @@ def cron_modify_job(
 
 
 @mcp.tool()
-def cron_remove_job(job_id: str = "", name: str = "") -> dict[str, Any]:
+def delete_job(job_id: str = "", name: str = "") -> dict[str, Any]:
     """Delete a cron job via mypai_daemon API."""
     target_id = (job_id or "").strip() or (name or "").strip()
     if not target_id:
@@ -260,7 +260,7 @@ def cron_remove_job(job_id: str = "", name: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_import_jobs(file_path: str) -> dict[str, Any]:
+def import_jobs(file_path: str) -> dict[str, Any]:
     """Import cron jobs from a YAML or JSON file into mypai_daemon via API."""
     from mypai_tools.tools import load_jobs_file
 
@@ -268,7 +268,7 @@ def cron_import_jobs(file_path: str) -> dict[str, Any]:
         jobs_list = load_jobs_file(file_path)
         imported_count = 0
         updated_count = 0
-        existing_res = cron_list_jobs(include_disabled=True)
+        existing_res = list_jobs(include_disabled=True)
         if isinstance(existing_res, dict) and "error" in existing_res:
             return existing_res
 
@@ -294,7 +294,7 @@ def cron_import_jobs(file_path: str) -> dict[str, Any]:
                 existing = name_map[item_name]
 
             if existing:
-                cron_modify_job(
+                modify_job(
                     job_id=existing["id"],
                     name=item_name,
                     description=item.get(
@@ -322,7 +322,7 @@ def cron_import_jobs(file_path: str) -> dict[str, Any]:
                 )
                 updated_count += 1
             else:
-                cron_add_job(
+                add_job(
                     name=item_name,
                     description=item.get("description", ""),
                     cron=item["cron"],
@@ -348,13 +348,13 @@ def cron_import_jobs(file_path: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_export_jobs(
+def export_jobs(
     file_path: str = "jobs.yaml", fmt: str | None = None
 ) -> dict[str, Any]:
     """Export all registered cron jobs to a YAML or JSON file via mypai_daemon API (defaults to YAML)."""
     from mypai_tools.tools import dump_jobs_file
 
-    jobs_res = cron_list_jobs(include_disabled=True)
+    jobs_res = list_jobs(include_disabled=True)
     if isinstance(jobs_res, dict) and "error" in jobs_res:
         return jobs_res
     jobs_list = jobs_res if isinstance(jobs_res, list) else []
@@ -371,7 +371,7 @@ def cron_export_jobs(
 
 
 @mcp.tool()
-def cron_enable_execution() -> dict[str, Any]:
+def global_enable() -> dict[str, Any]:
     """Temporarily enable global cron task execution in mypai_daemon."""
     res = _daemon_http_request("api/v1/cron/enable", method="POST")
     if isinstance(res, dict):
@@ -380,7 +380,7 @@ def cron_enable_execution() -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_disable_execution() -> dict[str, Any]:
+def global_disable() -> dict[str, Any]:
     """Temporarily disable global cron task execution in mypai_daemon."""
     res = _daemon_http_request("api/v1/cron/disable", method="POST")
     if isinstance(res, dict):
@@ -389,24 +389,31 @@ def cron_disable_execution() -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_enable_all_jobs() -> dict[str, Any]:
-    """Enable global cron task execution."""
-    return cron_enable_execution()
-
-
-@mcp.tool()
-def cron_disable_all_jobs() -> dict[str, Any]:
-    """Disable global cron task execution."""
-    return cron_disable_execution()
-
-
-@mcp.tool()
-def cron_get_status() -> dict[str, Any]:
+def status() -> dict[str, Any]:
     """Get status overview of scheduled cron jobs via mypai_daemon API."""
     res = _daemon_http_request("api/v1/cron/status")
     if isinstance(res, dict):
         return res
     return {"status": "error", "error": f"Unexpected response from daemon: {res}"}
+
+
+# Aliases for backward compatibility in internal Python invocations & legacy tests
+cron_add_job = add_job
+cron_run_once = run_once
+cron_list_jobs = list_jobs
+cron_disable_job = disable_job
+cron_enable_job = enable_job
+cron_modify_job = modify_job
+cron_remove_job = delete_job
+cron_delete_job = delete_job
+cron_import_jobs = import_jobs
+cron_export_jobs = export_jobs
+cron_enable_execution = global_enable
+cron_disable_execution = global_disable
+cron_enable_all_jobs = global_enable
+cron_disable_all_jobs = global_disable
+cron_get_status = status
+cron_status = status
 
 
 if __name__ == "__main__":

@@ -7,12 +7,12 @@ from mcp.server.fastmcp import FastMCP
 
 from mypai_tools.signal_client import SignalClient
 
-mcp = FastMCP("chat-channel")
+mcp = FastMCP("signal_chat")
 client = SignalClient()
 
 
 @mcp.tool()
-def get_next_unread_message(sender: str | None = None) -> dict[str, Any]:
+def read_message(sender: str | None = None) -> dict[str, Any]:
     """Fetch the single oldest unread Signal message (FIFO order).
 
     Automatically dispatches a Read Receipt (two white checkmarks 🗸🗸) and Typing Indicator
@@ -25,7 +25,7 @@ def get_next_unread_message(sender: str | None = None) -> dict[str, Any]:
 
 
 @mcp.tool()
-def send_signal_message(
+def send_message(
     recipient: str | None = None,
     message: str = "",
     attachments: list[str] | None = None,
@@ -43,9 +43,15 @@ def send_signal_message(
 
 
 @mcp.tool()
-def list_signal_chats() -> dict[str, Any]:
+def list_chats() -> dict[str, Any]:
     """List registered Signal contacts and group IDs."""
     return client.list_chats()
+
+
+# Aliases for backward compatibility in internal Python invocations
+get_next_unread_message = read_message
+send_signal_message = send_message
+list_signal_chats = list_chats
 
 
 if __name__ == "__main__":
