@@ -1,6 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ACP Intra-Agent Delegation Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #faf7f2;
+    --paper-card: #ffffff;
+    --ink: #1c1917;
+    --muted: #4f5d75;
+    --rule: rgba(28, 25, 23, 0.12);
+    --accent: #eb6c36;
+    --accent-tint: rgba(235, 108, 54, 0.06);
+    --link: #2e5aa8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Geist', sans-serif;
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .header {
+    width: 100%;
+    max-width: 1000px;
+    margin-bottom: 1.5rem;
+  }
+  .eyebrow {
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+  }
+  h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.5rem;
+    font-weight: 400;
+    line-height: 1.2;
+  }
+  .diagram-card {
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 1000px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    overflow-x: auto;
+  }
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="eyebrow">MYPAI DAEMON ARCHITECTURE</div>
+  <h1>ACP Intra-Agent Delegation &amp; Daemon Host System</h1>
+</div>
+
+<div class="diagram-card">
 <svg viewBox="0 0 960 560" xmlns="http://www.w3.org/2000/svg">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');
     .node-title { font-family: 'Geist', sans-serif; font-size: 13px; font-weight: 600; fill: #1c1917; }
     .node-sub { font-family: 'Geist Mono', monospace; font-size: 9px; fill: #4f5d75; }
     .node-tag { font-family: 'Geist Mono', monospace; font-size: 7px; font-weight: 600; letter-spacing: 0.08em; }
@@ -21,19 +92,14 @@
   </defs>
 
   <!-- Clean Paper Surface -->
-  <rect width="100%" height="100%" fill="#faf7f2" rx="8"/>
-
-  <!-- Main Title Block -->
-  <text x="48" y="44" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.14em" font-weight="600">ARCHITECTURE DIAGRAM</text>
-  <text x="48" y="68" fill="#1c1917" font-size="22" font-family="'Instrument Serif', serif">ACP Intra-Agent Delegation &amp; Daemon Host System</text>
+  <rect width="100%" height="100%" fill="#ffffff" rx="8"/>
 
   <!-- Outer Boundary: MyPAI Daemon Host (Port 52080) -->
-  <rect x="40" y="88" width="880" height="340" rx="10" fill="#ffffff" stroke="#1c1917" stroke-width="1.2" stroke-dasharray="6,4"/>
-  <rect x="56" y="98" width="230" height="22" rx="3" fill="#faf7f2" stroke="rgba(28,25,23,0.15)" stroke-width="0.8"/>
-  <text x="171" y="113" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em" font-weight="600">MYPAI DAEMON HOST (PORT 52080)</text>
+  <rect x="40" y="40" width="880" height="340" rx="10" fill="rgba(28,25,23,0.02)" stroke="#1c1917" stroke-width="1.2" stroke-dasharray="6,4"/>
+  <rect x="56" y="50" width="230" height="22" rx="3" fill="#faf7f2" stroke="rgba(28,25,23,0.15)" stroke-width="0.8"/>
+  <text x="171" y="65" fill="#1c1917" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em" font-weight="600">MYPAI DAEMON HOST (PORT 52080)</text>
 
-  <!-- CONNECTORS (Drawn underneath nodes) -->
-
+  <!-- CONNECTORS -->
   <!-- 1. Primary Agent <-> OMPSessionManager (8 Host Tools) -->
   <path d="M 270 180 L 350 180" stroke="#eb6c36" stroke-width="1.8" marker-end="url(#arrow-accent)"/>
   <path d="M 350 196 L 270 196" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow-default)"/>
@@ -58,7 +124,6 @@
   <text x="450" y="387" fill="#2e5aa8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" font-weight="600">ACP JSON-RPC (STDIO PIPE)</text>
 
   <!-- NODES & COMPONENTS -->
-
   <!-- Node A: Primary Daemon Agent (Focal Node) -->
   <rect x="70" y="140" width="200" height="110" rx="8" fill="rgba(235,108,54,0.06)" stroke="#eb6c36" stroke-width="1.8"/>
   <rect x="80" y="148" width="68" height="14" rx="2" fill="#eb6c36"/>
@@ -99,12 +164,16 @@
   <text x="450" y="506" class="node-sub" text-anchor="middle">omp --mode acp (Isolated Target Workspace)</text>
 
   <!-- Bottom Legend Strip -->
-  <line x1="40" y1="535" x2="920" y2="535" stroke="rgba(28,25,23,0.12)" stroke-width="0.8"/>
-  <text x="48" y="548" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
-  <circle cx="120" cy="545" r="4" fill="#eb6c36"/>
-  <text x="130" y="548" fill="#1c1917" font-size="8" font-family="'Geist', sans-serif">Focal Primary Agent</text>
-  <circle cx="260" cy="545" r="4" fill="#2e5aa8"/>
-  <text x="270" y="548" fill="#1c1917" font-size="8" font-family="'Geist', sans-serif">ACP Stdio Transport</text>
-  <circle cx="400" cy="545" r="4" fill="#4f5d75"/>
-  <text x="410" y="548" fill="#1c1917" font-size="8" font-family="'Geist', sans-serif">Host Engine &amp; SQLite State</text>
+  <line x1="40" y1="540" x2="920" y2="540" stroke="rgba(28,25,23,0.12)" stroke-width="0.8"/>
+  <text x="48" y="553" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
+  <circle cx="120" cy="550" r="4" fill="#eb6c36"/>
+  <text x="130" y="553" fill="#1c1917" font-size="8" font-family="'Geist', sans-serif">Focal Primary Agent</text>
+  <circle cx="260" cy="550" r="4" fill="#2e5aa8"/>
+  <text x="270" y="553" fill="#1c1917" font-size="8" font-family="'Geist', sans-serif">ACP Stdio Transport</text>
+  <circle cx="400" cy="550" r="4" fill="#4f5d75"/>
+  <text x="410" y="553" fill="#1c1917" font-size="8" font-family="'Geist', sans-serif">Host Engine &amp; SQLite State</text>
 </svg>
+</div>
+
+</body>
+</html>

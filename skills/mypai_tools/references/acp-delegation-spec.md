@@ -6,6 +6,8 @@ This document details the architectural specification for **ACP (Agent Control P
 
 <img src="acp-architecture.svg" alt="ACP Intra-Agent Delegation Architecture" width="1024" style="max-width: 100%; height: auto;" />
 
+> 💡 *Interactive / Standalone HTML version available at [`acp-architecture.html`](acp-architecture.html).*
+
 ---
 
 The ACP delegation system enables a primary `mypai_daemon` agent (`omp --mode rpc`) to delegate tasks to isolated sub-processes (`omp --mode acp`) running in target workspace directories.
