@@ -3,12 +3,12 @@
   "mcpServers": {
     "chat-channel": {
       "type": "stdio",
-      "command": "./.plugin-venv/bin/python3",
+      "command": "./.venv/bin/python3",
       "args": ["-m", "mypai_tools.chat_mcp"]
     },
     "cron-scheduler": {
       "type": "stdio",
-      "command": "./.plugin-venv/bin/python3",
+      "command": "./.venv/bin/python3",
       "args": ["-m", "mypai_tools.cron_mcp"]
     }
   }

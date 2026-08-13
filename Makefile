@@ -1,56 +1,69 @@
 # Makefile for omp-mypai plugin tools, daemons, and FastMCP services
 
 VENV ?= .venv
+INSTALL_VENV ?= .venv
+
 VENV_BIN = $(VENV)/bin
 PYTHON = $(VENV_BIN)/python3
 RUFF = $(VENV_BIN)/ruff
+
+INSTALL_VENV_BIN = $(INSTALL_VENV)/bin
+INSTALL_PYTHON = $(INSTALL_VENV_BIN)/python3
+
 SYSTEM_OMP_RPC_WHL = $(firstword $(wildcard /usr/share/oh-my-pi/python/omp-rpc/dist/*.whl))
 SYSTEM_OMP_RPC_DIR = /usr/share/oh-my-pi/python/omp-rpc
 
 OMP_RPC_SRC ?= $(if $(SYSTEM_OMP_RPC_WHL),$(SYSTEM_OMP_RPC_WHL),$(SYSTEM_OMP_RPC_DIR))
 
-.PHONY: default help test clean lint check buildenv installenv cleanenv
+.PHONY: default help test clean lint check buildenv installenv cleaninstallenv cleanenv
 
 # Default target prints usage instructions when invoked without arguments
 default: help
 
 help:
 	@echo "omp-mypai Makefile Usage:"
-	@echo "  make buildenv - Create local virtualenv (.venv) and install dependencies"
-	@echo "  make test     - Run unit tests inside venv (builds venv if missing)"
-	@echo "  make lint     - Run ruff code linter inside venv (builds venv if missing)"
-	@echo "  make check    - Run linter and execute unit tests inside venv"
-	@echo "  make clean    - Clean up temporary test caches and Python bytecode"
-	@echo "  make cleanenv - Remove local virtualenv (.venv)"
-	@echo "  make installenv - Build independent plugin runtime venv (snapshot) into .plugin-venv"
+	@echo "  make buildenv       - Create local virtualenv ($(VENV)) and install editable dependencies"
+	@echo "  make test           - Run unit tests inside venv (builds venv if missing)"
+	@echo "  make lint           - Run ruff code linter inside venv (builds venv if missing)"
+	@echo "  make check          - Run linter and execute unit tests inside venv"
+	@echo "  make clean          - Clean up temporary test caches and Python bytecode"
+	@echo "  make cleanenv       - Remove local virtualenv ($(VENV))"
+	@echo "  make installenv     - Build independent plugin runtime venv (snapshot) into $(INSTALL_VENV)"
+	@echo "  make cleaninstallenv- Clean and rebuild plugin runtime venv ($(INSTALL_VENV))"
 
-$(VENV)/bin/activate:
+$(VENV)/bin/pytest:
 	@echo "Building virtual environment in $(VENV)..."
-	python3 -m venv $(VENV)
-	$(PYTHON) -m pip install --upgrade pip setuptools wheel 2>/dev/null || true
+	@if [ ! -d "$(VENV)" ]; then uv venv $(VENV); fi
 	if [ -n "$(OMP_RPC_SRC)" ] && [ -e "$(OMP_RPC_SRC)" ]; then \
 		echo "Installing omp-rpc from $(OMP_RPC_SRC)..."; \
-		if command -v uv >/dev/null 2>&1; then \
-			uv pip install --python $(PYTHON) "$(OMP_RPC_SRC)"; \
-		else \
-			$(PYTHON) -m pip install "$(OMP_RPC_SRC)"; \
-		fi; \
+		uv pip install --python $(PYTHON) "$(OMP_RPC_SRC)"; \
 	fi
-	if command -v uv >/dev/null 2>&1; then \
-		uv pip install --python $(PYTHON) -e src pytest pytest-asyncio ruff; \
-	else \
-		$(PYTHON) -m pip install -e src pytest pytest-asyncio ruff; \
-	fi
+	uv pip install --python $(PYTHON) -e ./src pytest pytest-asyncio ruff
 
-buildenv: $(VENV)/bin/activate
+buildenv: $(VENV)/bin/pytest
 
 installenv:
-	@echo "Building independent plugin runtime environment..."
-	python3 scripts/build_runtime_env.py
+	@echo "Building independent plugin runtime environment in $(INSTALL_VENV)..."
+	rm -rf $(INSTALL_VENV)
+	uv venv $(INSTALL_VENV)
+	if [ -n "$(OMP_RPC_SRC)" ] && [ -e "$(OMP_RPC_SRC)" ]; then \
+		echo "Installing omp-rpc from $(OMP_RPC_SRC)..."; \
+		uv pip install --python $(INSTALL_PYTHON) "$(OMP_RPC_SRC)"; \
+	fi
+	@echo "Installing plugin package from src..."
+	uv pip install --python $(INSTALL_PYTHON) ./src
+	@echo "Verifying runtime env import..."
+	$(INSTALL_PYTHON) -c "import mypai_tools, mypai_tools.chat_mcp, mypai_tools.cron_mcp; print('runtime env OK')"
+
+cleaninstallenv:
+	@echo "Cleaning and rebuilding plugin runtime environment $(INSTALL_VENV)..."
+	rm -rf $(INSTALL_VENV)
+	$(MAKE) installenv
 
 test: buildenv
 	@echo "Running unit tests for omp-mypai in $(VENV)..."
 	PYTHONPATH=src $(PYTHON) -m pytest src/tests -v
+
 lint: buildenv
 	@echo "Running ruff check on omp-mypai tools in $(VENV)..."
 	$(RUFF) check src/ || true
@@ -70,4 +83,5 @@ clean: cleanenv
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "mypai_tools.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	rm -f .coverage
+
 
