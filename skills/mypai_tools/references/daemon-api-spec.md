@@ -120,3 +120,20 @@ The `/api/v1/session` routes support the complete 4-action OMP RPC feature set m
   - `log_line`: `{"event": "log", "line": "[INFO] Executing prompt..."}`
   - `turn_completed`: `{"event": "turn_complete", "output": "..."}`
 * **Client Handlers**: `{"action": "ping"}`, `{"action": "submit_prompt", "prompt": "..."}`.
+
+---
+
+## 5. ACP Intra-Agent Delegation Endpoints
+
+### `GET /api/v1/acp/status`
+* **Description**: Get ACP execution state (`running` vs `suspended`), active worker processes, and task telemetry.
+* **Response (HTTP 200)**: `{"state": "running", "running": true, "suspended": false, "active_workers": 1, "workers": [...]}`
+
+### `POST /api/v1/acp/enable`
+* **Description**: Enable ACP intra-agent delegation execution state in SQLite settings (`SettingsModel`).
+* **Response (HTTP 200)**: `{"state": "running", "running": true, "suspended": false}`
+
+### `POST /api/v1/acp/suspend` & `/disable`
+* **Description**: Suspend ACP intra-agent delegation execution state in SQLite settings. Rejects new delegation host tool calls with a suspension error.
+* **Response (HTTP 200)**: `{"state": "suspended", "running": false, "suspended": true}`
+

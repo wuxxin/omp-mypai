@@ -55,7 +55,7 @@ All MCP servers are declared in the OMP-native [`.mcp.json`](.mcp.json):
 Each daemon maintains detailed architectural specifications under `skills/mypai_tools/references/`:
 
 - **mypai_daemon** (`python3 -m mypai_tools.daemon serve --project-dir "$MYPAI_PROJECT_DIR" --session-name "$MYPAI_SESSION_NAME"`)
-  - **Spec**: [daemon-spec.md](skills/mypai_tools/references/daemon-spec.md) | [daemon-api-spec.md](skills/mypai_tools/references/daemon-api-spec.md) | [web-ui-spec.md](skills/mypai_tools/references/web-ui-spec.md)
+  - **Spec**: [daemon-spec.md](skills/mypai_tools/references/daemon-spec.md) | [daemon-api-spec.md](skills/mypai_tools/references/daemon-api-spec.md) | [acp-delegation-spec.md](skills/mypai_tools/references/acp-delegation-spec.md) | [web-ui-spec.md](skills/mypai_tools/references/web-ui-spec.md)
   - **Function**: Central coordinator, fixed OMP RPC session manager (`MYPAI_SESSION_NAME`), MPSC turn serializer (`prompt`, `steer`, `followup`, `abort_and_prompt`), FastAPI REST server (Port 52080), Signal webhook whitelist filter, and embedded Glassmorphism SPA WebUI.
 - **input_spooler** (`python3 -m mypai_tools.input_spooler daemon --project-dir "$MYPAI_PROJECT_DIR"`)
   - **Spec**: [input_spooler.md](skills/mypai_tools/references/input_spooler.md)
