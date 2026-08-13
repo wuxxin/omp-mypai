@@ -5,21 +5,7 @@ adding Cron, Signal Chat, Inbound Spooler, and WebUI tools.
 
 ---
 
-## Repository Structure
-
-- `Makefile` — Buildenv, virtualenv, testing, and linting targets
-- `package.json` — OMP extension manifest
-- `.mcp.json` — OMP MCP server registry configuration
-- `agents/` — Custom subagent prompt profiles
-- `config/` — Hindsight bank configurations and templates
-- `research/` — Plugin related research
-- `rules/` — Execution policies and guidelines
-- `scripts/` — Installation and Maintenance Scripts
-- `skills/` — Portable skills definitions & modular references
-- `src/`
-  - `mypai_tools/` — Python package (`mypai_tools`), `mypai_daemon`, FastMCP servers, and sidecars
-  - `tests` — mypai_tools tests
-  - `pyproject.toml` — mypai python environment dependencies
+Repository Structure: see [AGENTS.md](AGENTS.md)
 
 
 ## Development & Testing (`Makefile`)
