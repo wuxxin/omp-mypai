@@ -249,18 +249,11 @@ def cron_remove_job(job_id: str = "", name: str = "") -> dict[str, Any]:
 
 @mcp.tool()
 def cron_import_jobs(file_path: str) -> dict[str, Any]:
-    """Import cron jobs from a JSON file into mypai_daemon via API."""
-    abs_path = os.path.abspath(os.path.expanduser(file_path))
-    if not os.path.isfile(abs_path):
-        return {"status": "error", "error": f"Import file '{abs_path}' not found"}
+    """Import cron jobs from a YAML or JSON file into mypai_daemon via API."""
+    from mypai_tools.utils import load_jobs_file
 
     try:
-        with open(abs_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        jobs_list = data.get("jobs", data) if isinstance(data, dict) else data
-        if not isinstance(jobs_list, list):
-            return {"status": "error", "error": "Expected list of jobs"}
-
+        jobs_list = load_jobs_file(file_path)
         imported_count = 0
         updated_count = 0
         existing_res = cron_list_jobs(include_disabled=True)
@@ -329,22 +322,21 @@ def cron_import_jobs(file_path: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def cron_export_jobs(file_path: str) -> dict[str, Any]:
-    """Export all registered cron jobs to a JSON file via mypai_daemon API."""
-    abs_path = os.path.abspath(os.path.expanduser(file_path))
+def cron_export_jobs(file_path: str = "jobs.yaml", fmt: str | None = None) -> dict[str, Any]:
+    """Export all registered cron jobs to a YAML or JSON file via mypai_daemon API (defaults to YAML)."""
+    from mypai_tools.utils import dump_jobs_file
+
     jobs_res = cron_list_jobs(include_disabled=True)
     if isinstance(jobs_res, dict) and "error" in jobs_res:
         return jobs_res
     jobs_list = jobs_res if isinstance(jobs_res, list) else []
 
     try:
-        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-        with open(abs_path, "w", encoding="utf-8") as f:
-            json.dump({"jobs": jobs_list}, f, indent=2)
+        out_path = dump_jobs_file(file_path, jobs_list, fmt=fmt)
         return {
             "status": "exported",
             "exported_count": len(jobs_list),
-            "file_path": abs_path,
+            "file_path": out_path,
         }
     except Exception as exc:  # noqa: BLE001
         return {"status": "error", "error": str(exc)}

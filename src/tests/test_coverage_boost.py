@@ -81,6 +81,26 @@ def test_access_log_filter() -> None:
         exc_info=None,
     )
 
+    record_stats = logging.LogRecord(
+        name="uvicorn.access",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg='127.0.0.1 - "GET /api/v1/session/stats HTTP/1.1" 200 OK',
+        args=(),
+        exc_info=None,
+    )
+
+    record_cron = logging.LogRecord(
+        name="uvicorn.access",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg='127.0.0.1 - "GET /api/v1/cron/status HTTP/1.1" 200 OK',
+        args=(),
+        exc_info=None,
+    )
+
     record_other = logging.LogRecord(
         name="uvicorn.access",
         level=logging.INFO,
@@ -91,12 +111,16 @@ def test_access_log_filter() -> None:
         exc_info=None,
     )
 
-    # In non-verbose mode: status route is silenced, other routes pass
+    # In non-verbose mode: polling routes (200 OK) are silenced, other routes pass
     assert filter_non_verbose.filter(record_status) is False
+    assert filter_non_verbose.filter(record_stats) is False
+    assert filter_non_verbose.filter(record_cron) is False
     assert filter_non_verbose.filter(record_other) is True
 
     # In verbose mode: all routes pass
     assert filter_verbose.filter(record_status) is True
+    assert filter_verbose.filter(record_stats) is True
+    assert filter_verbose.filter(record_cron) is True
     assert filter_verbose.filter(record_other) is True
 
 
@@ -175,5 +199,99 @@ def test_daemon_import_export_cli(tmp_path: Path) -> None:
             assert jobs[0].description == "Test Title"
         finally:
             db.close()
+
+
+def test_daemon_import_export_yaml_and_json(tmp_path: Path) -> None:
+    proj_dir = str(tmp_path)
+    yaml_import = tmp_path / "jobs_import.yml"
+    yaml_import.write_text(
+        "jobs:\n  - name: YAML_Cron\n    description: YAML Test\n    cron: '0 12 * * *'\n",
+        encoding="utf-8",
+    )
+
+    with patch("mypai_tools.cron_mcp._daemon_http_request", return_value={"error": "offline"}):
+        # 1. Import from YAML file
+        with patch("sys.argv", ["mypai_daemon", "import", str(yaml_import), "--agent-dir", proj_dir]):
+            with pytest.raises(SystemExit) as exc_info:
+                daemon_main()
+            assert exc_info.value.code == 0
+
+        # 2. Export to default YAML file (jobs.yaml)
+        yaml_export = tmp_path / "jobs.yaml"
+        with patch("sys.argv", ["mypai_daemon", "export", str(yaml_export), "--agent-dir", proj_dir]):
+            with pytest.raises(SystemExit) as exc_info:
+                daemon_main()
+            assert exc_info.value.code == 0
+        assert yaml_export.exists()
+        assert "YAML_Cron" in yaml_export.read_text(encoding="utf-8")
+
+        # 3. Export explicitly to JSON via --format json
+        json_export = tmp_path / "jobs_out.json"
+        with patch("sys.argv", ["mypai_daemon", "export", str(json_export), "--format", "json", "--agent-dir", proj_dir]):
+            with pytest.raises(SystemExit) as exc_info:
+                daemon_main()
+            assert exc_info.value.code == 0
+        assert json_export.exists()
+        assert "YAML_Cron" in json_export.read_text(encoding="utf-8")
+
+
+def test_run_once_endpoint_defaults(tmp_path: Path) -> None:
+    from fastapi.testclient import TestClient
+    from mypai_tools.daemon.api.app import app
+
+    client = TestClient(app)
+    app.state.agent_dir = str(tmp_path)
+    app.state.scheduler = None
+
+    # POST payload without 'cron' field (WebUI style) must not trigger 422
+    response = client.post(
+        "/api/v1/cron/jobs/run_once",
+        json={"name": "WebUI_Task", "kind": "omp", "action": "prompt"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "scheduled"
+    assert data["job"]["cron"] == "now"
+
+
+def test_run_once_preserves_stored_cron_schedule(tmp_path: Path) -> None:
+    from fastapi.testclient import TestClient
+    from mypai_tools.daemon.api.app import app
+    from mypai_tools.persistence import CronJobModel, get_db_session
+
+    client = TestClient(app)
+    proj_dir = str(tmp_path)
+    app.state.agent_dir = proj_dir
+    app.state.scheduler = None
+
+    # 1. Create a recurring cron job with schedule "0 9 * * *"
+    res_add = client.post(
+        "/api/v1/cron/jobs",
+        json={
+            "name": "Daily Report",
+            "cron": "0 9 * * *",
+            "kind": "omp",
+            "action": "Generate daily summary",
+        },
+    )
+    assert res_add.status_code == 200
+
+    # 2. Trigger run_once on the existing recurring job
+    res_run = client.post(
+        "/api/v1/cron/jobs/run_once",
+        json={"name": "Daily Report", "kind": "omp", "action": "Generate daily summary"},
+    )
+    assert res_run.status_code == 200
+
+    # 3. Verify DB record: cron expression must remain "0 9 * * *" and enabled must be True
+    session = get_db_session(proj_dir)
+    try:
+        db_job = session.query(CronJobModel).filter_by(name="Daily Report").first()
+        assert db_job is not None
+        assert db_job.cron == "0 9 * * *"
+        assert db_job.enabled is True
+    finally:
+        session.close()
+
 
 

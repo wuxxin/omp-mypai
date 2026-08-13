@@ -1,5 +1,6 @@
 """FastAPI Application Server for mypai_daemon."""
 
+import asyncio
 import json
 import os
 import uuid
@@ -35,7 +36,7 @@ class SessionPromptRequest(BaseModel):
 class CronJobSchema(BaseModel):
     name: str
     description: str = ""
-    cron: str
+    cron: str = "now"
     kind: str = "omp"
     action: str = "prompt"
     url: str = ""
@@ -151,7 +152,15 @@ async def cron_add_job(request: Request, job: CronJobSchema) -> dict[str, Any]:
     try:
         session.add(db_job)
         session.commit()
-        return {"status": "scheduled", "job": db_job.to_dict()}
+        db_job_dict = db_job.to_dict()
+
+        scheduler = getattr(request.app.state, "scheduler", None)
+        if scheduler and str(job.cron).strip().lower() in ("now", "@now", "@once"):
+            asyncio.create_task(scheduler.run_job(db_job_dict))
+        elif scheduler:
+            scheduler.sync_jobs_from_db()
+
+        return {"status": "scheduled", "job": db_job_dict}
     except Exception as exc:
         session.rollback()
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -207,6 +216,23 @@ async def cron_disable_job(request: Request, job_id: str) -> dict[str, Any]:
 
 @app.post("/api/v1/cron/jobs/run_once")
 async def cron_run_once(request: Request, job: CronJobSchema) -> dict[str, Any]:
+    session = get_db_session(request.app.state.agent_dir)
+    try:
+        db_job = session.query(CronJobModel).filter(
+            (CronJobModel.id == job.name) | (CronJobModel.name == job.name)
+        ).first()
+        if db_job:
+            db_job_dict = db_job.to_dict()
+            db_job_dict["cron"] = "now"
+
+            scheduler = getattr(request.app.state, "scheduler", None)
+            if scheduler:
+                asyncio.create_task(scheduler.run_job(db_job_dict))
+
+            return {"status": "scheduled", "job": db_job_dict}
+    finally:
+        session.close()
+
     job.cron = "now"
     return await cron_add_job(request, job)
 

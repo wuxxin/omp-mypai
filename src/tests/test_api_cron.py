@@ -81,12 +81,12 @@ def _make_http_dispatcher(test_client):
 
 def test_default_jobs_import_export_cycle(test_client, tmp_path: Path) -> None:
     """Test importing default_jobs.json (without IDs), exporting, verifying generated IDs, and re-importing without duplicates."""
-    default_jobs_path = Path(__file__).parent.parent.parent / "config" / "default_jobs.json"
+    default_jobs_path = Path(__file__).parent.parent.parent / "config" / "default_jobs.yaml"
     assert default_jobs_path.exists()
 
     dispatcher = _make_http_dispatcher(test_client)
     with patch("mypai_tools.cron_mcp._daemon_http_request", side_effect=dispatcher):
-        # 1. Import default_jobs.json (entries have no IDs) into empty DB
+        # 1. Import default_jobs.yaml (entries have no IDs) into empty DB
         res_imp = cron_mcp.cron_import_jobs(file_path=str(default_jobs_path))
         assert res_imp["status"] == "imported"
         assert res_imp["imported_count"] == 2

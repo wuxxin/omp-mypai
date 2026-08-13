@@ -29,10 +29,43 @@ The **Cron Task Scheduler** subsystem in `mypai_daemon` manages background execu
 
 ## 3. Macro Variable Substitutions & Telemetry Macros
 
-### 3.1 Environment Macro Substitution
-All string attributes (`action`, `args`, `kwargs`, `result_prompt`, `result_error_prompt`, `name`) automatically expand both `#{VARNAME}` and `#[VARNAME]` placeholders (e.g. `#{HINDSIGHT_API_URL}`, `#[HOME]`).
+### 3.1 Environment & Field Variable Substitution Spec
 
-### 3.2 Standardized Internal Execution Telemetry Macros
+All job fields support recursive macro variable expansion of both `#{VARNAME}` and `#[VARNAME]` syntax. Substitution occurs:
+- **Pre-execution**: Environment and process variables (`#[HINDSIGHT_API_URL]`, `#[HINDSIGHT_BANK_ID]`, `#[HOME]`) expand across all job configuration fields.
+- **Post-execution**: Execution telemetry macros (`#[_OUTPUT]`, `#[_RETURN_CODE]`, `#[_HTTP_CODE]`) expand inside `result_prompt` and `result_error_prompt`.
+
+#### Field Variable Substitution Target Matrix
+
+| Job Field | Data Type | Expansion Timing | Target Description & Usage Examples |
+| :--- | :--- | :--- | :--- |
+| **`url`** | `str` | Pre-Execution | API endpoint URLs (e.g. `#[HINDSIGHT_API_URL]/v1/default/banks/#[HINDSIGHT_BANK_ID]/reflect`). |
+| **`action`** | `str` | Pre-Execution | Execution verb or executable path (e.g. `POST`, `#[CUSTOM_SCRIPT_PATH]`, `prompt`). |
+| **`name`** | `str` | Pre-Execution | Task display name (e.g. `Reflection Sweep #[HINDSIGHT_BANK_ID]`). |
+| **`description`** | `str` | Pre-Execution | Human-readable task description. |
+| **`args`** | `list` / `dict` / `str` | Pre-Execution (Recursive) | Positional argument lists (e.g. `["--bank", "#[HINDSIGHT_BANK_ID]"]`). |
+| **`kwargs`** | `dict` / `list` / `str` | Pre-Execution (Recursive) | Keyword argument dictionary, including nested headers (`{"Authorization": "Bearer #[API_TOKEN]"}`), request body payloads, and prompt kwargs. |
+| **`result_prompt`** | `str` | Post-Execution | Success prompt template evaluated when `return_code == 0` (e.g. `Reflect on #[HINDSIGHT_BANK_ID]: #[_OUTPUT]`). |
+| **`result_error_prompt`** | `str` | Post-Execution | Failure prompt template evaluated when `return_code != 0` (e.g. `Error #[_RETURN_CODE] on #[HINDSIGHT_BANK_ID]: #[_ERROR]`). |
+| **`result_channel`** | `str` | Pre / Post-Execution | Delivery target channel (e.g. `#[DEFAULT_CHANNEL]` or `signal`). |
+
+### 3.2 Rationale & Architectural Arguments for Variable Substitution Extension
+
+1. **Environment Portability & Zero Hardcoding**:
+   - Configuration templates (such as `default_jobs.json`) can be committed to repository control without embedding host-specific URLs, API keys, or project-specific memory bank IDs.
+   - Placeholder substitution for `#[HINDSIGHT_API_URL]` and `#[HINDSIGHT_BANK_ID]` allows the exact same task definition to run unchanged across local, staging, and production environments.
+
+2. **Recursive Traversal across Data Structures**:
+   - HTTP request headers (`kwargs.headers`), payload bodies (`kwargs.query`), and CLI flag dicts (`kwargs`) are nested data structures.
+   - Applying `substitute_vars` recursively ensures that placeholders embedded inside nested structures (e.g. `kwargs["headers"]["Authorization"]` or `kwargs["reason"]`) expand seamlessly.
+
+3. **Dual Syntax Support (`#{VAR}` and `#[VAR]`)**:
+   - Supporting both `#{VAR}` and `#[VAR]` prevents syntax collision with shell string expansion, JSON templates, and YAML files.
+
+4. **Bridging Execution Output with Agent Context**:
+   - Post-execution telemetry macros (`#[_OUTPUT]`, `#[_RETURN_CODE]`, `#[_HTTP_CODE]`, `#[_OBJECT]`) convert raw process stdout and HTTP responses into structured prompt context for subsequent LLM turns.
+
+### 3.3 Standardized Internal Execution Telemetry Macros
 The following `_`-prefixed variables are populated after job execution and can be used inside `result_prompt` and `result_error_prompt`:
 
 | Macro Variable | Description | Delivered Content |

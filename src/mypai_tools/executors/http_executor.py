@@ -91,7 +91,7 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
     logger.info("Executing HTTP %s request to %s...", method, url)
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             resp = await client.request(
                 method, url, json=payload if payload else None, headers=headers
             )

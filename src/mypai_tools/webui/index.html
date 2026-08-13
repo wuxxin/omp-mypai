@@ -492,7 +492,7 @@
         await fetch('/api/v1/cron/jobs/run_once', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, kind, action })
+          body: JSON.stringify({ name, kind, action, cron: 'now' })
         });
         appendLog(`Queued run_once for '${name}'`, 'info');
         loadCronJobs();

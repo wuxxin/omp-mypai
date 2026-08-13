@@ -97,3 +97,50 @@ def normalize_cron_expression(expr: str) -> str:
         new_dow = remap_token(dow)
 
     return f"{minute} {hour} {dom} {month} {new_dow}"
+
+
+def load_jobs_file(file_path: str) -> list[dict[str, Any]]:
+    """Load cron jobs list from a YAML or JSON file."""
+    import yaml
+
+    abs_path = os.path.abspath(os.path.expanduser(file_path))
+    if not os.path.isfile(abs_path):
+        raise FileNotFoundError(f"Import file '{abs_path}' not found.")
+
+    with open(abs_path, "r", encoding="utf-8") as f:
+        try:
+            data = yaml.safe_load(f)
+        except Exception:
+            f.seek(0)
+            data = json.load(f)
+
+    jobs_list = data.get("jobs", data) if isinstance(data, dict) else data
+    if not isinstance(jobs_list, list):
+        raise ValueError(f"Expected list of jobs in '{abs_path}', got {type(jobs_list).__name__}")
+    return jobs_list
+
+
+def dump_jobs_file(file_path: str, jobs: list[dict[str, Any]], fmt: str | None = None) -> str:
+    """Dump cron jobs list to a YAML or JSON file.
+
+    Defaults to YAML format unless fmt is 'json' or file_path ends with '.json'.
+    """
+    import yaml
+
+    abs_path = os.path.abspath(os.path.expanduser(file_path))
+    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+
+    target_fmt = (fmt or "").lower().strip()
+    if not target_fmt:
+        if abs_path.endswith(".json"):
+            target_fmt = "json"
+        else:
+            target_fmt = "yaml"
+
+    with open(abs_path, "w", encoding="utf-8") as f:
+        if target_fmt == "json":
+            json.dump({"jobs": jobs}, f, indent=2)
+        else:
+            yaml.safe_dump({"jobs": jobs}, f, sort_keys=False, default_flow_style=False)
+
+    return abs_path
