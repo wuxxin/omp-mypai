@@ -3,5 +3,8 @@
   "version": "0.1.0",
   "description": "Core agent plugin for MyPAI and Oh-my-PI (omp): provides per-project cron scheduling, Signal messaging channel bridge, inbox audio/file ingestion spooler, Whisper STT & neural TTS speech synthesis, multi-bank Hindsight long-term vector memory integration, arbor AST code intelligence, and specialized multi-agent profiles.",
   "license": "MIT",
+  "bin": {
+    "membank-ctl": "bin/membank-ctl"
+  },
   "omp": {}
 }

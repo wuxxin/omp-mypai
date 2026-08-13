@@ -19,9 +19,21 @@ All REST endpoints operate under the default namespace `/v1/default/banks/{bank_
 | `/v1/default/banks/{bank_id}/config` | `PATCH` | Update `retain_mission`, `observations_mission`, `reflect_mission`, or `enable_observations`. |
 | `/v1/default/banks/{bank_id}/stats` | `GET` | Get document, fact, observation, and entity node counts. |
 
-#### Applying a Bank Configuration JSON
+#### Provisioning and Exporting Banks via `membank-ctl`
 
-To apply a bank configuration file (e.g. `sandbox-templates/opencode/hindsight-banks/{bank_id}.json`):
+You can idempotently provision or export bank configurations and mental models using the `membank-ctl` CLI tool:
+
+```bash
+# Update bank configs and mental models from JSON or YAML definitions:
+./submodules/omp-mypai/bin/membank-ctl update http://localhost:8888 ./omp/agent/memorybanks --yes --prune
+
+# Export server bank configuration and mental models to YAML or JSON:
+./submodules/omp-mypai/bin/membank-ctl export http://localhost:8888 oh-my-pi --yaml --out oh-my-pi.yaml
+```
+
+#### Manual REST API Operations
+
+To apply a bank configuration file via `curl`:
 
 ```bash
 # 1. Update Retain, Observations, and Reflect missions:
