@@ -2,13 +2,19 @@
 
 ## Repository Structure
 
-- `plugin.json` — Plugin root manifest
-- `mcp.json` — MCP server registry configuration
-- `skills/` — Portable skills definitions
-- `tools/mypai_tools/` — Python package (`mypai_tools`), MCP services, and background daemons
+- `Makefile` — Buildenv, virtualenv, testing, and linting targets
+- `package.json` — OMP extension manifest
+- `.mcp.json` — OMP MCP server registry configuration
 - `agents/` — Custom subagent prompt profiles
-- `rules/` — Execution policies and guidelines
 - `config/` — Hindsight bank configurations and templates
+- `research/` — Plugin related research
+- `rules/` — Execution policies and guidelines
+- `scripts/` — Installation and Maintenance Scripts
+- `skills/` — Portable skills definitions & modular references
+- `src/`
+  - `mypai_tools/` — Python package (`mypai_tools`), `mypai_daemon`, FastMCP servers, and sidecars
+  - `tests` — mypai_tools tests
+  - `pyproject.toml` — mypai python environment dependencies
 
 ## Code Style & Commands
 
@@ -36,14 +42,12 @@
 
 ## Operating Guidelines
 
-- if asked for agent plugins conformity on this repo:
-    - git pull into: `scratch/agent-plugins-spec` from `github.com/agentplugins/agent-plugins-spec`
-    - read all specs, then read all omp_mypai plugin files, and fix nonconformity, or document in research/agent-plugins-conformity.md where easy fix not possible.
+- if asked for omp plugin conformity on this repo:
+    - read omp source for omp plugin specs, then read all omp_mypai plugin files, and fix nonconformity, or document in research/omp-plugin-conformity.md where easy fix not possible.
  
 ### Workspace & Documentation
-- **Specification & Test Alignment Discipline:** Whenever modifying functionality, CLI options, REST endpoints, or behaviors in `mypai_tools/`, always update the corresponding unit test suite under `tools/tests/` and the architectural specifications under `skills/mypai_tools/references/` (`cli-usage.md`, `daemon-spec.md`, `daemon-api-spec.md`, `web-ui-spec.md`, `input_spooler.md`, `daemon-testing.md`) to keep code, tests, and documentation strictly synchronized.
-- **Workspace Isolation:** Use `scratch/` for temporary files, research, and git checkouts (`scratch/*-sources`). Always use the top-level repository root `scratch/`: if checked out independently, use its own root `scratch/`; if checked out as a git submodule, use the parent repository's root `scratch/`.
-- create and activate an venv for testing the mypai_tools, dont try to pip install with break system packages.
+- **Specification & Test Alignment Discipline:** Whenever modifying functionality, CLI options, REST endpoints, or behaviors in `mypai_tools/`, always update the corresponding unit test suite under `src/tests/` and the architectural specifications under `skills/mypai_tools/references/` (`cli-usage.md`, `daemon-spec.md`, `daemon-api-spec.md`, `web-ui-spec.md`, `input_spooler.md`, `daemon-testing.md`) to keep code, tests, and documentation strictly synchronized.
+- **Workspace Isolation:** Use `scratch/` for temporary files, research, and temporary research git checkouts. Always use the top-level repository root `scratch/`. if checked out as a git submodule, use the parent repository's root `scratch/`.
 
 ### Sandboxing & Bubblewrap (`bwrap`) Discipline
 Check if running inside a bwrap sandbox:
@@ -53,3 +57,5 @@ Check if running inside a bwrap sandbox:
 **If bwrapped (systemd socket unavailable):**
 - **Restriction:** Do **NOT** execute systemd service management commands (`systemctl start/stop/restart/status`).
 - **Introspection:** You **can** however inspect all active processes and logs using `journalctl` (`--user`), `ps`, `/proc`, and `pgrep`.
+- **Dummy Installation and output Files Research:** You **can** however dummy install files in your bwrapped environment to check the generated files. Clean them up afterwards.
+
