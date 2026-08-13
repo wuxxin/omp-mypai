@@ -47,7 +47,7 @@
     - read omp source for omp plugin specs, then read all omp_mypai plugin files, and fix nonconformity, or document in research/omp-plugin-conformity.md where easy fix not possible.
  
 ### Workspace & Documentation
-- **Specification & Test Alignment Discipline:** Whenever modifying functionality, CLI options, REST endpoints, or behaviors in `mypai_tools/`, always update the corresponding unit test suite under `src/tests/` and the architectural specifications under `skills/mypai_tools/references/` (`cli-usage.md`, `daemon-spec.md`, `daemon-api-spec.md`, `web-ui-spec.md`, `input_spooler.md`, `daemon-testing.md`) to keep code, tests, and documentation strictly synchronized.
+- **Specification & Test Alignment Discipline:** Whenever modifying functionality, CLI options, REST endpoints, or behaviors in `mypai_tools/`, always update the corresponding unit test suite under `src/tests/` and the architectural specifications under `skills/mypai_tools/references/` (`daemon-cli-usage.md`, `cron-usage.md`, `daemon-spec.md`, `daemon-api-spec.md`, `web-ui-spec.md`, `input_spooler.md`, `daemon-testing.md`) to keep code, tests, and documentation strictly synchronized.
 - **Workspace Isolation:** Use `scratch/` for temporary files, research, and temporary research git checkouts. Always use the top-level repository root `scratch/`. if checked out as a git submodule, use the parent repository's root `scratch/`.
 
 ### Sandboxing & Bubblewrap (`bwrap`) Discipline

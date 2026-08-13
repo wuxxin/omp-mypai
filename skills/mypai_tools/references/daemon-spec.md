@@ -100,8 +100,8 @@ For specific subsystem implementation details, schemas, and usage guides, refer 
 | :--- | :--- | :--- |
 | **REST & WebSocket API** | [daemon-api-spec.md](daemon-api-spec.md) | Endpoint specifications (`/api/v1/...`) supporting `prompt`, `steer`, `followup`, `abort_and_prompt`, global cron toggles, & WebSocket stream (`/api/v1/ws`) |
 | **Embedded WebUI** | [web-ui-spec.md](web-ui-spec.md) | Single-Page Application design, WebSocket transcript stream, prompt/steer input box, sidebar cron telemetry, & cron dashboard |
-| **Cron Task Scheduler** | [scheduler-usage.md](scheduler-usage.md) | Cron expression syntax, `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), telemetry macros, & SQLite schema |
+| **Cron Task Scheduler** | [cron-usage.md](cron-usage.md) | Cron expression syntax, `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), telemetry macros, & SQLite schema |
 | **FastMCP Tool Servers** | [mcp-spec.md](mcp-spec.md) | FastMCP tool signatures & return schemas for `chat-channel`, `cron-scheduler`, and `local-speech` |
 | **Input Spooler Sidecar** | [input_spooler.md](input_spooler.md) | Inbox directory watcher, STT pipeline, Hindsight memory retention, & `mypai_daemon` REST notifications |
 | **Pytest Architecture** | [daemon-testing.md](daemon-testing.md) | Hermetic test suite structure, fixtures (`FakeRpcClient`, `in_memory_db`), and test coverage matrix |
-| **CLI Command Usage** | [cli-usage.md](cli-usage.md) | Mandatory CLI subcommands (`serve`, `once`, `import`, `export`) and flags (`--project-dir`, `--verbose`) |
+| **CLI Command Usage** | [daemon-cli-usage.md](daemon-cli-usage.md) | Mandatory CLI subcommands (`serve`, `once`, `import`, `export`) and flags (`--project-dir`, `--verbose`) |

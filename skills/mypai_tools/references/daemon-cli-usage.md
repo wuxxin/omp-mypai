@@ -1,4 +1,4 @@
-# MyPAI Daemon CLI Command Usage (`cli-usage.md`)
+# MyPAI Daemon CLI Command Usage (`daemon-cli-usage.md`)
 
 ## Executive Summary
 

@@ -1,4 +1,4 @@
-# MyPAI Cron Task Scheduler Usage Specification (`scheduler-usage.md`)
+# MyPAI Cron Task Scheduler Usage Specification (`cron-usage.md`)
 
 ## Executive Summary
 
@@ -154,3 +154,33 @@ CREATE TABLE cron_jobs (
     updated_at VARCHAR(64) NOT NULL
 );
 ```
+
+
+---
+
+## 7.  Autofix Cron Entry Example
+
+```python
+from mypai_tools.cron_mcp import add_job
+
+add_job(
+    name="Nightly Database Audit",
+    cron="0 3 * * *",  # Every night at 3:00 AM
+    kind="shell",
+    action="python3",
+    args=["scripts/db_audit.py"],
+    result_action="prompt",  # Routes prompt to OMP session ('prompt', 'steer', 'followup', 'abort_and_prompt')
+    result_prompt="Nightly Database Audit completed successfully:\n```log\n#[_OUTPUT]\n```\n",
+    result_error_prompt=(
+        "ALERT: Cron entry 'Nightly Database Audit' failed!\n"
+        "Return Code: #[_RETURN_CODE] (Duration: #[_DURATION]s)\n\n"
+        "ERROR:\n```log\n#[_ERROR]\n```\n"
+        "OUTPUT:\n```log\n#[_OUTPUT]\n```\n"
+        "Please inspect the mypai_tools skill (skills/mypai_tools/SKILL.md) "
+        "and spawn a @fixer agent to debug and fix this failure."
+    ),
+)
+```
+
+---
+

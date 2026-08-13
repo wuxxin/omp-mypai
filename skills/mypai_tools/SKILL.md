@@ -16,7 +16,7 @@ description: Guide for mypai_tools MCP services (cron-scheduler, chat-channel, l
 | **Daemon** | `mypai_daemon` | `mypai_tools.daemon` | [daemon-spec.md](references/daemon-spec.md) | Central coordinator, OMP RPC session manager, Event Queue turn serializer |
 | **REST/WS API** | `daemon API` | `mypai_tools.daemon.api` | [daemon-api-spec.md](references/daemon-api-spec.md) | REST endpoints (`/api/v1/...`) supporting `prompt`, `steer`, `followup`, `abort_and_prompt` & WS stream |
 | **WebUI** | `Single-Page SPA` | `mypai_tools.webui` | [web-ui-spec.md](references/web-ui-spec.md) | Embedded glassmorphism dashboard served at `http://127.0.0.1:52080/` |
-| **Scheduler** | `Cron Engine` | `mypai_tools.scheduler` | [scheduler-usage.md](references/scheduler-usage.md) | Per-project SQLite task scheduler (`cron-<hash>.db`) and macro engine |
+| **Scheduler** | `Cron Engine` | `mypai_tools.scheduler` | [cron-usage.md](references/cron-usage.md) | Per-project SQLite task scheduler (`cron-<hash>.db`) and macro engine |
 | **Sidecar** | `input_spooler` | `mypai_tools.input_spooler` | [input_spooler.md](references/input_spooler.md) | Inbox directory watcher, STT pipeline, & Hindsight retention sidecar |
 | **MCP Server** | `cron-scheduler` | `mypai_tools.cron_mcp` | [mcp.json](../../mcp.json) | Cron schedule CRUD operations & one-shot `cron_run_once` execution |
 | **MCP Server** | `chat-channel` | `mypai_tools.chat_mcp` | [mcp.json](../../mcp.json) | Signal messaging tools using `mypai_tools.signal_client` SDK |
@@ -96,9 +96,8 @@ For detailed specifications, API schemas, UI design, and implementation referenc
 - [Daemon REST & WebSocket API](references/daemon-api-spec.md): OpenAPI endpoint schemas (`/api/v1/...`) supporting `prompt`, `steer`, `followup`, `abort_and_prompt`, & WebSocket stream (`/api/v1/ws`).
 - [FastMCP Tool Servers Specification](references/mcp-spec.md): FastMCP tool signatures & return schemas for `chat-channel`, `cron-scheduler`, and `local-speech`.
 - [Embedded Single-Page WebUI](references/web-ui-spec.md): Glassmorphism SPA design, live transcript stream, prompt/steer input box, & cron dashboard.
-- [Cron Scheduler Usage](references/scheduler-usage.md): Cron expression syntax, `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), telemetry macros, & SQLite schema.
+- [Cron Scheduler Usage](references/cron-usage.md): Cron expression syntax, `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), telemetry macros, & SQLite schema.
 - [Input Spooler Specification](references/input_spooler.md): Inbox directory watcher, STT transcription pipeline, Hindsight memory retention, & `mypai_daemon` REST notifications.
 - [Daemon Test Architecture](references/daemon-testing.md): Hermetic test suite structure, fixtures (`FakeRpcClient`, `in_memory_db`), and test coverage matrix.
-- [CLI Command Usage](references/cli-usage.md): Command line options (`--agent-dir`, `--port`, `--once`, `import`, `export`, `pytest`).
-- [Autofix Cron Entries Guide](references/autofix-cron-entries.md): Guide for configuring `result_error_prompt` to delegate automated fixes to a `@fixer` subagent.
+- [Daemon CLI Command Usage](references/daemon-cli-usage.md): Command line options (`--agent-dir`, `--port`, `--once`, `import`, `export`, `pytest`).
 - [Legacy Heartbeat Specification](references/old-heartbeat.md): Historical spec for the former heartbeat daemon.
