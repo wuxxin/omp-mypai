@@ -25,7 +25,7 @@ DEFAULT_INBOX_DIR = os.getenv(
 )
 DEFAULT_STT_URL = os.getenv("STT_URL", "http://localhost:50090/v1/audio/transcriptions")
 DEFAULT_HINDSIGHT_URL = os.getenv("HINDSIGHT_URL", "http://localhost:8888")
-DEFAULT_BANK_ID = os.getenv("HINDSIGHT_BANK_ID", "omp-orchestrator")
+DEFAULT_BANK_ID = os.getenv("HINDSIGHT_BANK_ID", os.getenv("OMP_PROFILE", "mypai"))
 DEFAULT_QUIESCENCE_SECONDS = 10.0
 DEFAULT_POLL_INTERVAL_SECONDS = 2.0
 DEFAULT_STATE_FILE = str(Path.home() / ".omp" / "spooler_processed_hashes.json")
@@ -581,6 +581,11 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         help=f"Path to processed hashes JSON state file (default: {DEFAULT_STATE_FILE})",
     )
     parser.add_argument(
+        "--profile",
+        default=os.getenv("OMP_PROFILE", "mypai"),
+        help="Target OMP profile name (default: mypai)",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -602,6 +607,9 @@ async def main_async(cli_args: argparse.Namespace) -> int:
     Returns:
         int: Process exit code.
     """
+    if cli_args.profile:
+        os.environ["OMP_PROFILE"] = cli_args.profile
+
     if cli_args.verbose:
         logger.setLevel(logging.DEBUG)
 

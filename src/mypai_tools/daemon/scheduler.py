@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -32,8 +33,14 @@ logger = logging.getLogger("mypai_daemon.scheduler")
 class CronScheduler:
     """Manages AsyncIOScheduler synced with project SQLite database."""
 
-    def __init__(self, agent_dir: str = "", daemon_queue: Any | None = None) -> None:
+    def __init__(
+        self,
+        agent_dir: str = "",
+        daemon_queue: Any | None = None,
+        profile: str = "",
+    ) -> None:
         self.agent_dir = agent_dir
+        self.profile = profile or os.getenv("OMP_PROFILE", "mypai")
         self.daemon_queue = daemon_queue
         self.db_path = get_project_db_path(agent_dir)
         self.scheduler = AsyncIOScheduler()
@@ -128,6 +135,8 @@ class CronScheduler:
                 else:
                     job_copy = dict(job)
                     job_copy["prompt"] = prompt
+                    if "profile" not in job_copy:
+                        job_copy["profile"] = self.profile
                     res_exec = await execute_omp_rpc_job(job_copy)
                     res.update(res_exec)
                     returncode = res_exec.get("return_code", 0)

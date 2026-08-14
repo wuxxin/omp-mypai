@@ -109,6 +109,13 @@ def main() -> None:
         help="Target agent directory path (MYPAI_AGENT_DIR)",
     )
     parent_parser.add_argument(
+        "--profile",
+        dest="profile",
+        type=str,
+        default=os.getenv("OMP_PROFILE", "mypai"),
+        help="Target OMP profile name (OMP_PROFILE, default: mypai)",
+    )
+    parent_parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -181,6 +188,9 @@ def main() -> None:
     if args.agent_dir:
         os.environ["MYPAI_AGENT_DIR"] = args.agent_dir
 
+    if args.profile:
+        os.environ["OMP_PROFILE"] = args.profile
+
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
@@ -229,7 +239,7 @@ def main() -> None:
             db.close()
 
     queue = EventQueue()
-    scheduler = CronScheduler(agent_dir=args.agent_dir, daemon_queue=queue)
+    scheduler = CronScheduler(agent_dir=args.agent_dir, daemon_queue=queue, profile=args.profile)
 
     if args.command == "once":
         logger.info("Running single pass execution...")
@@ -237,11 +247,12 @@ def main() -> None:
         sys.exit(0)
 
     # Subcommand: serve
-    session_mgr = OMPSessionManager(agent_dir=args.agent_dir)
+    session_mgr = OMPSessionManager(agent_dir=args.agent_dir, profile=args.profile)
     signal_client = SignalClient()
 
     # Attach components to FastAPI app state
     app.state.agent_dir = args.agent_dir
+    app.state.profile = args.profile
     app.state.daemon_queue = queue
     app.state.session_manager = session_mgr
     app.state.scheduler = scheduler

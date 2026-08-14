@@ -11,7 +11,7 @@
   - `omp_rpc_functions.md` — documentation of omp_rpc usage
 - `rules/` — Execution policies and guidelines
 - `bin/` — Executable CLI control utilities (e.g. `membank-ctl`)
-- `skills/` — Portable skills definitions & modular references
+- `skills/mypai_tools` — Portable skills definitions & modular references
 - `src/`
   - `mypai_tools/` — Python package (`mypai_tools`), `mypai_daemon`, FastMCP servers, and sidecars
   - `tests` — mypai_tools tests

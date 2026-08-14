@@ -13,8 +13,14 @@ logger = logging.getLogger("mypai_daemon.acp.session")
 class AcpClientSession:
     """Manages an active omp --mode acp worker process over stdio JSON-RPC streams."""
 
-    def __init__(self, cwd: str, extra_args: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        cwd: str,
+        extra_args: list[str] | None = None,
+        profile: str = "",
+    ) -> None:
         self.cwd = os.path.abspath(os.path.expanduser(cwd))
+        self.profile = profile or os.getenv("OMP_PROFILE", "mypai")
         self.extra_args = extra_args or []
         self.process: subprocess.Popen[bytes] | None = None
         self.session_id: str = ""
@@ -23,7 +29,8 @@ class AcpClientSession:
 
     def start(self) -> "AcpClientSession":
         """Spawn the underlying `omp --mode acp` subprocess."""
-        cmd = ["omp", "--mode", "acp"] + self.extra_args
+        profile_args = ["--profile", self.profile] if self.profile else []
+        cmd = ["omp", "--mode", "acp"] + profile_args + self.extra_args
         logger.info("Spawning ACP worker process in '%s': %s", self.cwd, cmd)
 
         self.process = subprocess.Popen(

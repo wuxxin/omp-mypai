@@ -36,8 +36,14 @@ def format_human_uptime(seconds: float) -> str:
 class OMPSessionManager:
     """Manages persistent omp --mode rpc session connected to a workspace directory."""
 
-    def __init__(self, agent_dir: str = "", session_name: str | None = None) -> None:
+    def __init__(
+        self,
+        agent_dir: str = "",
+        session_name: str | None = None,
+        profile: str = "",
+    ) -> None:
         self.agent_dir = resolve_agent_dir(agent_dir)
+        self.profile = profile or os.getenv("OMP_PROFILE", "mypai")
         self.session_name = "mypai_daemon - running"
         self.session_uuid = ""
         self.rpc_client: Any | None = None
@@ -166,7 +172,7 @@ class OMPSessionManager:
                             "extra_args": [
                                 "--auto-approve",
                                 "--profile",
-                                "mypai",
+                                self.profile,
                                 "--resume",
                                 saved_uuid,
                             ],
@@ -191,7 +197,7 @@ class OMPSessionManager:
                 # Attempt 2: Create new session if no saved_uuid or reattach failed
                 if client is None:
                     kwargs = {
-                        "extra_args": ["--auto-approve", "--profile", "mypai"],
+                        "extra_args": ["--auto-approve", "--profile", self.profile],
                     }
                     if os.path.isdir(self.agent_dir):
                         kwargs["cwd"] = self.agent_dir
@@ -489,6 +495,7 @@ class OMPSessionManager:
             "connected": is_connected,
             "version": "1.0.0",
             "pid": pid,
+            "profile": self.profile,
             "session_name": self.session_name,
             "session_id": self.session_uuid,
             "agent_dir": self.agent_dir,
