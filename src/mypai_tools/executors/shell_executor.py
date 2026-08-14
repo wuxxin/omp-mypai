@@ -19,19 +19,13 @@ except ImportError:
 logger = logging.getLogger("mypai_daemon.executors.shell")
 
 
-def build_full_command(cmd: str, args_val: Any = None, kwargs_val: Any = None) -> str:
-    """Combine base command string with positional args (list/str) and flag kwargs (dict)."""
+def build_full_command(cmd: str, args_val: Any = None) -> str:
+    """Combine base command string with positional args (list/str)."""
     base_cmd = cmd.strip()
 
     if isinstance(args_val, str) and args_val.strip().startswith(("[", "{")):
         try:
             args_val = json.loads(args_val)
-        except Exception:  # noqa: BLE001, S110
-            pass
-
-    if isinstance(kwargs_val, str) and kwargs_val.strip().startswith("{"):
-        try:
-            kwargs_val = json.loads(kwargs_val)
         except Exception:  # noqa: BLE001, S110
             pass
 
@@ -43,19 +37,11 @@ def build_full_command(cmd: str, args_val: Any = None, kwargs_val: Any = None) -
     elif isinstance(args_val, str) and args_val.strip():
         parts.append(args_val.strip())
 
-    if isinstance(kwargs_val, dict):
-        for k, v in kwargs_val.items():
-            prefix = f"--{k}" if len(k) > 1 else f"-{k}"
-            if v is True:
-                parts.append(prefix)
-            elif v is not False and v is not None:
-                parts.append(f"{prefix} {shlex.quote(str(v))}")
-
     return " ".join(parts).strip()
 
 
 async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
-    """Execute shell command using action as base command, positional args list, and flag kwargs."""
+    """Execute shell command using action as base command and positional args list."""
     start_time = time.time()
     job = substitute_vars(job)
     name = job.get("name", "Unnamed Shell Job")
@@ -64,8 +50,7 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("No CLI shell command specified in 'action' attribute.")
 
     args_val = job.get("args")
-    kwargs_val = job.get("kwargs")
-    cmd = build_full_command(raw_cmd, args_val, kwargs_val)
+    cmd = build_full_command(raw_cmd, args_val)
 
     result_action = (job.get("result_action") or "ignore").lower()
 
@@ -102,6 +87,9 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
         )
     else:
         result_prompt_template = job.get("result_prompt") or ""
+
+    if isinstance(result_prompt_template, str):
+        result_prompt_template = result_prompt_template.strip()
 
     if result_prompt_template:
         if "#" in result_prompt_template:

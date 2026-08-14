@@ -62,7 +62,6 @@ def add_job(
     description: str = "",
     kind: str = "omp",
     action: str = "prompt",
-    url: str = "",
     args: Any = None,
     kwargs: Any = None,
     result_prompt: str = "",
@@ -78,7 +77,6 @@ def add_job(
         "cron": cron,
         "kind": kind,
         "action": action,
-        "url": url,
         "args": args,
         "kwargs": kwargs,
         "result_prompt": result_prompt,
@@ -98,7 +96,6 @@ def run_once(
     name: str,
     kind: str = "omp",
     action: str = "prompt",
-    url: str = "",
     args: Any = None,
     kwargs: Any = None,
     result_prompt: str = "",
@@ -112,7 +109,6 @@ def run_once(
         "cron": "now",
         "kind": kind,
         "action": action,
-        "url": url,
         "args": args,
         "kwargs": kwargs,
         "result_prompt": result_prompt,
@@ -172,14 +168,13 @@ def enable_job(job_id: str = "", name: str = "") -> dict[str, Any]:
 
 
 @mcp.tool()
-def modify_job(
+def update_job(
     job_id: str = "",
     name: str | None = None,
     description: str | None = None,
     cron: str | None = None,
     kind: str | None = None,
     action: str | None = None,
-    url: str | None = None,
     args: Any = None,
     kwargs: Any = None,
     result_prompt: str | None = None,
@@ -210,8 +205,6 @@ def modify_job(
         updates["kind"] = kind
     if action is not None:
         updates["action"] = action
-    if url is not None:
-        updates["url"] = url
     if args is not None:
         updates["args"] = (
             json.dumps(args) if isinstance(args, (dict, list)) else str(args or "")
@@ -294,7 +287,7 @@ def import_jobs(file_path: str) -> dict[str, Any]:
                 existing = name_map[item_name]
 
             if existing:
-                modify_job(
+                update_job(
                     job_id=existing["id"],
                     name=item_name,
                     description=item.get(
@@ -303,7 +296,6 @@ def import_jobs(file_path: str) -> dict[str, Any]:
                     cron=item.get("cron", existing.get("cron", "")),
                     kind=item.get("kind", existing.get("kind", "omp")),
                     action=item.get("action", existing.get("action", "prompt")),
-                    url=item.get("url", existing.get("url", "")),
                     args=item.get("args", existing.get("args")),
                     kwargs=item.get("kwargs", existing.get("kwargs")),
                     result_prompt=item.get(
@@ -328,7 +320,6 @@ def import_jobs(file_path: str) -> dict[str, Any]:
                     cron=item["cron"],
                     kind=item.get("kind", "omp"),
                     action=item.get("action", "prompt"),
-                    url=item.get("url", ""),
                     args=item.get("args"),
                     kwargs=item.get("kwargs"),
                     result_prompt=item.get("result_prompt", ""),
@@ -348,9 +339,7 @@ def import_jobs(file_path: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def export_jobs(
-    file_path: str = "jobs.yaml", fmt: str | None = None
-) -> dict[str, Any]:
+def export_jobs(file_path: str = "jobs.yaml", fmt: str | None = None) -> dict[str, Any]:
     """Export all registered cron jobs to a YAML or JSON file via mypai_daemon API (defaults to YAML)."""
     from mypai_tools.tools import dump_jobs_file
 
@@ -403,7 +392,8 @@ cron_run_once = run_once
 cron_list_jobs = list_jobs
 cron_disable_job = disable_job
 cron_enable_job = enable_job
-cron_modify_job = modify_job
+cron_modify_job = update_job
+modify_job = update_job
 cron_remove_job = delete_job
 cron_delete_job = delete_job
 cron_import_jobs = import_jobs

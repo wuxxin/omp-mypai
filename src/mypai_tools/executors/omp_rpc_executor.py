@@ -6,7 +6,7 @@ import os
 import time
 from typing import Any
 
-from mypai_tools.tools import substitute_vars
+from mypai_tools.tools import extract_omp_prompt, substitute_vars
 
 try:
     from omp_rpc import RpcClient
@@ -52,14 +52,19 @@ async def execute_omp_rpc_job(
     elif isinstance(args_raw, list):
         rpc_args = args_raw
 
-    # Extract RPC prompt from kwargs["prompt"], args[0], or result_prompt
-    prompt = ""
-    if isinstance(rpc_kwargs, dict) and "prompt" in rpc_kwargs:
-        prompt = str(rpc_kwargs.pop("prompt"))
-    elif rpc_args and isinstance(rpc_args[0], str):
-        prompt = rpc_args[0]
-    else:
-        prompt = job.get("result_prompt") or ""
+    prompt = extract_omp_prompt(job)
+    if not prompt:
+        duration = round(time.time() - start_time, 3)
+        return {
+            "status": "error",
+            "kind": "omp",
+            "action": action,
+            "return_code": 1,
+            "output": "",
+            "error": f"Empty prompt string for OMP RPC job '{name}'.",
+            "object": None,
+            "duration_sec": duration,
+        }
 
     logger.info("Executing OMP RPC job '%s' (action: %s)...", name, action)
 

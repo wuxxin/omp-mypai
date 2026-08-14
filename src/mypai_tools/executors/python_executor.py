@@ -89,6 +89,9 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
         }
 
         result_prompt_template = job.get("result_prompt") or ""
+        if isinstance(result_prompt_template, str):
+            result_prompt_template = result_prompt_template.strip()
+
         if result_prompt_template:
             if "#" in result_prompt_template:
                 final_output = substitute_vars(
@@ -130,6 +133,8 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
         result_prompt_template = (
             job.get("result_error_prompt") or job.get("result_prompt") or ""
         )
+        if isinstance(result_prompt_template, str):
+            result_prompt_template = result_prompt_template.strip()
         if result_prompt_template:
             if "#" in result_prompt_template:
                 final_output = substitute_vars(

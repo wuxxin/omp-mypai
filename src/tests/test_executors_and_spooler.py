@@ -30,7 +30,7 @@ async def test_http_executor_get_and_post() -> None:
         "name": "HTTP Get Test",
         "kind": "http",
         "action": "GET",
-        "url": "http://example.com/api/test",
+        "args": ["http://example.com/api/test"],
         "result_prompt": "Result was: #[_RESULT]",
     }
 
@@ -51,7 +51,7 @@ async def test_http_executor_error_handling() -> None:
         "name": "HTTP Error Test",
         "kind": "http",
         "action": "POST",
-        "url": "http://example.com/api/fail",
+        "args": ["http://example.com/api/fail"],
         "result_error_prompt": "Failed with code: #[_RETURNCODE]",
     }
 

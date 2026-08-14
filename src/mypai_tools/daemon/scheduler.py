@@ -21,6 +21,7 @@ from mypai_tools.persistence import (
     get_project_db_path,
 )
 from mypai_tools.tools import (
+    extract_omp_prompt,
     normalize_cron_expression,
     substitute_vars,
 )
@@ -101,19 +102,33 @@ class CronScheduler:
 
         try:
             if kind == "omp":
+                prompt = extract_omp_prompt(job)
+                if not prompt:
+                    err_msg = f"Empty prompt for OMP job '{name}' (ID: {job_id})."
+                    logger.error(err_msg)
+                    return {
+                        "status": "error",
+                        "error": err_msg,
+                        "return_code": 1,
+                        "job_id": job_id,
+                        "name": name,
+                        "kind": kind,
+                    }
+
+                mode = job.get("result_action") or "prompt"
+                if mode not in ("prompt", "steer", "followup", "abort_and_prompt"):
+                    mode = "prompt"
+
                 if self.daemon_queue:
-                    # Enqueue into mypai_daemon queue
-                    prompt = job.get("action", "prompt")
-                    mode = job.get("result_action") or "prompt"
-                    if mode not in ("prompt", "steer", "followup", "abort_and_prompt"):
-                        mode = "prompt"
                     queued_item = await self.daemon_queue.enqueue(
                         prompt=prompt, mode=mode, source="cron", context=job
                     )
                     res.update({"status": "queued", "task_id": queued_item["task_id"]})
                     output_summary = f"Queued task {queued_item['task_id']}"
                 else:
-                    res_exec = await execute_omp_rpc_job(job)
+                    job_copy = dict(job)
+                    job_copy["prompt"] = prompt
+                    res_exec = await execute_omp_rpc_job(job_copy)
                     res.update(res_exec)
                     returncode = res_exec.get("return_code", 0)
                     output_summary = res_exec.get("output") or ""

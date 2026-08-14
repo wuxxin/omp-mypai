@@ -48,7 +48,6 @@ class CronJobSchema(BaseModel):
     cron: str = "now"
     kind: str = "omp"
     action: str = "prompt"
-    url: str = ""
     args: Any = None
     kwargs: Any = None
     result_prompt: str = ""
@@ -161,7 +160,6 @@ async def cron_add_job(request: Request, job: CronJobSchema) -> dict[str, Any]:
         cron=job.cron,
         kind=job.kind,
         action=job.action,
-        url=job.url,
         args=args_str,
         kwargs=kwargs_str,
         result_prompt=job.result_prompt,

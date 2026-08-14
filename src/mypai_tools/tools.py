@@ -43,6 +43,86 @@ def substitute_vars(val: Any, extra_vars: dict[str, Any] | None = None) -> Any:
 substitute_env_vars = substitute_vars
 
 
+def extract_omp_prompt(job: dict[str, Any]) -> str:
+    """Extract OMP prompt text strictly from canonical job attributes.
+
+    Priority:
+    1. kwargs["prompt"]
+    2. args[0] (if string or list containing a prompt)
+    3. job["prompt"]
+    4. job["result_prompt"]
+    5. job["action"] (if not a standard RPC mode verb)
+
+    Leading and trailing whitespace is stripped (.strip()).
+    A whitespace-only string (e.g. "   \n\t  ") is evaluated as empty ("").
+    No non-standard naming aliases or workflow cross-overs are used.
+    """
+    if not isinstance(job, dict):
+        return ""
+
+    # 1. Parse kwargs["prompt"]
+    kwargs_raw = job.get("kwargs") or {}
+    rpc_kwargs: dict[str, Any] = {}
+    if isinstance(kwargs_raw, str) and kwargs_raw.strip():
+        if kwargs_raw.strip().startswith("{"):
+            try:
+                rpc_kwargs = json.loads(kwargs_raw)
+            except Exception:  # noqa: BLE001, S110
+                pass
+        else:
+            rpc_kwargs = {"prompt": kwargs_raw}
+    elif isinstance(kwargs_raw, dict):
+        rpc_kwargs = dict(kwargs_raw)
+
+    prompt_val = rpc_kwargs.get("prompt")
+    if prompt_val and isinstance(prompt_val, str) and prompt_val.strip():
+        return prompt_val.strip()
+
+    # 2. Parse args[0]
+    args_raw = job.get("args") or []
+    rpc_args: list[Any] = []
+    if isinstance(args_raw, str) and args_raw.strip():
+        if args_raw.strip().startswith("["):
+            try:
+                rpc_args = json.loads(args_raw)
+            except Exception:  # noqa: BLE001
+                rpc_args = [args_raw]
+        else:
+            rpc_args = [args_raw]
+    elif isinstance(args_raw, list):
+        rpc_args = args_raw
+
+    if rpc_args and isinstance(rpc_args[0], str) and rpc_args[0].strip():
+        return rpc_args[0].strip()
+
+    # 3. Top-level 'prompt'
+    if job.get("prompt") and isinstance(job["prompt"], str) and job["prompt"].strip():
+        return job["prompt"].strip()
+
+    # 4. 'result_prompt'
+    if (
+        job.get("result_prompt")
+        and isinstance(job["result_prompt"], str)
+        and job["result_prompt"].strip()
+    ):
+        return job["result_prompt"].strip()
+
+    # 5. Non-verb 'action'
+    action = str(job.get("action", "") or "").strip()
+    if action and action.lower() not in (
+        "prompt",
+        "prompt_and_wait",
+        "steer",
+        "followup",
+        "abort_and_prompt",
+        "switch_session",
+        "branch",
+    ):
+        return action
+
+    return ""
+
+
 def normalize_cron_expression(expr: str) -> str:
     """Normalize 5-field cron expression for APScheduler version compatibility.
 

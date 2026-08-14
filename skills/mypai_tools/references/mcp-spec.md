@@ -58,7 +58,7 @@ All FastMCP tools in `cron_mcp.py` execute HTTP REST calls targeting `mypai_daem
 
 ### Tools List & API Mapping
 
-1. **`cron_add_job(name, cron, kind='omp', action='prompt', description='', url='', args=None, kwargs=None, result_prompt='', result_error_prompt='', result_action='ignore', result_channel='')`**: Calls `POST /api/v1/cron/jobs`.
+1. **`cron_add_job(name, cron, kind='omp', action='prompt', description='', args=None, kwargs=None, result_prompt='', result_error_prompt='', result_action='ignore', result_channel='')`**: Calls `POST /api/v1/cron/jobs`.
 2. **`cron_run_once(...)`**: Calls `POST /api/v1/cron/jobs/run_once`. Queues/reschedules a one-shot job (`cron="now"`).
 3. **`cron_list_jobs(include_disabled=True)`**: Calls `GET /api/v1/cron/jobs`.
 4. **`cron_disable_job(job_id='', name='')`**: Calls `POST /api/v1/cron/jobs/{job_id_or_name}/disable`.

@@ -1,13 +1,13 @@
 jobs:
   - name: Periodic Work Sweep Audit
     description: Audit active project tasks, verify pending commitments, and reflect on progress
+    cron: "*/30 * * * *"
+    enabled: true
     kind: omp
     action: prompt
     args: []
     kwargs:
       prompt: Audit active project tasks, verify pending commitments, and reflect on progress. Use 300 words.
-    cron: "*/30 * * * *"
-    enabled: true
 
   - name: Hindsight Reflection Sweep
     description: Trigger Hindsight memory reflection sweep across active project memory banks
@@ -23,10 +23,9 @@ jobs:
     opts:
       headers:
         Content-Type: application/json
-    # dont trigger on success: Triggered Hindsight reflection sweep across project #[HINDSIGHT_BANK_ID] memory bank.
     result:
       action: prompt
-      prompt: ""
+      prompt: ""  # Don't trigger on success
       error_prompt: |-
         CRONJOB ERROR: Error triggering Hindsight reflection sweep across project #[HINDSIGHT_BANK_ID] memory bank.
         job_id: #{_JOB_ID}
@@ -34,4 +33,42 @@ jobs:
         http_code: #[_HTTP_CODE]
         error: #[_ERROR]
 
+  - name: Nightly Database Backup & Audit
+    description: Run automated database health audit and backup script
+    cron: "0 3 * * *"
+    enabled: true
+    kind: shell
+    action: python3
+    args:
+      - scripts/db_audit.py
+      - --quick
+    result:
+      action: prompt
+      prompt: |-
+        Nightly Database Audit completed successfully for #[_JOB_NAME].
+        Output:
+        ```log
+        #[_OUTPUT]
+        ```
+      error_prompt: |-
+        CRON ERROR: Shell job '#[_JOB_NAME]' failed with return code #[_RETURN_CODE].
+        Error details:
+        ```log
+        #[_ERROR]
+        ```
 
+  - name: System Resource Metric Calculation
+    description: Compute memory usage and system uptime stats in-process
+    cron: "0 * * * *"
+    enabled: true
+    kind: python
+    action: "lambda args, kwargs: {'status': 'healthy', 'uptime_sec': kwargs.get('uptime', 3600)}"
+    args: []
+    kwargs:
+      uptime: 86400
+    result:
+      action: ignore
+      prompt: ""
+      error_prompt: |-
+        CRON ERROR: Python metric calculation failed for '#[_JOB_NAME]'.
+        Error: #[_ERROR]

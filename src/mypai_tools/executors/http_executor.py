@@ -52,10 +52,6 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
         if len(args_raw) > 1:
             payload = args_raw[1]
 
-    # Fallback to job.get("url") if args didn't specify URL
-    if not url and job.get("url"):
-        url = str(job.get("url"))
-
     if not url:
         duration = round(time.time() - start_time, 3)
         return {
@@ -80,7 +76,19 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
     elif isinstance(kwargs_raw, dict):
         kwargs = dict(kwargs_raw)
 
+    opts_raw = job.get("opts") or {}
+    opts: dict[str, Any] = {}
+    if isinstance(opts_raw, str) and opts_raw.strip():
+        try:
+            opts = json.loads(opts_raw)
+        except Exception:  # noqa: BLE001, S110
+            pass
+    elif isinstance(opts_raw, dict):
+        opts = dict(opts_raw)
+
     headers = {"Content-Type": "application/json"}
+    if "headers" in opts and isinstance(opts["headers"], dict):
+        headers.update(opts["headers"])
     if "headers" in kwargs and isinstance(kwargs["headers"], dict):
         headers.update(kwargs.pop("headers"))
     elif job.get("headers") and isinstance(job["headers"], dict):
@@ -131,6 +139,9 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
             else:
                 result_prompt_template = job.get("result_prompt") or ""
 
+            if isinstance(result_prompt_template, str):
+                result_prompt_template = result_prompt_template.strip()
+
             if result_prompt_template:
                 if "#" in result_prompt_template:
                     final_output = substitute_vars(
@@ -173,6 +184,8 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
         result_prompt_template = (
             job.get("result_error_prompt") or job.get("result_prompt") or ""
         )
+        if isinstance(result_prompt_template, str):
+            result_prompt_template = result_prompt_template.strip()
         if result_prompt_template:
             if "#" in result_prompt_template:
                 final_output = substitute_vars(

@@ -82,35 +82,35 @@ def _make_http_dispatcher(test_client):
     return dispatcher
 
 
-def test_default_jobs_import_export_cycle(test_client, tmp_path: Path) -> None:
-    """Test importing default_jobs.json (without IDs), exporting, verifying generated IDs, and re-importing without duplicates."""
-    default_jobs_path = (
-        Path(__file__).parent.parent.parent / "config" / "default_jobs.yaml"
+def test_example_jobs_import_export_cycle(test_client, tmp_path: Path) -> None:
+    """Test importing example_jobs.yaml (without IDs), exporting, verifying generated IDs, and re-importing without duplicates."""
+    example_jobs_path = (
+        Path(__file__).parent.parent.parent / "config" / "example_jobs.yaml"
     )
-    assert default_jobs_path.exists()
+    assert example_jobs_path.exists()
 
     dispatcher = _make_http_dispatcher(test_client)
     with patch("mypai_tools.cron_mcp._daemon_http_request", side_effect=dispatcher):
-        # 1. Import default_jobs.yaml (entries have no IDs) into empty DB
-        res_imp = cron_mcp.cron_import_jobs(file_path=str(default_jobs_path))
+        # 1. Import example_jobs.yaml (entries have no IDs) into empty DB
+        res_imp = cron_mcp.cron_import_jobs(file_path=str(example_jobs_path))
         assert res_imp["status"] == "imported"
-        assert res_imp["imported_count"] == 2
+        assert res_imp["imported_count"] == 4
 
         # 2. List jobs from DB
         jobs_initial = cron_mcp.cron_list_jobs()
-        assert len(jobs_initial) == 2
+        assert len(jobs_initial) == 4
 
         # 3. Export DB jobs to JSON file
-        export_file = tmp_path / "exported_default_jobs.json"
+        export_file = tmp_path / "exported_example_jobs.json"
         res_exp = cron_mcp.cron_export_jobs(file_path=str(export_file))
         assert res_exp["status"] == "exported"
-        assert res_exp["exported_count"] == 2
+        assert res_exp["exported_count"] == 4
         assert export_file.exists()
 
         # 4. Read exported file and verify all entries have auto-generated IDs and descriptions
         exported_data = json.loads(export_file.read_text(encoding="utf-8"))
         exported_jobs = exported_data.get("jobs", [])
-        assert len(exported_jobs) == 2
+        assert len(exported_jobs) == 4
         for job in exported_jobs:
             assert "id" in job and bool(job["id"])
             assert "description" in job and bool(job["description"])
@@ -118,11 +118,11 @@ def test_default_jobs_import_export_cycle(test_client, tmp_path: Path) -> None:
         # 5. Re-import the exported file with IDs into DB
         res_reimp = cron_mcp.cron_import_jobs(file_path=str(export_file))
         assert res_reimp["status"] == "imported"
-        assert res_reimp["updated_count"] == 2
+        assert res_reimp["updated_count"] == 4
 
-        # 6. Verify total job count remains 2 (no duplicates, replaced/updated existing jobs)
+        # 6. Verify total job count remains 4 (no duplicates, replaced/updated existing jobs)
         jobs_final = cron_mcp.cron_list_jobs()
-        assert len(jobs_final) == 2
+        assert len(jobs_final) == 4
         assert {j["name"] for j in jobs_final} == {j["name"] for j in jobs_initial}
 
 

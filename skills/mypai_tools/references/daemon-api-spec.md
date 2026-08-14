@@ -86,7 +86,6 @@ The `/api/v1/session` routes support the complete 4-action OMP RPC feature set m
     "cron": "0 3 * * *",
     "kind": "omp | http | shell | python",
     "action": "prompt",
-    "url": "",
     "args": [],
     "kwargs": {},
     "result_prompt": "Audit finished: #[_OUTPUT]",

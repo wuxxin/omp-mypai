@@ -38,13 +38,13 @@ class CronJobModel(Base):
     enabled = Column(Boolean, default=True)
 
     # Inlined executor parameter columns
-    url = Column(Text, nullable=True, default="")
     args = Column(Text, nullable=True, default="")
     kwargs = Column(Text, nullable=True, default="")
+    opts = Column(Text, nullable=True, default="")
 
     # Execution telemetry fields
-    last_start = Column(String(64), nullable=True)
-    last_stop = Column(String(64), nullable=True)
+    last_start = Column(String(64), nullable=True, default="")
+    last_stop = Column(String(64), nullable=True, default="")
     last_runtime = Column(Float, nullable=True, default=0.0)
     last_returncode = Column(Integer, nullable=True, default=0)
     last_output = Column(Text, nullable=True, default="")
@@ -69,6 +69,15 @@ class CronJobModel(Base):
             except Exception:  # noqa: BLE001, S110
                 pass
 
+        opts_data = self.opts
+        if isinstance(opts_data, str) and opts_data.strip().startswith(("{", "[")):
+            try:
+                opts_data = json.loads(opts_data)
+            except Exception:  # noqa: BLE001, S110
+                pass
+        elif not opts_data:
+            opts_data = {}
+
         return {
             "id": self.id,
             "name": self.name,
@@ -79,11 +88,17 @@ class CronJobModel(Base):
             "result_prompt": self.result_prompt or "",
             "result_error_prompt": self.result_error_prompt or "",
             "result_channel": self.result_channel or "",
+            "result_action": self.result_action or "ignore",
+            "result": {
+                "action": self.result_action or "ignore",
+                "prompt": self.result_prompt or "",
+                "error_prompt": self.result_error_prompt or "",
+                "channel": self.result_channel or "",
+            },
             "enabled": bool(self.enabled),
-            "url": self.url or "",
             "args": args_data or "",
             "kwargs": kwargs_data or {},
-            "result_action": self.result_action or "ignore",
+            "opts": opts_data or {},
             "last_start": self.last_start or "",
             "last_stop": self.last_stop or "",
             "last_runtime": float(self.last_runtime or 0.0),
@@ -247,21 +262,37 @@ def import_jobs_to_db(session: Any, jobs_list: list[dict[str, Any]]) -> tuple[in
         item_name = item.get("name")
         existing = id_map.get(item_id) if item_id else name_map.get(item_name)
 
+        res_dict = item.get("result") if isinstance(item.get("result"), dict) else {}
+        res_action = (
+            res_dict.get("action")
+            if "action" in res_dict
+            else item.get("result_action", "ignore")
+        )
+        res_prompt = (
+            res_dict.get("prompt")
+            if "prompt" in res_dict
+            else item.get("result_prompt", "")
+        )
+        res_error_prompt = (
+            res_dict.get("error_prompt")
+            if "error_prompt" in res_dict
+            else item.get("result_error_prompt", "")
+        )
+        res_channel = (
+            res_dict.get("channel")
+            if "channel" in res_dict
+            else item.get("result_channel", "")
+        )
+
         if existing:
-            for k in (
-                "description",
-                "cron",
-                "kind",
-                "action",
-                "url",
-                "result_prompt",
-                "result_error_prompt",
-                "result_action",
-                "result_channel",
-                "enabled",
-            ):
+            for k in ("description", "cron", "kind", "action", "enabled"):
                 if k in item:
                     setattr(existing, k, item[k])
+            existing.result_action = res_action
+            existing.result_prompt = res_prompt
+            existing.result_error_prompt = res_error_prompt
+            existing.result_channel = res_channel
+
             if "args" in item:
                 existing.args = (
                     json.dumps(item["args"])
@@ -273,6 +304,12 @@ def import_jobs_to_db(session: Any, jobs_list: list[dict[str, Any]]) -> tuple[in
                     json.dumps(item["kwargs"])
                     if isinstance(item["kwargs"], (dict, list))
                     else str(item["kwargs"] or "")
+                )
+            if "opts" in item:
+                existing.opts = (
+                    json.dumps(item["opts"])
+                    if isinstance(item["opts"], (dict, list))
+                    else str(item["opts"] or "")
                 )
             existing.updated_at = datetime.now(timezone.utc).strftime(
                 "%Y-%m-%dT%H:%M:%SZ"
@@ -291,6 +328,11 @@ def import_jobs_to_db(session: Any, jobs_list: list[dict[str, Any]]) -> tuple[in
                 if isinstance(item.get("kwargs"), (dict, list))
                 else str(item.get("kwargs") or "")
             )
+            opts_str = (
+                json.dumps(item.get("opts"))
+                if isinstance(item.get("opts"), (dict, list))
+                else str(item.get("opts") or "")
+            )
             job_obj = CronJobModel(
                 id=new_id,
                 name=item_name,
@@ -298,13 +340,13 @@ def import_jobs_to_db(session: Any, jobs_list: list[dict[str, Any]]) -> tuple[in
                 cron=item["cron"],
                 kind=item.get("kind", "omp"),
                 action=item.get("action", "prompt"),
-                url=item.get("url", ""),
                 args=args_str,
                 kwargs=kwargs_str,
-                result_prompt=item.get("result_prompt", ""),
-                result_error_prompt=item.get("result_error_prompt", ""),
-                result_action=item.get("result_action", "ignore"),
-                result_channel=item.get("result_channel", ""),
+                opts=opts_str,
+                result_prompt=res_prompt,
+                result_error_prompt=res_error_prompt,
+                result_action=res_action,
+                result_channel=res_channel,
                 enabled=item.get("enabled", True),
                 created_at=now_iso,
                 updated_at=now_iso,
