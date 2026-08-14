@@ -1,4 +1,4 @@
-# MyPAI Cron Task Scheduler Usage Specification (`cron-usage.md`)
+# MyPAI Cron Task Scheduler Usage Specification (`cron-spec.md`)
 
 ## Executive Summary
 
@@ -160,27 +160,40 @@ CREATE TABLE cron_jobs (
 
 ## 7.  Autofix Cron Entry Example
 
-```python
-from mypai_tools.cron_mcp import add_job
+```yaml
 
-add_job(
-    name="Nightly Database Audit",
-    cron="0 3 * * *",  # Every night at 3:00 AM
-    kind="shell",
-    action="python3",
-    args=["scripts/db_audit.py"],
-    result_action="prompt",  # Routes prompt to OMP session ('prompt', 'steer', 'followup', 'abort_and_prompt')
-    result_prompt="Nightly Database Audit completed successfully:\n```log\n#[_OUTPUT]\n```\n",
-    result_error_prompt=(
-        "ALERT: Cron entry 'Nightly Database Audit' failed!\n"
-        "Return Code: #[_RETURN_CODE] (Duration: #[_DURATION]s)\n\n"
-        "ERROR:\n```log\n#[_ERROR]\n```\n"
-        "OUTPUT:\n```log\n#[_OUTPUT]\n```\n"
-        "Please inspect the mypai_tools skill (skills/mypai_tools/SKILL.md) "
-        "and spawn a @fixer agent to debug and fix this failure."
-    ),
-)
+jobs:
+  - name: Nightly Database Audit
+    # Every night at 3:00 AM
+    cron: "0 3 * * *"
+    kind: shell
+    action: python3
+    args:
+      - scripts/db_audit.py
+    result:
+      action: prompt
+      # Routes prompt to OMP session ('prompt', 'steer', 'followup', 'abort_and_prompt')
+      prompt: |
+        Nightly Database Audit completed successfully
+        ``log
+        #[_OUTPUT]
+        ```
+      error_prompt: |
+        CRON ERROR:: Cron Job '#[_JOB_NAME} failed!
+        JOB_ID: #[_JOB_ID]
+        RETURN_CODE: #[_RETURN_CODE]
+        DURATION:  #[_DURATION]
+        ERROR:
+        ```log
+        #[_ERROR]\n
+        ```
+        OUTPUT:
+        ```log
+        #[_OUTPUT]
+        ```
+        ACTIONS suggested: Disable this Please inspect the mypai_tools skill (skills/mypai_tools/SKILL.md)
+        and spawn a @fixer agent to debug and fix this failure.
+
 ```
 
----
 

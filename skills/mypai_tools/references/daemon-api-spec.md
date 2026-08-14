@@ -51,7 +51,23 @@ The `/api/v1/session` routes support the complete 4-action OMP RPC feature set m
   ```
 
 ### `GET /api/v1/session/history`
-* **Description**: Return turn history and telemetry logs.
+* **Description**: Return queued and completed OMP session turn history and execution telemetry.
+* **Response (HTTP 200)**:
+  ```json
+  [
+    {
+      "status": "success",
+      "mode": "prompt",
+      "session_name": "mypai_daemon - running",
+      "session_uuid": "019ff94b-a70d-7000-b992-6296fb54e774",
+      "return_code": 0,
+      "output": "Turn response output string...",
+      "error": "",
+      "duration_sec": 0.291,
+      "task_id": "evt_fbee566c"
+    }
+  ]
+  ```
 
 ---
 

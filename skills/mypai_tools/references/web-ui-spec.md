@@ -22,18 +22,25 @@
 
 ### 2.2 Transcript & Log Stream
 - Subscribes to `WS /api/v1/ws`.
-- Automatically appends log lines, agent response tokens, turn completions, and system notifications.
-- Supports auto-scrolling with manual pause control.
+- **Automatic History Restoration**: Queries `GET /api/v1/session/history` on load to automatically restore past turn prompts and complete assistant outputs.
+- **Full Preformatted Output**: Renders multi-line responses and code blocks using `white-space: pre-wrap` without 120-character line truncation.
+- **Live Text Delta Streaming**: Receives real-time text updates (`message_update` events) extracted from `omp_rpc` `MessageUpdateEvent` text deltas.
+- **Stream Chunks Toggle**: Includes **Show Stream Chunks** toggle checkbox (persisted via `localStorage`). When unchecked (default), intermediate streaming deltas are hidden and only the final complete output line (`[Output]`) is displayed. When checked, live streaming tokens (`[Stream]`) are appended in real-time.
+- Includes quick-action controls: **Reload History**, **Clear Console**, **Show Stream Chunks**, and **Include Debug Events** filter toggle.
 
 ### 2.3 Interactive Control Line
 - **Input Textarea**: Allows human operator to type prompts directly into the active `omp` session.
 - **Mode Selector**:
   - `prompt`: Submits standard turn (`POST /api/v1/session/prompt`).
   - `steer`: Submits high-priority interrupt (`POST /api/v1/session/steer`).
+  - `followup`: Appends followup turn (`POST /api/v1/session/followup`).
+  - `abort_and_prompt`: Aborts active turn and queues new prompt (`POST /api/v1/session/abort_and_prompt`).
 
 ### 2.4 Scrollable Sidebar Telemetry & Registered Cron Tasks
-- **Independent Scrollbar**: `<aside>` has a maximum height (`calc(100vh - 120px)`) with independent `overflow-y: auto` scrolling and a custom smooth dark scrollbar, ensuring sidebar content scrolls smoothly when larger than `<main>` or screen viewport.
+- **Collapsible Sidebar**: Dynamic grid layout with smooth collapsing toggle and layout state persistence (`localStorage`).
+- **Independent Scrollbar**: `<aside>` has a maximum height (`calc(100vh - 120px)`) with independent `overflow-y: auto` scrolling and a custom smooth dark scrollbar.
 - **Session Telemetry**: Displays fixed session name, daemon PID, turn queue depth, and process uptime.
+- **Usage Telematics**: Real-time user/assistant message counters, tool call stats, input/output/total token counters, and estimated session cost ($0.0000).
 - **Cron Telemetry**: Displays global execution state (`Enabled` / `Disabled`), total registered jobs count, active vs inactive job counts.
 - **Global Cron Toggle**: Interactive button calling `POST /api/v1/cron/enable` or `POST /api/v1/cron/disable` to temporarily pause/resume engine execution without modifying database records.
 - **Registered Cron Tasks Panel**:
