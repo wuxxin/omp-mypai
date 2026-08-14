@@ -42,21 +42,23 @@
 ### 2.4 Scrollable Sidebar Telemetry & Registered Cron Tasks
 - **Collapsible Sidebar**: Dynamic grid layout with smooth collapsing toggle and layout state persistence (`localStorage`).
 - **Independent Scrollbar**: `<aside>` has a maximum height (`calc(100vh - 120px)`) with independent `overflow-y: auto` scrolling and a custom smooth dark scrollbar.
-- **RPC Connection & Active Call Panel**:
-  - Displays RPC Status, **Daemon Profile** (`mypai` / `OMP_PROFILE`), daemon process PID, uptime counter, and turn queue depth.
-  - **Currently Running RPC Call**: Displays active turn ID, execution mode, running profile name, duration counter, and prompt snippet.
+- **Card 1: Daemon RPC** (renamed from *RPC Connection & Active Call*):
+  - Displays RPC Connection Status (`Connected` / `Disconnected`), **Daemon Profile** (`mypai` / `OMP_PROFILE`), daemon process PID, uptime counter, and turn queue depth.
+  - **CURRENTLY RUNNING RPC CALL Box**: Displays active turn ID, execution mode, running profile name, duration counter, and prompt snippet.
   - Action buttons: **Reconnect** (`POST /api/v1/session/reconnect`) and **Abort** (`POST /api/v1/session/abort`).
-- **ACP Process Control Panel**:
+- **Card 2: Session** (merged *Session State* and *Session Stats & Cost*, placed directly under *Daemon RPC*):
+  - Displays Session Name (`tel-session`).
+  - **Dedicated Session UUID Layout**: Formatted as a full-width monospace block (`word-break: break-all; user-select: all; font-size: 0.78rem`) inside a dark container box with label `SESSION UUID` to prevent font/layout distortion.
+  - Displays Steering / Streaming mode (`one-at-a-time` / `no`), User / Assistant Message Counters (`stats-user-msgs` / `stats-asst-msgs`), Tool Calls / Results (`stats-tool-calls` / `stats-tool-results`), Input / Output / Total Token usage, Estimated Cost ($0.0000), and Context Window Usage progress bar.
+- **Card 3: Agent Worker** (renamed from *ACP Process Control*):
   - Displays ACP state badge (`RUNNING` / `STOPPED`), **Process PID** (`acp-pid`), **Uptime** (`acp-uptime`), active worker processes count, and total task count.
   - Scrollable worker process list displaying PID, CWD workspace, and uptime per worker.
-  - Action buttons: **Shutdown / Disable** and **Restart / Enable**.
-- **Session State Panel**: Displays session name, session UUID, steering/streaming modes, message count, context window usage bar and percentage.
-- **Session Stats & Cost Panel**: Real-time user/assistant message counters, tool call stats, input/output/total token counters, and estimated session cost ($0.0000).
-- **Cron Telemetry & Tasks Panel**:
+  - Action buttons: **Shutdown / Disable** (`POST /api/v1/acp/shutdown`) and **Restart / Enable** (`POST /api/v1/acp/restart`).
+- **Card 4: Tasks** (renamed from *Cron Tasks & Telemetry*):
+  - Card Header Action buttons: **Export** (`GET /api/v1/cron/export` JSON download) and **Import** (`POST /api/v1/cron/import` JSON upload).
   - Displays global execution state (`Enabled` / `Disabled`), total registered jobs count, active vs inactive job counts.
-  - Action buttons in card header: **Export** (`GET /api/v1/cron/export` JSON download) and **Import** (`POST /api/v1/cron/import` JSON upload).
-  - **Global Cron Toggle**: Interactive button calling `POST /api/v1/cron/enable` or `POST /api/v1/cron/disable`.
-  - **Registered Cron Tasks Table**: Queries `GET /api/v1/cron/jobs` on load. Displays task titles, descriptions, 5-field cron schedules, kind badges, call metrics, and one-click **Run Now** buttons (`POST /api/v1/cron/jobs/run_once`).
+  - **Global Task Toggle Button**: Interactive button labeled **Disable all Tasks** / **Enable all Tasks** calling `POST /api/v1/cron/disable` or `POST /api/v1/cron/enable`.
+  - **Registered Tasks Table**: Queries `GET /api/v1/cron/jobs` on load. Displays task titles, descriptions, 5-field cron schedules, kind badges, call metrics, and one-click **Run Now** buttons (`POST /api/v1/cron/jobs/run_once`).
 
 ### 2.5 Background Polling & Event-Driven Telemetry Sync
 - **Background HTTP Polling**: Non-WebSocket background HTTP polling for status and telemetry (`updateStatus`, `updateAcpStatus`, `updateStats`, `updateCronStatus`) runs every **30 seconds** (`30,000ms`).

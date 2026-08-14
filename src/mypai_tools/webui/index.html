@@ -290,10 +290,10 @@
     </main>
 
     <aside id="sidebar">
-      <!-- RPC Connection & Active Call Telemetry Card -->
+      <!-- Daemon RPC Telemetry Card -->
       <div class="card">
         <div class="card-title">
-          <span>RPC Connection & Active Call</span>
+          <span>Daemon RPC</span>
           <div style="display: flex; gap: 0.4rem;">
             <button onclick="reconnectRpc()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Reconnect</button>
             <button onclick="abortRpcTurn()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: linear-gradient(135deg, #ef4444, #dc2626);">Abort</button>
@@ -327,10 +327,58 @@
         </div>
       </div>
 
-      <!-- ACP Process Control & Connection Card -->
+      <!-- Session Telemetry Card (Merged State, Stats, Cost, & Dedicated UUID Block) -->
+      <div class="card">
+        <div class="card-title">Session</div>
+        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Session Name:</span>
+            <span id="tel-session" style="font-weight: 600;">mypai_daemon - running</span>
+          </div>
+          <div style="padding: 0.5rem 0.6rem; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--card-border); border-radius: 6px;">
+            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 0.2rem;">Session UUID</div>
+            <div id="tel-uuid" style="font-family: 'Fira Code', monospace; font-size: 0.78rem; color: var(--accent-cyan); word-break: break-all; user-select: all;" title="--">--</div>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Steering / Streaming:</span>
+            <span><span id="state-steering">one-at-a-time</span> / <span id="state-streaming">no</span></span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Messages (User / Asst):</span>
+            <span><span id="stats-user-msgs">0</span> / <span id="stats-asst-msgs">0</span></span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Tool Calls / Results:</span>
+            <span><span id="stats-tool-calls">0</span> / <span id="stats-tool-results">0</span></span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Tokens (In / Out):</span>
+            <span><span id="stats-tokens-in">0</span> / <span id="stats-tokens-out">0</span></span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Total Tokens:</span>
+            <span id="stats-tokens-total" style="font-weight: 600;">0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Estimated Cost:</span>
+            <span id="stats-cost" style="color: var(--status-green); font-weight: 600;">$0.0000</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.2rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+              <span style="color: var(--text-muted);">Context Window:</span>
+              <span id="state-context-text">0 / 128,000 (0.0%)</span>
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden;">
+              <div id="state-context-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple)); transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Worker Process Control Card -->
       <div class="card">
         <div class="card-title">
-          <span>ACP Process Control</span>
+          <span>Agent Worker</span>
           <span id="acp-state-badge" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; background: rgba(16, 185, 129, 0.2); color: var(--status-green); font-weight: 600;">Running</span>
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
@@ -360,69 +408,10 @@
         </div>
       </div>
 
-      <!-- SessionState Telemetry Card -->
-      <div class="card">
-        <div class="card-title">Session State</div>
-        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Session Name:</span>
-            <span id="tel-session" style="font-weight: 600;">mypai_daemon - running</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; overflow: hidden;">
-            <span style="color: var(--text-muted);">UUID:</span>
-            <span id="tel-uuid" style="font-family: 'Fira Code', monospace; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; max-width: 220px;" title="--">--</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Steering / Streaming:</span>
-            <span><span id="state-steering">one-at-a-time</span> / <span id="state-streaming">no</span></span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Message Count:</span>
-            <span id="state-message-count" style="font-weight: 600;">0</span>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 0.2rem;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
-              <span style="color: var(--text-muted);">Context Window:</span>
-              <span id="state-context-text">0 / 128,000 (0.0%)</span>
-            </div>
-            <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden;">
-              <div id="state-context-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple)); transition: width 0.3s ease;"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- SessionStats Card -->
-      <div class="card">
-        <div class="card-title">Session Stats & Cost</div>
-        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Messages (User / Asst):</span>
-            <span><span id="stats-user-msgs">0</span> / <span id="stats-asst-msgs">0</span></span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Tool Calls / Results:</span>
-            <span><span id="stats-tool-calls">0</span> / <span id="stats-tool-results">0</span></span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Tokens (In / Out):</span>
-            <span><span id="stats-tokens-in">0</span> / <span id="stats-tokens-out">0</span></span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Total Tokens:</span>
-            <span id="stats-tokens-total" style="font-weight: 600;">0</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Estimated Cost:</span>
-            <span id="stats-cost" style="color: var(--status-green); font-weight: 600;">$0.0000</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Combined Cron Telemetry & Tasks Card -->
+      <!-- Tasks & Scheduled Jobs Card -->
       <div class="card">
         <div class="card-title">
-          <span>Cron Tasks & Telemetry</span>
+          <span>Tasks</span>
           <div style="display: flex; gap: 0.4rem;">
             <button onclick="exportCronJobs()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Export</button>
             <button onclick="document.getElementById('cron-file-input').click()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Import</button>
@@ -439,7 +428,7 @@
             <span><span id="cron-total-jobs" style="font-weight: 600;">0</span> total (<span id="cron-enabled-jobs" style="color: var(--status-green);">0</span> active / <span id="cron-disabled-jobs" style="color: var(--status-amber);">0</span> off)</span>
           </div>
           <div style="display: flex; gap: 0.5rem; margin-top: 0.3rem;">
-            <button id="toggle-cron-btn" onclick="toggleGlobalCron()" style="width: 100%; padding: 0.4rem; font-size: 0.75rem;">Disable Global Cron</button>
+            <button id="toggle-cron-btn" onclick="toggleGlobalCron()" style="width: 100%; padding: 0.4rem; font-size: 0.75rem;">Disable all Tasks</button>
           </div>
         </div>
 
@@ -880,12 +869,12 @@
         if (globalCronEnabled) {
           execStatusEl.textContent = 'Enabled';
           execStatusEl.style.color = 'var(--status-green)';
-          toggleBtn.textContent = 'Disable Global Cron';
+          toggleBtn.textContent = 'Disable all Tasks';
           toggleBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
         } else {
           execStatusEl.textContent = 'Disabled';
           execStatusEl.style.color = 'var(--status-amber)';
-          toggleBtn.textContent = 'Enable Global Cron';
+          toggleBtn.textContent = 'Enable all Tasks';
           toggleBtn.style.background = 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))';
         }
 
