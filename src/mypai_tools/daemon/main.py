@@ -50,12 +50,17 @@ async def queue_worker_loop(queue: EventQueue, session_mgr: OMPSessionManager) -
                     "task_id": task_id,
                     "mode": mode,
                     "source": source,
+                    "prompt": prompt,
                     "rpc_state": session_mgr.connection_state,
                 }
             )
 
             res = await session_mgr.execute_turn(
-                prompt=prompt, mode=mode, context=item.get("context"), task_id=task_id
+                prompt=prompt,
+                mode=mode,
+                context=item.get("context"),
+                task_id=task_id,
+                source=source,
             )
             queue.mark_completed(task_id, res)
 

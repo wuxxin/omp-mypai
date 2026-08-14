@@ -295,6 +295,7 @@ class OMPSessionManager:
         mode: str = "prompt",
         context: dict[str, Any] | None = None,
         task_id: str = "",
+        source: str = "",
         timeout: float = 120.0,
     ) -> dict[str, Any]:
         """Execute a prompt turn asynchronously through the persistent RPC client.
@@ -302,6 +303,14 @@ class OMPSessionManager:
         Supports turn modes: 'prompt', 'steer', 'followup'/'follow_up', 'abort_and_prompt', 'abort', 'abort_retry'.
         High-priority interrupts ('steer', 'abort', 'abort_retry') bypass turn lock to execute mid-turn.
         """
+        from mypai_tools.tools import format_system_trigger_prompt
+
+        source_val = source or (
+            context.get("source") if isinstance(context, dict) else ""
+        )
+        prompt = format_system_trigger_prompt(
+            prompt, source=source_val, context=context
+        )
         clean_mode = str(mode or "prompt").lower()
         start_time = time.time()
 

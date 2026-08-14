@@ -57,23 +57,30 @@ async def execute_python_job(
     }
 
     try:
+        import contextlib
+        import io
+
+        stdout_buf = io.StringIO()
         clean_code = code.strip()
-        if clean_code.startswith("lambda"):
-            fn = eval(clean_code, global_namespace, local_namespace)
-            try:
-                res = fn(args_val, kwargs_val)
-            except TypeError:
+        with contextlib.redirect_stdout(stdout_buf):
+            if clean_code.startswith("lambda"):
+                fn = eval(clean_code, global_namespace, local_namespace)
                 try:
-                    res = fn(args_val)
+                    res = fn(args_val, kwargs_val)
                 except TypeError:
-                    res = fn()
-        else:
-            exec(clean_code, global_namespace, local_namespace)  # noqa: S102
-            res = (
-                local_namespace.get("result")
-                or global_namespace.get("result")
-                or "Execution completed."
-            )
+                    try:
+                        res = fn(args_val)
+                    except TypeError:
+                        res = fn()
+            else:
+                exec(clean_code, global_namespace, local_namespace)  # noqa: S102
+                printed = stdout_buf.getvalue().strip()
+                res = (
+                    local_namespace.get("result")
+                    or global_namespace.get("result")
+                    or printed
+                    or "Execution completed."
+                )
 
         if asyncio.iscoroutine(res):
             res = await res

@@ -40,6 +40,38 @@ def substitute_vars(val: Any, extra_vars: dict[str, Any] | None = None) -> Any:
     return val
 
 
+def format_system_trigger_prompt(
+    prompt: str, source: str = "", context: dict[str, Any] | None = None
+) -> str:
+    """Format non-human automated prompts with a standardized system trigger header.
+
+    Standard Pattern:
+    - Human sources ("webui", "signal", "interactive", "human") and empty sources ("") are passed as-is.
+    - Prompts already containing "[SYSTEM TRIGGER" are passed as-is.
+    - Automated background sources ("cron", "spooler", "executor_result") are prepended
+      with [SYSTEM TRIGGER: TAG].
+    """
+    if (
+        not prompt
+        or not source
+        or source in ("webui", "signal", "interactive", "human")
+        or prompt.startswith("[SYSTEM TRIGGER")
+    ):
+        return prompt
+
+    job_name = context.get("name") if isinstance(context, dict) else None
+    if source == "cron":
+        tag = f"CRON ({job_name})" if job_name else "CRON"
+    elif source == "executor_result":
+        tag = f"EXECUTOR_RESULT ({job_name})" if job_name else "EXECUTOR_RESULT"
+    elif source == "spooler":
+        tag = "INPUT_SPOOLER"
+    else:
+        tag = str(source).upper()
+
+    return f"[SYSTEM TRIGGER: {tag}]\n{prompt}"
+
+
 substitute_env_vars = substitute_vars
 
 

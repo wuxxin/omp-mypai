@@ -483,21 +483,29 @@
       } else {
         grid.classList.remove('collapsed');
         document.getElementById('toggle-icon').textContent = '▶';
+        mainGrid.style.gridTemplateColumns = '1fr';
+        sidebar.style.display = 'none';
+        toggleIcon.textContent = '◀';
+      }
+    }
+
+    function toggleStreamChunksFilter() {
+      showStreamChunks = document.getElementById('stream-chunks-checkbox').checked;
+      if (!showStreamChunks && activeStreamEntry) {
+        activeStreamEntry.remove();
+        activeStreamEntry = null;
+        activeStreamBuffer = '';
       }
     }
 
     function toggleEventsFilter() {
-      includeEvents = eventsCheckbox.checked;
-      localStorage.setItem('mypai_include_events', includeEvents);
-    }
-
-    function toggleStreamChunksFilter() {
-      showStreamChunks = streamChunksCheckbox.checked;
-      localStorage.setItem('mypai_show_stream_chunks', showStreamChunks);
+      includeEvents = document.getElementById('events-checkbox').checked;
     }
 
     function clearConsole() {
       logConsole.innerHTML = '<div class="log-entry info">[Console Cleared]</div>';
+      activeStreamEntry = null;
+      activeStreamBuffer = '';
     }
 
     function appendLog(text, type = 'info') {
@@ -511,6 +519,23 @@
       logConsole.scrollTop = logConsole.scrollHeight;
     }
 
+    let activeStreamEntry = null;
+    let activeStreamBuffer = '';
+
+    function updateStreamActivity(chunk) {
+      if (!showStreamChunks) return;
+      activeStreamBuffer += chunk;
+      if (!activeStreamEntry) {
+        activeStreamEntry = document.createElement('div');
+        activeStreamEntry.className = 'log-entry stream';
+        logConsole.appendChild(activeStreamEntry);
+      }
+      const preview = activeStreamBuffer.slice(-160);
+      const timeStr = new Date().toLocaleTimeString();
+      activeStreamEntry.textContent = `[${timeStr}] [Stream Active (${activeStreamBuffer.length} chars)] ... ${preview}`;
+      logConsole.scrollTop = logConsole.scrollHeight;
+    }
+
     // Load Turn History from Daemon API
     let loadedHistoryIds = new Set();
 
@@ -519,59 +544,29 @@
         if (force) {
           logConsole.innerHTML = '<div class="log-entry info">[Console History Reloaded]</div>';
           loadedHistoryIds.clear();
+          activeStreamEntry = null;
+          activeStreamBuffer = '';
         }
         const res = await fetch('/api/v1/session/history');
         const history = await res.json();
         if (!Array.isArray(history) || !history.length) return;
         
-        history.forEach(item => {
-          if (loadedHistoryIds.has(item.task_id)) return;
-          loadedHistoryIds.add(item.task_id);
-
-          const modeStr = item.mode ? item.mode.toUpperCase() : 'PROMPT';
-          const promptText = item.prompt || `Task ${item.task_id}`;
-          appendLog(`[Turn (${modeStr})] ${promptText}`, 'prompt');
-          if (item.output) {
-            appendLog(`[Output] ${item.output}`, 'output');
-          }
-          if (item.error) {
-            appendLog(`[Error] ${item.error}`, 'error');
-          }
-        });
-      } catch (e) {
-        appendLog(`Failed to fetch session history: ${e}`, 'error');
-      }
-    }
-
-    // WebSocket Stream Connection
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/api/v1/ws`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      statusText.textContent = 'Connected';
-      statusBadge.classList.remove('disconnected');
-      appendLog('[WebSocket] Connected to myPAI Console API Stream.', 'success');
-      loadSessionHistory();
-    };
-
-    function reloadStatsAndSidecars() {
-      updateStatus();
-      updateStats();
-      updateAcpStatus();
-      updateCronStatus();
-      loadCronJobs();
-    }
-
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.event === 'turn_started') {
           appendLog(`[Turn Start] Task ${data.task_id} (mode: ${data.mode}, source: ${data.source})`, 'info');
+          if (data.prompt) {
+            appendLog(`[Task Input] ${data.prompt}`, 'input');
+          }
+          activeStreamBuffer = '';
+          activeStreamEntry = null;
           reloadStatsAndSidecars();
         } else if (data.event === 'turn_completed') {
           const res = data.result || {};
           const out = res.output || res.error || '';
+          activeStreamBuffer = '';
+          activeStreamEntry = null;
           appendLog(`[Turn Completed] Task ${data.task_id} (${res.duration_sec || 0}s)`, res.status === 'success' ? 'success' : 'error');
           if (out) {
             appendLog(`[Output] ${out}`, res.status === 'success' ? 'output' : 'error');
@@ -579,7 +574,7 @@
           reloadStatsAndSidecars();
         } else if (data.event === 'message_update') {
           if (data.text) {
-            appendLog(`[Stream] ${data.text}`, 'stream');
+            updateStreamActivity(data.text);
           }
         } else if (data.event === 'rpc_turn_start' || data.event === 'rpc_turn_end') {
           appendLog(`[RPC Event] ${data.event} (${data.turn || ''})`, 'event');
@@ -590,7 +585,6 @@
 
     ws.onclose = () => {
       statusText.textContent = 'Disconnected';
-      statusBadge.classList.add('disconnected');
       appendLog('[WebSocket] Disconnected from daemon server.', 'error');
     };
 
@@ -613,6 +607,7 @@
         const data = await res.json();
         appendLog(`Task queued successfully: ${data.task_id}`, 'info');
         promptInput.value = '';
+        reloadStatsAndSidecars();
       } catch (err) {
         appendLog(`Failed to submit turn: ${err}`, 'error');
       }

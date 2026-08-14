@@ -42,7 +42,7 @@ async def test_queue_worker_serialized_turns(tmp_path) -> None:
     assert prompts_in_history == [
         "Turn 1 from webui",
         "Turn 3 from signal",  # Signal has priority 1, cron has priority 2
-        "Turn 2 from cron",
+        "[SYSTEM TRIGGER: CRON]\nTurn 2 from cron",
     ]
 
 
