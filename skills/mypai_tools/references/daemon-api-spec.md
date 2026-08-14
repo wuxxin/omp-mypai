@@ -155,12 +155,19 @@ The `/api/v1/session` routes support the complete 4-action OMP RPC feature set m
 
 ### `WS /api/v1/ws`
 * **Description**: Bi-directional WebSocket stream for WebUI clients.
-* **Server Events**:
-  - `session_state_change`: `{"event": "state", "status": "connected | busy | disconnected"}`
-  - `turn_started`: `{"event": "turn_start", "task_id": "evt_123", "source": "webui"}`
-  - `log_line`: `{"event": "log", "line": "[INFO] Executing prompt..."}`
-  - `turn_completed`: `{"event": "turn_complete", "output": "..."}`
-* **Client Handlers**: `{"action": "ping"}`, `{"action": "submit_prompt", "prompt": "..."}`.
+* **Server Broadcast Events**:
+  - `turn_started`: `{"event": "turn_started", "task_id": "evt_123", "mode": "prompt", "source": "webui", "prompt": "..."}`
+  - `turn_completed`: `{"event": "turn_completed", "task_id": "evt_123", "result": {...}}`
+  - `message_update`: `{"event": "message_update", "text": "..."}` (Streamed generation chunk)
+  - `queue_updated`: `{"event": "queue_updated", "queue_depth": 2}`
+  - **12 RPC Daemon Lifecycle Events**:
+    - `rpc_agent_start`, `rpc_agent_end`
+    - `rpc_turn_start`, `rpc_turn_end`
+    - `rpc_message_start`, `rpc_message_end`
+    - `rpc_tool_execution_start`, `rpc_tool_execution_end`
+    - `rpc_auto_compaction_start`, `rpc_auto_compaction_end`
+    - `rpc_auto_retry_start`, `rpc_auto_retry_end`
+* **Client Handlers**: `{"action": "ping"}` -> `{"event": "pong"}`.
 
 ---
 

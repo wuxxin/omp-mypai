@@ -34,10 +34,13 @@ It maintains a persistent `omp --mode rpc --auto-approve --continue` connection 
 * **Process Recovery**: Monitors PID via `proc.poll()`. On crash or broken pipe, cleans up handles and automatically re-instantiates `RpcClient` with session UUID in `MYPAI_AGENT_DIR`.
 * **Session Actions Supported**: **`prompt`**, **`steer`**, **`followup`**, **`abort_and_prompt`**, and on-demand **`abort`**.
 
-### 2.3 Database Isolation & Agent Dir Resolution (`mypai_tools.persistence`)
-* **MYPAI_AGENT_DIR Resolution**: Resolves workspace directory using `MYPAI_AGENT_DIR` environment variable or `--agent-dir` CLI flag.
-* **Single-DB Location**: SQLite database path is isolated per agent directory at `mypai_plugin_data/daemon/agent-<basedir>-<shorthash>.db`.
-* **HTTP-Only Tool Access**: FastMCP tools (`cron_mcp`) communicate strictly via `MYPAI_AGENT_URL` HTTP REST requests with zero direct SQLite DB fallbacks.
+### 2.4 Standardized System Trigger Headers (`mypai_tools.tools.format_system_trigger_prompt`)
+* **Pattern**: Formats automated, non-human inputs (`source="cron"`, `"spooler"`, `"executor_result"`) with a standardized system prompt header `[SYSTEM TRIGGER: TAG]` (e.g. `[SYSTEM TRIGGER: CRON (Daily Backup)]`).
+* **Human Input Preservation**: Interactive human inputs (`source="webui"`, `"signal"`, `"interactive"`, `"human"`) or prompts already starting with `[SYSTEM TRIGGER` pass through unchanged **as-is**.
+
+### 2.5 Python Executor Stdout Capture & Parameter Inspection (`mypai_tools.executors.python_executor`)
+* **In-Process Stdout Redirection**: Executes Python code blocks and lambda functions inside `contextlib.redirect_stdout(stdout_buf)` to capture `print()` output as execution output.
+* **Signature Inspection**: Uses `inspect.signature(fn)` to inspect lambda parameter counts (`fn(args, kwargs)`, `fn(args)`, `fn()`) without trapping internal `TypeError` exceptions from user code.
 
 ---
 

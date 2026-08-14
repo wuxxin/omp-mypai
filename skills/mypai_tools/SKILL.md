@@ -30,7 +30,7 @@ Per-project cron entries are stored in SQLite databases located at `mypai_plugin
 
 ### Telemetry Macros & Result Actions
 - **Input Substitution**: `#{VAR}` and `#[VAR]` expand environment variables.
-- **Execution Telemetry Macros**: `#[_RETURN_CODE]`, `#[_OUTPUT]`, `#[_ERROR]`, `#[_OBJECT]`, `#[_HTTP_CODE]`, `#[_DURATION]`, `#[_JOB_ID]`, `#[_JOB_NAME]`.
+- **Execution Telemetry Macros**: `#[_ACTION]`, `#[_ARGS]`, `#[_KWARGS]`, `#[_OPTS]`, `#[_RETURN_CODE]`, `#[_OUTPUT]`, `#[_ERROR]`, `#[_OBJECT]`, `#[_HTTP_CODE]`, `#[_DURATION]`, `#[_JOB_ID]`, `#[_JOB_NAME]` (strictly `_UPPERCASE` syntax).
 - **Result Actions (`result_action`)**: `"ignore"` (default), `"prompt"`, `"steer"`, `"followup"`, `"abort_and_prompt"`.
 
 ---

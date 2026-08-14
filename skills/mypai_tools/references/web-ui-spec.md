@@ -26,9 +26,9 @@
 ### 2.2 Transcript & Log Stream
 - Subscribes to `WS /api/v1/ws`.
 - **Automatic History Restoration**: Queries `GET /api/v1/session/history` on load or when clicking **Reload History** (calling `loadSessionHistory(true)`) to clear and restore past turn prompts and complete assistant outputs.
-- **Full Preformatted Output**: Renders multi-line responses and code blocks using `white-space: pre-wrap` without line truncation.
-- **Live Text Delta Streaming**: Receives real-time text updates (`message_update` events) extracted from `omp_rpc` `MessageUpdateEvent` text deltas.
-- **Stream Chunks Toggle**: Includes **Show Stream Chunks** toggle checkbox (persisted via `localStorage`). When unchecked (default), intermediate streaming deltas are hidden and only the final complete output line (`[Output]`) is displayed. When checked, live streaming tokens (`[Stream]`) are appended in real-time.
+- **Task Input Display**: Logs incoming task prompts as distinct `[Task Input]` entries upon `turn_started` WebSocket events.
+- **In-Place Live Stream Activity Ticker**: Receives real-time text updates (`message_update`). Instead of appending hundreds of separate chunk lines, updates a single in-place active ticker (`[Stream Active (1,420 chars)] ... <latest chunk preview>`).
+- **Stream Chunks Toggle**: Includes **Show Stream Chunks** toggle checkbox (persisted via `localStorage`). Intermediate streaming deltas update the active ticker when enabled; when completed, the full output (`[Output]`) is rendered cleanly.
 - Includes quick-action controls: **Reload History**, **Clear Console**, **Show Stream Chunks**, and **Show Events** filter toggle.
 
 ### 2.3 Interactive Control Line
@@ -42,6 +42,7 @@
 ### 2.4 Scrollable Sidebar Telemetry & Registered Cron Tasks
 - **Collapsible Sidebar**: Dynamic grid layout with smooth collapsing toggle and layout state persistence (`localStorage`).
 - **Independent Scrollbar**: `<aside>` has a maximum height (`calc(100vh - 120px)`) with independent `overflow-y: auto` scrolling and a custom smooth dark scrollbar.
+- **DOM Null-Safety**: All telemetry updater functions (`updateStatus()`, `updateStats()`, `updateAcpStatus()`) use strict null-checks for DOM elements (`if (el) ...`) so missing elements never halt execution.
 - **Card 1: Daemon RPC** (renamed from *RPC Connection & Active Call*):
   - Displays RPC Connection Status (`Connected` / `Disconnected`), **Daemon Profile** (`mypai` / `OMP_PROFILE`), daemon process PID, uptime counter, and turn queue depth.
   - **CURRENTLY RUNNING RPC CALL Box**: Displays active turn ID, execution mode, running profile name, duration counter, and prompt snippet.
@@ -62,4 +63,4 @@
 
 ### 2.5 Background Polling & Event-Driven Telemetry Sync
 - **Background HTTP Polling**: Non-WebSocket background HTTP polling for status and telemetry (`updateStatus`, `updateAcpStatus`, `updateStats`, `updateCronStatus`) runs every **30 seconds** (`30,000ms`).
-- **Event-Driven Signal Sync**: Automatically triggers an immediate full reload of all sidebar telemetry (`reloadStatsAndSidecars()`) upon receiving `turn_started`, `turn_completed`, `rpc_turn_start`, or `rpc_turn_end` WebSocket events.
+- **Event-Driven Signal Sync**: Automatically triggers an immediate full reload of all sidebar telemetry (`reloadStatsAndSidecars()`) upon receiving `queue_updated`, `turn_started`, `turn_completed`, or any of the 12 RPC daemon lifecycle WebSocket events (`rpc_agent_start`, `rpc_agent_end`, `rpc_turn_start`, `rpc_turn_end`, `rpc_message_start`, `rpc_message_end`, `rpc_tool_execution_start`, `rpc_tool_execution_end`, `rpc_auto_compaction_start`, `rpc_auto_compaction_end`, `rpc_auto_retry_start`, `rpc_auto_retry_end`).
