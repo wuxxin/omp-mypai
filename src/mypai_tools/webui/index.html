@@ -355,10 +355,6 @@
             <span id="tel-uuid" style="font-family: 'Fira Code', monospace; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; max-width: 220px;" title="--">--</span>
           </div>
           <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Model / Reasoning:</span>
-            <span><span id="state-model" style="font-weight: 600;">default</span> (<span id="state-thinking">auto</span>)</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
             <span style="color: var(--text-muted);">Steering / Streaming:</span>
             <span><span id="state-steering">one-at-a-time</span> / <span id="state-streaming">no</span></span>
           </div>
@@ -640,8 +636,10 @@
 
         // SessionState Card Telemetry
         const sState = data.session_state || {};
-        document.getElementById('state-model').textContent = sState.model || 'default';
-        document.getElementById('state-thinking').textContent = sState.thinking_level || 'auto';
+        const elModel = document.getElementById('state-model');
+        if (elModel) elModel.textContent = sState.model || 'default';
+        const elThinking = document.getElementById('state-thinking');
+        if (elThinking) elThinking.textContent = sState.thinking_level || 'auto';
         document.getElementById('state-steering').textContent = sState.steering_mode || 'one-at-a-time';
         document.getElementById('state-streaming').textContent = sState.is_streaming ? 'Yes' : 'No';
         document.getElementById('state-message-count').textContent = sState.message_count || 0;
