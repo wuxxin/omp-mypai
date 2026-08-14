@@ -595,6 +595,7 @@
       'queue_updated',
       'turn_started',
       'turn_completed',
+      'cron_task_completed',
       'rpc_agent_start',
       'rpc_agent_end',
       'rpc_turn_start',
@@ -628,12 +629,18 @@
           if (out) {
             appendLog(`[Output] ${out}`, res.status === 'success' ? 'output' : 'error');
           }
+        } else if (data.event === 'cron_task_completed') {
+          const st = data.status === 'success' ? 'success' : 'error';
+          appendLog(`[Cron Executed] '${data.name}' (${data.kind}) - ${data.status.toUpperCase()} (${data.duration_sec}s)`, st);
+          if (data.output_snippet) {
+            appendLog(`[Cron Output] ${data.output_snippet}`, 'event');
+          }
         } else if (data.event === 'message_update') {
           if (data.text) {
             updateStreamActivity(data.text);
           }
-        } else if (data.event && data.event.startsWith('rpc_')) {
-          appendLog(`[RPC Event] ${data.event} (${data.turn || ''})`, 'event');
+        } else if (data.event && (data.event.startsWith('rpc_') || data.event.startsWith('cron_'))) {
+          appendLog(`[Event] ${data.event}`, 'event');
         }
 
         if (SIDEBAR_REFRESH_EVENTS.has(data.event)) {

@@ -183,6 +183,29 @@ class CronScheduler:
         finally:
             session.close()
 
+        # Broadcast WebSocket event for WebUI event log console
+        try:
+            from mypai_tools.daemon.api.app import ws_manager
+
+            asyncio.create_task(
+                ws_manager.broadcast(
+                    {
+                        "event": "cron_task_completed",
+                        "job_id": job_id,
+                        "name": name,
+                        "kind": kind,
+                        "status": res.get("status", "success"),
+                        "return_code": returncode,
+                        "duration_sec": duration,
+                        "output_snippet": (output_summary or res.get("error") or "")[
+                            :200
+                        ],
+                    }
+                )
+            )
+        except Exception:  # noqa: BLE001, S110
+            pass
+
         return res
 
     def sync_jobs_from_db(self) -> None:
