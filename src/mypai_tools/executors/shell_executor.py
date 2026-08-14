@@ -40,7 +40,11 @@ def build_full_command(cmd: str, args_val: Any = None) -> str:
     return " ".join(parts).strip()
 
 
-async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
+async def execute_shell_job(
+    job: dict[str, Any],
+    daemon_queue: Any | None = None,
+    session_mgr: Any | None = None,
+) -> dict[str, Any]:
     """Execute shell command using action as base command and positional args list."""
     start_time = time.time()
     job = substitute_vars(job)
@@ -104,7 +108,12 @@ async def execute_shell_job(job: dict[str, Any]) -> dict[str, Any]:
 
     logger.info("Shell job '%s' exited with code %d", name, exit_code)
 
-    dispatch_result_to_omp(result_action, final_output)
+    dispatch_result_to_omp(
+        result_action,
+        final_output,
+        daemon_queue=daemon_queue,
+        session_mgr=session_mgr,
+    )
 
     return {
         "status": "success" if exit_code == 0 else "error",

@@ -43,7 +43,7 @@ class AcpState:
     def get_status(self) -> dict[str, Any]:
         """Get current state telemetry ('running', 'suspended', 'shutdown')."""
         state_str = self.get_state_string()
-        running = (state_str == STATE_RUNNING)
+        running = state_str == STATE_RUNNING
         return {
             "state": state_str,
             "running": running,
@@ -92,4 +92,3 @@ def get_acp_state(agent_dir: str = "") -> AcpState:
     if resolved not in _acp_state_instances:
         _acp_state_instances[resolved] = AcpState(agent_dir=resolved)
     return _acp_state_instances[resolved]
-

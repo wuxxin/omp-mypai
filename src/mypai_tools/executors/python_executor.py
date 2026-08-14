@@ -17,7 +17,11 @@ except ImportError:
 logger = logging.getLogger("mypai_daemon.executors.python")
 
 
-async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
+async def execute_python_job(
+    job: dict[str, Any],
+    daemon_queue: Any | None = None,
+    session_mgr: Any | None = None,
+) -> dict[str, Any]:
     """Execute Python lambda expression or code block in-process using inlined attributes."""
     start_time = time.time()
     job = substitute_vars(job)
@@ -102,7 +106,12 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
         else:
             final_output = res_str
 
-        dispatch_result_to_omp(result_action, final_output)
+        dispatch_result_to_omp(
+            result_action,
+            final_output,
+            daemon_queue=daemon_queue,
+            session_mgr=session_mgr,
+        )
 
         return {
             "status": "success",
@@ -145,7 +154,12 @@ async def execute_python_job(job: dict[str, Any]) -> dict[str, Any]:
         else:
             final_output = err_str
 
-        dispatch_result_to_omp(result_action, final_output)
+        dispatch_result_to_omp(
+            result_action,
+            final_output,
+            daemon_queue=daemon_queue,
+            session_mgr=session_mgr,
+        )
 
         return {
             "status": "error",

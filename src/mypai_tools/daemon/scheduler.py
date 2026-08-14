@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -127,24 +126,24 @@ class CronScheduler:
                     res.update({"status": "queued", "task_id": queued_item["task_id"]})
                     output_summary = f"Queued task {queued_item['task_id']}"
                 else:
-                    job_copy = dict(job)
-                    job_copy["prompt"] = prompt
-                    res_exec = await execute_omp_rpc_job(job_copy)
+                    res_exec = await execute_omp_rpc_job(
+                        job, daemon_queue=self.daemon_queue
+                    )
                     res.update(res_exec)
                     returncode = res_exec.get("return_code", 0)
                     output_summary = res_exec.get("output") or ""
             elif kind == "http":
-                res_exec = await execute_http_job(job)
+                res_exec = await execute_http_job(job, daemon_queue=self.daemon_queue)
                 res.update(res_exec)
                 returncode = res_exec.get("return_code", 0)
                 output_summary = res_exec.get("output") or ""
             elif kind == "shell":
-                res_exec = await execute_shell_job(job)
+                res_exec = await execute_shell_job(job, daemon_queue=self.daemon_queue)
                 res.update(res_exec)
                 returncode = res_exec.get("return_code", 0)
                 output_summary = res_exec.get("output") or ""
             elif kind == "python":
-                res_exec = await execute_python_job(job)
+                res_exec = await execute_python_job(job, daemon_queue=self.daemon_queue)
                 res.update(res_exec)
                 returncode = res_exec.get("return_code", 0)
                 output_summary = res_exec.get("output") or ""

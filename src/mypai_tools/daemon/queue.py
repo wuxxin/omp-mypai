@@ -12,9 +12,9 @@ class EventQueue:
     """Prioritized asyncio Queue serializing prompt turns from multiple producers.
 
     Priority ordering (lowest number = highest priority):
-      Priority 0: 'steer', 'abort_and_prompt' (High-priority interrupts)
+      Priority 0: 'steer', 'abort', 'abort_retry', 'abort_and_prompt', 'ui_interaction' (High-priority interrupts)
       Priority 1: 'webui', 'signal' (Interactive human turns)
-      Priority 2: 'cron', 'spooler' (Background automated triggers)
+      Priority 2: 'cron', 'spooler', 'executor_result' (Background automated triggers)
     """
 
     def __init__(self) -> None:
@@ -30,7 +30,15 @@ class EventQueue:
         clean_mode = str(mode or "").lower()
         clean_source = str(source or "").lower()
 
-        if clean_mode in ("steer", "abort_and_prompt"):
+        if clean_mode in (
+            "steer",
+            "abort",
+            "abort_retry",
+            "abort_and_prompt",
+            "ui_interaction",
+            "ui_confirmation",
+            "ui_value",
+        ):
             return 0
         if clean_source in ("webui", "signal"):
             return 1

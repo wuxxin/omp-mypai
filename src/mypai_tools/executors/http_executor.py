@@ -13,7 +13,11 @@ from mypai_tools.tools import substitute_vars
 logger = logging.getLogger("mypai_daemon.executors.http")
 
 
-async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
+async def execute_http_job(
+    job: dict[str, Any],
+    daemon_queue: Any | None = None,
+    session_mgr: Any | None = None,
+) -> dict[str, Any]:
     """Execute HTTP requests using inlined attributes.
 
     Inlined Attributes:
@@ -153,7 +157,12 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
                 final_output = output_str if is_success else error_str
 
             result_action = job.get("result_action") or ""
-            dispatch_result_to_omp(result_action, final_output)
+            dispatch_result_to_omp(
+                result_action,
+                final_output,
+                daemon_queue=daemon_queue,
+                session_mgr=session_mgr,
+            )
 
             return {
                 "status": status_str,
@@ -197,7 +206,12 @@ async def execute_http_job(job: dict[str, Any]) -> dict[str, Any]:
             final_output = err_str
 
         result_action = job.get("result_action") or ""
-        dispatch_result_to_omp(result_action, final_output)
+        dispatch_result_to_omp(
+            result_action,
+            final_output,
+            daemon_queue=daemon_queue,
+            session_mgr=session_mgr,
+        )
 
         return {
             "status": "error",

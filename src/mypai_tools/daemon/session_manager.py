@@ -45,6 +45,7 @@ class OMPSessionManager:
         self.connection_state: str = "disconnected"
         self.active_call: dict[str, Any] | None = None
         self._lock = asyncio.Lock()
+        self._turn_done_event = asyncio.Event()
         self.start_time = time.time()
         self.is_busy = False
 
@@ -58,14 +59,16 @@ class OMPSessionManager:
         try:
             from mypai_tools.daemon.api.ws import ws_manager
 
-            loop = asyncio.get_event_loop()
-
             def broadcast_event(event_type: str, data: dict[str, Any]) -> None:
-                if loop.is_running():
+                try:
+                    cur_loop = asyncio.get_running_loop()
                     payload = {"event": event_type, **data}
-                    asyncio.run_coroutine_threadsafe(
-                        ws_manager.broadcast(payload), loop
-                    )
+                    cur_loop.create_task(ws_manager.broadcast(payload))
+                except RuntimeError:
+                    pass
+
+            def _signal_turn_done() -> None:
+                self._turn_done_event.set()
 
             def _extract_text(evt: Any) -> str:
                 if hasattr(evt, "text") and isinstance(evt.text, str) and evt.text:
@@ -97,39 +100,58 @@ class OMPSessionManager:
                     )
                 )
             if hasattr(client, "on_turn_end"):
-                client.on_turn_end(
-                    lambda evt: broadcast_event(
+
+                def _on_turn_end(evt: Any) -> None:
+                    broadcast_event(
                         "rpc_turn_end",
                         {"turn": getattr(evt, "turn_id", "")},
                     )
-                )
+                    _signal_turn_done()
+
+                client.on_turn_end(_on_turn_end)
+
+            if hasattr(client, "on_agent_end"):
+
+                def _on_agent_end(evt: Any) -> None:
+                    broadcast_event(
+                        "rpc_agent_end",
+                        {"event": str(evt)},
+                    )
+                    _signal_turn_done()
+
+                client.on_agent_end(_on_agent_end)
         except Exception as exc:  # noqa: BLE001
             logger.debug("Failed to set up event listeners on RpcClient: %s", exc)
 
     def triage_connection(self) -> Any | None:
         """Check RPC connection state and reconcile/reconnect if needed before dispatching events."""
+        if self.rpc_client is not None:
+            if not getattr(self.rpc_client, "_listeners_installed", False):
+                self._setup_event_listeners(self.rpc_client)
+                try:
+                    self.rpc_client._listeners_installed = True
+                except AttributeError:
+                    pass
+            proc = getattr(self.rpc_client, "_process", None)
+            is_alive = proc is None or (hasattr(proc, "poll") and proc.poll() is None)
+            if is_alive:
+                self.connection_state = "connected"
+                return self.rpc_client
+            logger.warning(
+                "RpcClient process has died. Initiating connection triage & reconnect..."
+            )
+
         if RpcClient is None:
             self.connection_state = "failed"
             return None
 
-        is_dead = False
-        if self.rpc_client is not None:
-            proc = getattr(self.rpc_client, "_process", None)
-            if proc is None or proc.poll() is not None:
-                logger.warning("RpcClient process has died. Initiating connection triage & reconnect...")
-                is_dead = True
-
-        if self.rpc_client is None or is_dead:
-            self.connection_state = "reconnecting" if self.rpc_client is not None else "connecting"
-            client = self.ensure_connected()
-            if client is not None:
-                self.connection_state = "connected"
-            else:
-                self.connection_state = "failed"
-            return client
-
-        self.connection_state = "connected"
-        return self.rpc_client
+        self.connection_state = "connecting"
+        client = self.ensure_connected()
+        if client is not None:
+            self.connection_state = "connected"
+        else:
+            self.connection_state = "failed"
+        return client
 
     def ensure_connected(self) -> Any | None:
         """Ensure persistent RpcClient is running; re-instantiate or reattach using DB session_uuid."""
@@ -273,18 +295,65 @@ class OMPSessionManager:
         mode: str = "prompt",
         context: dict[str, Any] | None = None,
         task_id: str = "",
+        timeout: float = 120.0,
     ) -> dict[str, Any]:
-        """Execute a prompt turn through the persistent RPC client.
+        """Execute a prompt turn asynchronously through the persistent RPC client.
 
-        Supports 4 modes: 'prompt', 'steer', 'followup', 'abort_and_prompt'.
+        Supports turn modes: 'prompt', 'steer', 'followup'/'follow_up', 'abort_and_prompt', 'abort', 'abort_retry'.
+        High-priority interrupts ('steer', 'abort', 'abort_retry') bypass turn lock to execute mid-turn.
         """
+        clean_mode = str(mode or "prompt").lower()
+        start_time = time.time()
+
+        # Immediate dispatch for high-priority interrupts mid-turn
+        if clean_mode in ("steer", "abort", "abort_retry"):
+            client = self.triage_connection()
+            if client is None:
+                raise RuntimeError(
+                    f"RPC Client offline (state: {self.connection_state}). Session '{self.session_name}' failed in '{self.agent_dir}'."
+                )
+
+            logger.info(
+                "Executing immediate interrupt '%s': %s", clean_mode, prompt[:60]
+            )
+            rpc_res: Any = None
+            if clean_mode == "steer":
+                rpc_res = client.steer(prompt)
+            elif clean_mode == "abort":
+                if hasattr(client, "abort"):
+                    try:
+                        client.abort()
+                    except Exception:  # noqa: BLE001, S110
+                        pass
+                self._turn_done_event.set()
+                rpc_res = {"status": "aborted"}
+            elif clean_mode == "abort_retry":
+                if hasattr(client, "abort_retry"):
+                    try:
+                        client.abort_retry()
+                    except Exception:  # noqa: BLE001, S110
+                        pass
+                rpc_res = {"status": "abort_retry"}
+
+            duration = round(time.time() - start_time, 3)
+            return {
+                "status": "success",
+                "mode": clean_mode,
+                "session_name": self.session_name,
+                "session_uuid": self.session_uuid,
+                "return_code": 0,
+                "prompt": prompt,
+                "output": f"Interrupt {clean_mode} dispatched.",
+                "error": "",
+                "duration_sec": duration,
+            }
+
         async with self._lock:
             self.is_busy = True
             client = self.triage_connection()
-            clean_mode = str(mode or "prompt").lower()
 
-            start_time = time.time()
             from datetime import datetime, timezone
+
             since_iso = datetime.now(timezone.utc).isoformat()
             self.active_call = {
                 "task_id": task_id or f"turn-{int(start_time)}",
@@ -311,39 +380,35 @@ class OMPSessionManager:
                     prompt[:60],
                 )
 
-                if clean_mode == "steer":
-                    if hasattr(client, "steer"):
-                        rpc_res = client.steer(prompt)
-                    else:
-                        rpc_res = client.prompt(f"[STEER INTERRUPT] {prompt}")
-                    if hasattr(client, "wait_for_idle"):
-                        client.wait_for_idle()
-                elif clean_mode == "followup":
-                    if hasattr(client, "followup"):
-                        rpc_res = client.followup(prompt)
-                    else:
-                        rpc_res = client.prompt(f"[FOLLOWUP] {prompt}")
-                    if hasattr(client, "wait_for_idle"):
-                        client.wait_for_idle()
-                elif clean_mode == "abort_and_prompt":
-                    if hasattr(client, "abort"):
-                        try:
-                            client.abort()
-                        except Exception:  # noqa: BLE001, S110
-                            pass
-                    if hasattr(client, "prompt_and_wait"):
-                        rpc_res = client.prompt_and_wait(prompt)
-                    else:
-                        rpc_res = client.prompt(prompt)
-                else:  # 'prompt'
-                    if hasattr(client, "prompt_and_wait"):
-                        rpc_res = client.prompt_and_wait(prompt)
-                    else:
-                        rpc_res = client.prompt(prompt)
+                self._turn_done_event.clear()
 
-                if hasattr(rpc_res, "assistant_text"):
+                rpc_res = None
+                if clean_mode in ("followup", "follow_up"):
+                    rpc_res = client.follow_up(prompt)
+                elif clean_mode == "abort_and_prompt":
+                    rpc_res = client.abort_and_prompt(prompt)
+                else:  # 'prompt'
+                    rpc_res = client.prompt(prompt)
+
+                # Await turn completion event asynchronously if turn is ongoing
+                if not self._turn_done_event.is_set():
+                    try:
+                        await asyncio.wait_for(
+                            self._turn_done_event.wait(), timeout=timeout
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            "Turn execution timed out after %.1fs (task: %s)",
+                            timeout,
+                            task_id,
+                        )
+
+                # Fetch assistant response output
+                if hasattr(client, "get_last_assistant_text"):
+                    res_output = client.get_last_assistant_text() or ""
+                if not res_output and hasattr(rpc_res, "assistant_text"):
                     res_output = rpc_res.assistant_text or ""
-                elif isinstance(rpc_res, dict):
+                if not res_output and isinstance(rpc_res, dict):
                     res_output = (
                         rpc_res.get("response")
                         or rpc_res.get("output")
@@ -351,10 +416,10 @@ class OMPSessionManager:
                         or rpc_res.get("text")
                         or str(rpc_res)
                     )
-                elif isinstance(rpc_res, str):
+                if not res_output and isinstance(rpc_res, str):
                     res_output = rpc_res
-                else:
-                    res_output = str(rpc_res or "")
+                if not res_output and rpc_res is not None:
+                    res_output = str(rpc_res)
 
             except Exception as exc:  # noqa: BLE001
                 logger.error("RPC Turn execution error: %s", exc)
@@ -400,20 +465,38 @@ class OMPSessionManager:
             try:
                 st = client.get_state()
                 if st is not None:
-                    state_dict["session_id"] = getattr(st, "session_id", self.session_uuid)
-                    state_dict["session_name"] = getattr(st, "session_name", self.session_name)
+                    state_dict["session_id"] = getattr(
+                        st, "session_id", self.session_uuid
+                    )
+                    state_dict["session_name"] = getattr(
+                        st, "session_name", self.session_name
+                    )
                     state_dict["session_file"] = getattr(st, "session_file", None)
                     state_dict["model"] = str(getattr(st, "model", "default"))
-                    state_dict["thinking_level"] = str(getattr(st, "thinking_level", "auto"))
-                    state_dict["is_streaming"] = bool(getattr(st, "is_streaming", self.is_busy))
-                    state_dict["steering_mode"] = str(getattr(st, "steering_mode", "one-at-a-time"))
+                    state_dict["thinking_level"] = str(
+                        getattr(st, "thinking_level", "auto")
+                    )
+                    state_dict["is_streaming"] = bool(
+                        getattr(st, "is_streaming", self.is_busy)
+                    )
+                    state_dict["steering_mode"] = str(
+                        getattr(st, "steering_mode", "one-at-a-time")
+                    )
                     state_dict["message_count"] = int(getattr(st, "message_count", 0))
 
                     ctx = getattr(st, "context_usage", None)
                     if ctx is not None:
-                        tokens = int(getattr(ctx, "tokens", getattr(ctx, "used_tokens", 0)))
-                        max_tokens = int(getattr(ctx, "max_tokens", getattr(ctx, "limit", 128000)))
-                        pct = round((tokens / max_tokens * 100.0), 1) if max_tokens > 0 else 0.0
+                        tokens = int(
+                            getattr(ctx, "tokens", getattr(ctx, "used_tokens", 0))
+                        )
+                        max_tokens = int(
+                            getattr(ctx, "max_tokens", getattr(ctx, "limit", 128000))
+                        )
+                        pct = (
+                            round((tokens / max_tokens * 100.0), 1)
+                            if max_tokens > 0
+                            else 0.0
+                        )
                         state_dict["context_usage"] = {
                             "tokens": tokens,
                             "max_tokens": max_tokens,
