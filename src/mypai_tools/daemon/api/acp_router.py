@@ -29,11 +29,15 @@ async def get_acp_status(request: Request) -> dict[str, Any]:
 
 
 @router.post("/enable")
+@router.post("/restart")
 async def enable_acp(request: Request) -> dict[str, Any]:
-    """Enable ACP intra-agent delegation execution in SQLite settings."""
+    """Enable / Restart ACP intra-agent delegation execution and worker binary processes."""
     agent_dir = getattr(request.app.state, "agent_dir", "")
     state = get_acp_state(agent_dir)
+    manager = get_acp_manager(agent_dir)
+
     res = state.enable()
+    manager.restart_workers()
 
     ws_manager = getattr(request.app.state, "ws_manager", None)
     if ws_manager:
@@ -43,15 +47,35 @@ async def enable_acp(request: Request) -> dict[str, Any]:
 
 
 @router.post("/suspend")
-@router.post("/disable")
 async def suspend_acp(request: Request) -> dict[str, Any]:
-    """Suspend ACP intra-agent delegation execution in SQLite settings."""
+    """Suspend ACP intra-agent delegation execution."""
     agent_dir = getattr(request.app.state, "agent_dir", "")
     state = get_acp_state(agent_dir)
+    manager = get_acp_manager(agent_dir)
+
+    manager.shutdown_workers()
     res = state.suspend()
 
     ws_manager = getattr(request.app.state, "ws_manager", None)
     if ws_manager:
         await ws_manager.broadcast({"event": "acp_state_changed", "state": "suspended"})
+
+    return res
+
+
+@router.post("/shutdown")
+@router.post("/disable")
+async def shutdown_acp(request: Request) -> dict[str, Any]:
+    """Shutdown / Disable ACP intra-agent delegation execution and terminate worker binary processes."""
+    agent_dir = getattr(request.app.state, "agent_dir", "")
+    state = get_acp_state(agent_dir)
+    manager = get_acp_manager(agent_dir)
+
+    manager.shutdown_workers()
+    res = state.shutdown()
+
+    ws_manager = getattr(request.app.state, "ws_manager", None)
+    if ws_manager:
+        await ws_manager.broadcast({"event": "acp_state_changed", "state": "shutdown"})
 
     return res

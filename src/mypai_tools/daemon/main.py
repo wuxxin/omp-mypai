@@ -34,11 +34,15 @@ async def queue_worker_loop(queue: EventQueue, session_mgr: OMPSessionManager) -
             mode = item["mode"]
             source = item["source"]
 
+            # Connection triage & session reconciliation prior to turn handoff
+            session_mgr.triage_connection()
+
             logger.info(
-                "Processing turn '%s' (mode: %s, source: %s)...",
+                "Processing turn '%s' (mode: %s, source: %s, rpc_state: %s)...",
                 task_id,
                 mode,
                 source,
+                session_mgr.connection_state,
             )
             await ws_manager.broadcast(
                 {
@@ -46,11 +50,12 @@ async def queue_worker_loop(queue: EventQueue, session_mgr: OMPSessionManager) -
                     "task_id": task_id,
                     "mode": mode,
                     "source": source,
+                    "rpc_state": session_mgr.connection_state,
                 }
             )
 
             res = await session_mgr.execute_turn(
-                prompt=prompt, mode=mode, context=item.get("context")
+                prompt=prompt, mode=mode, context=item.get("context"), task_id=task_id
             )
             queue.mark_completed(task_id, res)
 

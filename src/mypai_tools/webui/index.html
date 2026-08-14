@@ -287,9 +287,64 @@
     </main>
 
     <aside id="sidebar">
-      <!-- Session Card -->
+      <!-- RPC Connection & Active Call Telemetry Card -->
       <div class="card">
-        <div class="card-title">Session Telemetry</div>
+        <div class="card-title">
+          <span>RPC Connection & Active Call</span>
+          <button onclick="reconnectRpc()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Reconnect</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted);">RPC Status:</span>
+            <span id="rpc-status-badge" style="font-weight: 600; color: var(--status-green);">Connected</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Process PID:</span>
+            <span id="tel-pid" style="font-family: 'Fira Code', monospace;">--</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Uptime:</span>
+            <span id="tel-uptime">0s</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Events Waiting (Queue):</span>
+            <span id="tel-queue" style="font-weight: 700; color: var(--accent-cyan);">0</span>
+          </div>
+          <div style="margin-top: 0.4rem; padding: 0.6rem; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--card-border); border-radius: 8px;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.3rem;">CURRENTLY RUNNING RPC CALL</div>
+            <div id="rpc-active-call-content" style="font-size: 0.8rem; color: var(--text-main);">No active call</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACP Process Control & Connection Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>ACP Process Control</span>
+          <span id="acp-state-badge" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; background: rgba(16, 185, 129, 0.2); color: var(--status-green); font-weight: 600;">Running</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Active Workers:</span>
+            <span id="acp-active-workers" style="font-weight: 600;">0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Total Tasks:</span>
+            <span id="acp-total-tasks">0</span>
+          </div>
+          <div id="acp-workers-list" style="max-height: 100px; overflow-y: auto; font-size: 0.75rem; font-family: 'Fira Code', monospace; color: var(--text-muted); background: rgba(15, 23, 42, 0.5); padding: 0.4rem; border-radius: 6px; border: 1px solid var(--card-border);">
+            No worker processes
+          </div>
+          <div style="display: flex; gap: 0.5rem; margin-top: 0.3rem;">
+            <button onclick="shutdownAcp()" style="flex: 1; padding: 0.4rem; font-size: 0.75rem; background: linear-gradient(135deg, #ef4444, #dc2626);">Shutdown / Disable</button>
+            <button onclick="restartAcp()" style="flex: 1; padding: 0.4rem; font-size: 0.75rem; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));">Restart / Enable</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SessionState Telemetry Card -->
+      <div class="card">
+        <div class="card-title">Session State</div>
         <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
           <div style="display: flex; justify-content: space-between;">
             <span style="color: var(--text-muted);">Session Name:</span>
@@ -300,23 +355,32 @@
             <span id="tel-uuid" style="font-family: 'Fira Code', monospace; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; max-width: 220px;" title="--">--</span>
           </div>
           <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Process PID:</span>
-            <span id="tel-pid" style="font-family: 'Fira Code', monospace;">--</span>
+            <span style="color: var(--text-muted);">Model / Reasoning:</span>
+            <span><span id="state-model" style="font-weight: 600;">default</span> (<span id="state-thinking">auto</span>)</span>
           </div>
           <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Queue Depth:</span>
-            <span id="tel-queue" style="font-weight: 600;">0</span>
+            <span style="color: var(--text-muted);">Steering / Streaming:</span>
+            <span><span id="state-steering">one-at-a-time</span> / <span id="state-streaming">no</span></span>
           </div>
           <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Uptime:</span>
-            <span id="tel-uptime">0s</span>
+            <span style="color: var(--text-muted);">Message Count:</span>
+            <span id="state-message-count" style="font-weight: 600;">0</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+              <span style="color: var(--text-muted);">Context Window:</span>
+              <span id="state-context-text">0 / 128,000 (0.0%)</span>
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden;">
+              <div id="state-context-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple)); transition: width 0.3s ease;"></div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Session Stats Card -->
+      <!-- SessionStats Card -->
       <div class="card">
-        <div class="card-title">Usage Telematics</div>
+        <div class="card-title">Session Stats & Cost</div>
         <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
           <div style="display: flex; justify-content: space-between;">
             <span style="color: var(--text-muted);">Messages (User / Asst):</span>
@@ -548,6 +612,75 @@
         if (data.version) {
           document.getElementById('app-version').textContent = `v${data.version}`;
         }
+
+        // RPC Status Badge
+        const rpcBadge = document.getElementById('rpc-status-badge');
+        const st = (data.status || 'disconnected').toLowerCase();
+        rpcBadge.textContent = st.toUpperCase();
+        if (st === 'connected') {
+          rpcBadge.style.color = 'var(--status-green)';
+        } else if (st === 'reconnecting' || st === 'connecting') {
+          rpcBadge.style.color = 'var(--status-amber)';
+        } else {
+          rpcBadge.style.color = 'var(--status-red)';
+        }
+
+        // Currently Running RPC Call
+        const callEl = document.getElementById('rpc-active-call-content');
+        if (data.active_call) {
+          const ac = data.active_call;
+          callEl.innerHTML = `
+            <div style="font-weight: 600; color: var(--accent-purple);">Turn: ${ac.task_id} (${ac.mode})</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Running since: ${ac.since.substring(11, 19)} (${ac.duration_sec}s ago)</div>
+            ${ac.prompt_snippet ? `<div style="font-size: 0.75rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.2rem;">"${ac.prompt_snippet}"</div>` : ''}
+          `;
+        } else {
+          callEl.textContent = 'No active call';
+        }
+
+        // SessionState Card Telemetry
+        const sState = data.session_state || {};
+        document.getElementById('state-model').textContent = sState.model || 'default';
+        document.getElementById('state-thinking').textContent = sState.thinking_level || 'auto';
+        document.getElementById('state-steering').textContent = sState.steering_mode || 'one-at-a-time';
+        document.getElementById('state-streaming').textContent = sState.is_streaming ? 'Yes' : 'No';
+        document.getElementById('state-message-count').textContent = sState.message_count || 0;
+
+        const ctx = sState.context_usage || { tokens: 0, max_tokens: 128000, percentage: 0 };
+        document.getElementById('state-context-text').textContent = `${(ctx.tokens || 0).toLocaleString()} / ${(ctx.max_tokens || 128000).toLocaleString()} (${ctx.percentage || 0}%)`;
+        document.getElementById('state-context-bar').style.width = `${Math.min(100, ctx.percentage || 0)}%`;
+
+      } catch (e) {}
+    }
+
+    async function updateAcpStatus() {
+      try {
+        const res = await fetch('/api/v1/acp/status');
+        const data = await res.json();
+        const acpBadge = document.getElementById('acp-state-badge');
+        const stateStr = (data.state || 'running').toLowerCase();
+        acpBadge.textContent = stateStr.toUpperCase();
+
+        if (stateStr === 'running') {
+          acpBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+          acpBadge.style.color = 'var(--status-green)';
+        } else {
+          acpBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+          acpBadge.style.color = 'var(--status-red)';
+        }
+
+        document.getElementById('acp-active-workers').textContent = data.active_workers || 0;
+        document.getElementById('acp-total-tasks').textContent = data.total_tasks || 0;
+
+        const workersList = document.getElementById('acp-workers-list');
+        const workers = data.workers || [];
+        if (!workers.length) {
+          workersList.textContent = 'No worker processes';
+        } else {
+          workersList.innerHTML = workers.map(w => `
+            <div>[PID ${w.pid || 'N/A'}] ${w.cwd} (${w.uptime_sec}s)</div>
+          `).join('');
+        }
       } catch (e) {}
     }
 
@@ -565,6 +698,40 @@
         document.getElementById('stats-tokens-total').textContent = tk.total || 0;
         document.getElementById('stats-cost').textContent = `$${(data.cost || 0).toFixed(4)}`;
       } catch (e) {}
+    }
+
+    async function reconnectRpc() {
+      try {
+        appendLog('Initiating RPC connection triage & reconnect...', 'info');
+        const res = await fetch('/api/v1/session/reconnect', { method: 'POST' });
+        const data = await res.json();
+        appendLog(`RPC Connection Triage result: ${data.status} (PID: ${data.pid || 'N/A'})`, data.connected ? 'success' : 'error');
+        updateStatus();
+      } catch (e) {
+        appendLog(`Failed to reconnect RPC: ${e}`, 'error');
+      }
+    }
+
+    async function shutdownAcp() {
+      try {
+        appendLog('Sending ACP shutdown signal...', 'info');
+        await fetch('/api/v1/acp/shutdown', { method: 'POST' });
+        appendLog('ACP worker processes shutdown and state disabled.', 'success');
+        updateAcpStatus();
+      } catch (e) {
+        appendLog(`Failed to shutdown ACP: ${e}`, 'error');
+      }
+    }
+
+    async function restartAcp() {
+      try {
+        appendLog('Sending ACP restart signal...', 'info');
+        await fetch('/api/v1/acp/restart', { method: 'POST' });
+        appendLog('ACP worker processes restarted and state enabled.', 'success');
+        updateAcpStatus();
+      } catch (e) {
+        appendLog(`Failed to restart ACP: ${e}`, 'error');
+      }
     }
 
     async function loadCronJobs() {
@@ -650,11 +817,13 @@
 
     setInterval(() => {
       updateStatus();
+      updateAcpStatus();
       updateStats();
       updateCronStatus();
     }, 3000);
 
     updateStatus();
+    updateAcpStatus();
     updateStats();
     updateCronStatus();
     loadCronJobs();

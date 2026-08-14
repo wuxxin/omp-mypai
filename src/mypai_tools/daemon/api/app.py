@@ -107,6 +107,25 @@ async def session_status(request: Request) -> dict[str, Any]:
     return session_mgr.get_status(queue_depth=q_depth)
 
 
+@app.get("/api/v1/session/state")
+async def session_state(request: Request) -> dict[str, Any]:
+    session_mgr = getattr(request.app.state, "session_manager", None)
+    if not session_mgr:
+        raise HTTPException(status_code=500, detail="Session Manager uninitialized.")
+    return session_mgr.get_session_state()
+
+
+@app.post("/api/v1/session/reconnect")
+async def session_reconnect(request: Request) -> dict[str, Any]:
+    session_mgr = getattr(request.app.state, "session_manager", None)
+    queue = getattr(request.app.state, "daemon_queue", None)
+    if not session_mgr:
+        raise HTTPException(status_code=500, detail="Session Manager uninitialized.")
+    session_mgr.triage_connection()
+    q_depth = queue.depth() if queue else 0
+    return session_mgr.get_status(queue_depth=q_depth)
+
+
 @app.get("/api/v1/session/stats")
 async def session_stats(request: Request) -> dict[str, Any]:
     session_mgr = getattr(request.app.state, "session_manager", None)

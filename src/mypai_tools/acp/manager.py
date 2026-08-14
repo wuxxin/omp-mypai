@@ -174,11 +174,26 @@ class AcpDelegationManager:
             )
         return {"status": "success", "workers": workers}
 
+    def shutdown_workers(self) -> None:
+        """Stop all active worker subprocesses and terminate binary instances."""
+        logger.info("Shutting down all active ACP worker subprocesses...")
+        for sess in list(self.sessions.values()):
+            try:
+                sess.stop()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Error stopping ACP session process: %s", exc)
+        self.sessions.clear()
+
+    def restart_workers(self) -> None:
+        """Restart worker subprocess pool for workspace directory."""
+        logger.info("Restarting ACP worker process pool...")
+        self.shutdown_workers()
+        if self.agent_dir and os.path.isdir(self.agent_dir):
+            self.get_or_create_session(self.agent_dir)
+
     def shutdown(self) -> None:
         """Stop all active worker subprocesses."""
-        for sess in self.sessions.values():
-            sess.stop()
-        self.sessions.clear()
+        self.shutdown_workers()
 
 
 _acp_manager_instances: dict[str, AcpDelegationManager] = {}

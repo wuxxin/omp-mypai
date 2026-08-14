@@ -41,6 +41,8 @@ class OMPSessionManager:
         self.session_name = "mypai_daemon - running"
         self.session_uuid = ""
         self.rpc_client: Any | None = None
+        self.connection_state: str = "disconnected"
+        self.active_call: dict[str, Any] | None = None
         self._lock = asyncio.Lock()
         self.start_time = time.time()
         self.is_busy = False
@@ -98,10 +100,36 @@ class OMPSessionManager:
         except Exception as exc:  # noqa: BLE001
             logger.debug("Failed to set up event listeners on RpcClient: %s", exc)
 
+    def triage_connection(self) -> Any | None:
+        """Check RPC connection state and reconcile/reconnect if needed before dispatching events."""
+        if RpcClient is None:
+            self.connection_state = "failed"
+            return None
+
+        is_dead = False
+        if self.rpc_client is not None:
+            proc = getattr(self.rpc_client, "_process", None)
+            if proc is None or proc.poll() is not None:
+                logger.warning("RpcClient process has died. Initiating connection triage & reconnect...")
+                is_dead = True
+
+        if self.rpc_client is None or is_dead:
+            self.connection_state = "reconnecting" if self.rpc_client is not None else "connecting"
+            client = self.ensure_connected()
+            if client is not None:
+                self.connection_state = "connected"
+            else:
+                self.connection_state = "failed"
+            return client
+
+        self.connection_state = "connected"
+        return self.rpc_client
+
     def ensure_connected(self) -> Any | None:
         """Ensure persistent RpcClient is running; re-instantiate or reattach using DB session_uuid."""
         if RpcClient is None:
             logger.warning("omp_rpc.RpcClient module unavailable.")
+            self.connection_state = "failed"
             return None
 
         is_dead = False
@@ -212,6 +240,7 @@ class OMPSessionManager:
 
                 self.rpc_client = client
                 self.session_name = "mypai_daemon - running"
+                self.connection_state = "connected"
 
             except Exception as exc:  # noqa: BLE001
                 logger.error(
@@ -220,6 +249,7 @@ class OMPSessionManager:
                     exc,
                 )
                 self.rpc_client = None
+                self.connection_state = "failed"
             finally:
                 db.close()
 
@@ -230,6 +260,7 @@ class OMPSessionManager:
         prompt: str,
         mode: str = "prompt",
         context: dict[str, Any] | None = None,
+        task_id: str = "",
     ) -> dict[str, Any]:
         """Execute a prompt turn through the persistent RPC client.
 
@@ -237,10 +268,20 @@ class OMPSessionManager:
         """
         async with self._lock:
             self.is_busy = True
-            client = self.ensure_connected()
+            client = self.triage_connection()
             clean_mode = str(mode or "prompt").lower()
 
             start_time = time.time()
+            from datetime import datetime, timezone
+            since_iso = datetime.now(timezone.utc).isoformat()
+            self.active_call = {
+                "task_id": task_id or f"turn-{int(start_time)}",
+                "mode": clean_mode,
+                "since": since_iso,
+                "start_time": start_time,
+                "prompt_snippet": prompt[:80],
+            }
+
             res_output = ""
             return_code = 0
             error_msg = ""
@@ -248,7 +289,7 @@ class OMPSessionManager:
             try:
                 if client is None:
                     raise RuntimeError(
-                        f"RPC Client offline. Session '{self.session_name}' failed in '{self.agent_dir}'."
+                        f"RPC Client offline (state: {self.connection_state}). Session '{self.session_name}' failed in '{self.agent_dir}'."
                     )
 
                 logger.info(
@@ -309,6 +350,7 @@ class OMPSessionManager:
                 error_msg = str(exc)
             finally:
                 self.is_busy = False
+                self.active_call = None
 
             duration = round(time.time() - start_time, 3)
             return {
@@ -322,20 +364,71 @@ class OMPSessionManager:
                 "duration_sec": duration,
             }
 
+    def get_session_state(self) -> dict[str, Any]:
+        """Fetch SessionState telemetry from omp_rpc client or defaults."""
+        state_dict: dict[str, Any] = {
+            "session_id": self.session_uuid,
+            "session_name": self.session_name,
+            "session_file": None,
+            "model": "default",
+            "thinking_level": "auto",
+            "is_streaming": self.is_busy,
+            "steering_mode": "one-at-a-time",
+            "message_count": 0,
+            "context_usage": {
+                "tokens": 0,
+                "max_tokens": 128000,
+                "percentage": 0.0,
+            },
+        }
+
+        client = self.triage_connection()
+        if client and hasattr(client, "get_state"):
+            try:
+                st = client.get_state()
+                if st is not None:
+                    state_dict["session_id"] = getattr(st, "session_id", self.session_uuid)
+                    state_dict["session_name"] = getattr(st, "session_name", self.session_name)
+                    state_dict["session_file"] = getattr(st, "session_file", None)
+                    state_dict["model"] = str(getattr(st, "model", "default"))
+                    state_dict["thinking_level"] = str(getattr(st, "thinking_level", "auto"))
+                    state_dict["is_streaming"] = bool(getattr(st, "is_streaming", self.is_busy))
+                    state_dict["steering_mode"] = str(getattr(st, "steering_mode", "one-at-a-time"))
+                    state_dict["message_count"] = int(getattr(st, "message_count", 0))
+
+                    ctx = getattr(st, "context_usage", None)
+                    if ctx is not None:
+                        tokens = int(getattr(ctx, "tokens", getattr(ctx, "used_tokens", 0)))
+                        max_tokens = int(getattr(ctx, "max_tokens", getattr(ctx, "limit", 128000)))
+                        pct = round((tokens / max_tokens * 100.0), 1) if max_tokens > 0 else 0.0
+                        state_dict["context_usage"] = {
+                            "tokens": tokens,
+                            "max_tokens": max_tokens,
+                            "percentage": pct,
+                        }
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Error fetching SessionState from RpcClient: %s", exc)
+
+        return state_dict
+
     def get_session_stats(self) -> dict[str, Any]:
         """Fetch session statistics from omp_rpc client."""
-        client = self.ensure_connected()
+        client = self.triage_connection()
         if client and hasattr(client, "get_session_stats"):
             try:
                 stats = client.get_session_stats()
-                if hasattr(stats, "__dataclass_fields__"):
-                    tokens_dict = {}
-                    if hasattr(stats.tokens, "__dataclass_fields__"):
-                        tokens_dict = {
-                            "input": getattr(stats.tokens, "input", 0),
-                            "output": getattr(stats.tokens, "output", 0),
-                            "total": getattr(stats.tokens, "total", 0),
-                        }
+                if hasattr(stats, "__dataclass_fields__") or isinstance(stats, object):
+                    tokens_obj = getattr(stats, "tokens", None)
+                    tokens_dict = {"input": 0, "output": 0, "total": 0}
+                    if tokens_obj is not None:
+                        if isinstance(tokens_obj, dict):
+                            tokens_dict = tokens_obj
+                        else:
+                            tokens_dict = {
+                                "input": getattr(tokens_obj, "input", 0),
+                                "output": getattr(tokens_obj, "output", 0),
+                                "total": getattr(tokens_obj, "total", 0),
+                            }
                     return {
                         "session_id": getattr(stats, "session_id", self.session_uuid),
                         "session_file": getattr(stats, "session_file", None),
@@ -368,16 +461,35 @@ class OMPSessionManager:
         pid = proc.pid if proc and proc.poll() is None else None
         is_connected = pid is not None
 
+        if is_connected:
+            self.connection_state = "connected"
+        elif self.connection_state not in ("connecting", "reconnecting"):
+            self.connection_state = "disconnected"
+
+        active_call_info = None
+        if self.active_call:
+            elapsed = round(time.time() - self.active_call["start_time"], 1)
+            active_call_info = {
+                "task_id": self.active_call["task_id"],
+                "mode": self.active_call["mode"],
+                "since": self.active_call["since"],
+                "duration_sec": elapsed,
+                "prompt_snippet": self.active_call["prompt_snippet"],
+            }
+
         uptime = round(time.time() - self.start_time, 1)
         return {
-            "status": "connected" if is_connected else "disconnected",
+            "status": self.connection_state,
+            "connected": is_connected,
             "version": "1.0.0",
             "pid": pid,
             "session_name": self.session_name,
             "session_id": self.session_uuid,
             "agent_dir": self.agent_dir,
             "is_busy": self.is_busy,
+            "active_call": active_call_info,
             "queue_depth": queue_depth,
             "uptime_sec": uptime,
             "human_uptime": format_human_uptime(uptime),
+            "session_state": self.get_session_state(),
         }

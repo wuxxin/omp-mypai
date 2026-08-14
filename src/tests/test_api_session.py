@@ -49,3 +49,22 @@ def test_session_status_endpoint(test_client) -> None:
     assert data["session_name"] == "mypai_daemon - running"
     assert data["version"] == "1.0.0"
     assert "uptime_sec" in data
+    assert "session_state" in data
+    assert "status" in data
+
+
+def test_session_state_endpoint(test_client) -> None:
+    res = test_client.get("/api/v1/session/state")
+    assert res.status_code == 200
+    data = res.json()
+    assert "session_id" in data
+    assert "model" in data
+    assert "context_usage" in data
+
+
+def test_session_reconnect_endpoint(test_client) -> None:
+    res = test_client.post("/api/v1/session/reconnect")
+    assert res.status_code == 200
+    data = res.json()
+    assert "status" in data
+    assert "connected" in data
