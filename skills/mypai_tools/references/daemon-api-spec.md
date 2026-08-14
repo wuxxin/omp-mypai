@@ -34,24 +34,40 @@ The `/api/v1/session` routes support the complete 4-action OMP RPC feature set m
 ### `POST /api/v1/session/abort_and_prompt`
 * **Description**: Abort the currently running OMP turn immediately and inject a new prompt (`mode: "abort_and_prompt"`).
 * **Request Body**: `{"prompt": "Cancel deployment and roll back database"}`
-* **Response (HTTP 200)**: `{"status": "aborted_and_queued", "task_id": "evt_9b8c7d"}`
+* **Response (HTTP 200)**: `{"status": "queued", "task_id": "evt_9b8c7d"}`
+
+### `POST /api/v1/session/abort`
+* **Description**: Interrupt and abort the currently running OMP RPC turn immediately on demand.
+* **Response (HTTP 200)**: `{"status": "aborted"}`
 
 ### `GET /api/v1/session/status`
-* **Description**: Return current RPC connection state, process PID, queue depth, and uptime.
+* **Description**: Return current RPC connection state, process PID, daemon profile, session UUID, active call details, queue depth, and uptime.
 * **Response (HTTP 200)**:
   ```json
   {
     "status": "connected",
+    "connected": true,
     "pid": 12345,
+    "profile": "mypai",
+    "session_name": "mypai_daemon - running",
+    "session_id": "019ff94b-a70d-7000-b992-6296fb54e774",
     "agent_dir": "/home/user/project",
     "is_busy": false,
+    "active_call": {
+      "task_id": "evt_fbee566c",
+      "mode": "prompt",
+      "since": "2026-08-14T12:00:00Z",
+      "start_time": 1786708800.0,
+      "prompt_snippet": "Review latest build"
+    },
     "queue_depth": 0,
-    "uptime_sec": 3600.5
+    "uptime_sec": 3600.5,
+    "human_uptime": "1h 0m 0s"
   }
   ```
 
 ### `GET /api/v1/session/history`
-* **Description**: Return queued and completed OMP session turn history and execution telemetry.
+* **Description**: Return queued and completed OMP session turn history and execution telemetry including user prompts.
 * **Response (HTTP 200)**:
   ```json
   [
@@ -61,6 +77,7 @@ The `/api/v1/session` routes support the complete 4-action OMP RPC feature set m
       "session_name": "mypai_daemon - running",
       "session_uuid": "019ff94b-a70d-7000-b992-6296fb54e774",
       "return_code": 0,
+      "prompt": "Review the latest build output",
       "output": "Turn response output string...",
       "error": "",
       "duration_sec": 0.291,
@@ -76,6 +93,15 @@ The `/api/v1/session` routes support the complete 4-action OMP RPC feature set m
 ### `GET /api/v1/cron/jobs`
 * **Description**: List all registered cron jobs and telemetry stats.
 * **Query Parameters**: `include_disabled=true` (boolean)
+
+### `GET /api/v1/cron/export`
+* **Description**: Export all registered cron jobs from SQLite database as a JSON array suitable for backup or transfer.
+* **Response (HTTP 200)**: `[{"id": "a1b2c3d4", "name": "Nightly Audit", "cron": "0 3 * * *", ...}]`
+
+### `POST /api/v1/cron/import`
+* **Description**: Import or update a JSON array of cron job definitions into SQLite database and synchronize active scheduler jobs.
+* **Request Body**: `[{"name": "Nightly Audit", "cron": "0 3 * * *", "kind": "omp", "action": "prompt"}]`
+* **Response (HTTP 200)**: `{"status": "imported", "imported": 1, "updated": 0}`
 
 ### `POST /api/v1/cron/jobs`
 * **Description**: Register a new scheduled task in SQLite database.

@@ -28,10 +28,11 @@ It maintains a persistent `omp --mode rpc --auto-approve --continue` connection 
 
 ### 2.2 OMP Session Manager (`mypai_daemon.session_manager`)
 * **RPC SDK**: Wraps `omp_rpc.RpcClient`.
-* **Session UUID Persistence & Reattachment**: Reads `session_uuid` from SQLite DB `project_settings` table. Reattaches to existing session via `--profile mypai --resume <session_uuid>` or creates a new session, storing `session_uuid` in DB.
+* **Read-Only Profile Attribute**: Exposes `@property def profile(self) -> str:` as a read-only property returning `os.getenv("OMP_PROFILE", "mypai")`.
+* **Session UUID Persistence & Reattachment**: Reads `session_uuid` from SQLite DB `project_settings` table. Reattaches to existing session via `--profile <profile> --resume <session_uuid>` or creates a new session, storing `session_uuid` in DB.
 * **Session Title**: Automatically sets session display name to `"mypai_daemon - running"`.
 * **Process Recovery**: Monitors PID via `proc.poll()`. On crash or broken pipe, cleans up handles and automatically re-instantiates `RpcClient` with session UUID in `MYPAI_AGENT_DIR`.
-* **Session Actions Supported**: **`prompt`**, **`steer`**, **`followup`**, and **`abort_and_prompt`**.
+* **Session Actions Supported**: **`prompt`**, **`steer`**, **`followup`**, **`abort_and_prompt`**, and on-demand **`abort`**.
 
 ### 2.3 Database Isolation & Agent Dir Resolution (`mypai_tools.persistence`)
 * **MYPAI_AGENT_DIR Resolution**: Resolves workspace directory using `MYPAI_AGENT_DIR` environment variable or `--agent-dir` CLI flag.
