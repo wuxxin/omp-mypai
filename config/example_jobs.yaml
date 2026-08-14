@@ -7,29 +7,31 @@ jobs:
     kwargs:
       prompt: Audit active project tasks, verify pending commitments, and reflect on progress. Use 300 words.
     cron: "*/30 * * * *"
-    result_channel: ""
     enabled: true
 
   - name: Hindsight Reflection Sweep
     description: Trigger Hindsight memory reflection sweep across active project memory banks
+    cron: "0 */2 * * *"
+    enabled: true
     kind: http
     action: POST
-    url: "#[HINDSIGHT_API_URL]/v1/default/banks/#[HINDSIGHT_BANK_ID]/reflect"
-    # dont trigger on success: Triggered Hindsight reflection sweep across project #[HINDSIGHT_BANK_ID] memory bank.
-    result_prompt: ""
-    result_error_prompt: |-
-      CRONJOB ERROR: Error triggering Hindsight reflection sweep across project #[HINDSIGHT_BANK_ID] memory bank.
-      job_id: #{_JOB_ID}
-      job_name: #{_JOB_NAME}
-      http_code: #[_HTTP_CODE]
-      error: #[_ERROR]
-    result_action: prompt
-    result_channel: ""
-    args: []
+    args:
+      - "#[HINDSIGHT_API_URL]/v1/default/banks/#[HINDSIGHT_BANK_ID]/reflect"
     kwargs:
       query: Periodic health reflection sweep
       reason: scheduled_health_sync
+    opts:
       headers:
         Content-Type: application/json
-    cron: "0 */2 * * *"
-    enabled: true
+    # dont trigger on success: Triggered Hindsight reflection sweep across project #[HINDSIGHT_BANK_ID] memory bank.
+    result:
+      action: prompt
+      prompt: ""
+      error_prompt: |-
+        CRONJOB ERROR: Error triggering Hindsight reflection sweep across project #[HINDSIGHT_BANK_ID] memory bank.
+        job_id: #{_JOB_ID}
+        job_name: #{_JOB_NAME}
+        http_code: #[_HTTP_CODE]
+        error: #[_ERROR]
+
+
