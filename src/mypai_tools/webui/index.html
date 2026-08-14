@@ -299,6 +299,10 @@
             <span id="rpc-status-badge" style="font-weight: 600; color: var(--status-green);">Connected</span>
           </div>
           <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Daemon Profile:</span>
+            <span id="tel-profile" style="font-weight: 700; color: var(--accent-purple); font-family: 'Fira Code', monospace;">mypai</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
             <span style="color: var(--text-muted);">Process PID:</span>
             <span id="tel-pid" style="font-family: 'Fira Code', monospace;">--</span>
           </div>
@@ -612,6 +616,10 @@
         document.getElementById('tel-session').textContent = data.session_name || 'mypai_daemon - running';
         document.getElementById('tel-uuid').textContent = uuidStr;
         document.getElementById('tel-uuid').title = uuidStr;
+        const profileStr = data.profile || 'mypai';
+        const elProf = document.getElementById('tel-profile');
+        if (elProf) elProf.textContent = profileStr;
+
         document.getElementById('tel-pid').textContent = data.pid || 'N/A';
         document.getElementById('tel-queue').textContent = data.queue_depth;
         document.getElementById('tel-uptime').textContent = data.human_uptime || `${data.uptime_sec}s`;
@@ -637,7 +645,7 @@
           const ac = data.active_call;
           callEl.innerHTML = `
             <div style="font-weight: 600; color: var(--accent-purple);">Turn: ${ac.task_id} (${ac.mode})</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Running since: ${ac.since.substring(11, 19)} (${ac.duration_sec}s ago)</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Profile: <span style="font-weight: 600; color: var(--accent-blue); font-family: 'Fira Code', monospace;">${profileStr}</span> | Running: ${ac.duration_sec}s</div>
             ${ac.prompt_snippet ? `<div style="font-size: 0.75rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.2rem;">"${ac.prompt_snippet}"</div>` : ''}
           `;
         } else {
