@@ -1,15 +1,15 @@
 """Live integration test suite for ACP intra-agent delegation with real omp --mode acp subprocesses."""
 
 import shutil
-import pytest
 from pathlib import Path
-from mypai_tools.acp.session import AcpClientSession
+
+import pytest
 from mypai_tools.acp.manager import AcpDelegationManager
+from mypai_tools.acp.session import AcpClientSession
 
 # Skip live tests if omp CLI binary is not available
 pytestmark = pytest.mark.skipif(
-    not shutil.which("omp"),
-    reason="omp binary not found in system PATH"
+    not shutil.which("omp"), reason="omp binary not found in system PATH"
 )
 
 

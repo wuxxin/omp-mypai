@@ -29,7 +29,9 @@ class MockAcpSession:
 
 
 @pytest.mark.asyncio
-async def test_acp_manager_execute_task(monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory) -> None:
+async def test_acp_manager_execute_task(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
+) -> None:
     """Test synchronous task execution in AcpDelegationManager."""
     mgr = AcpDelegationManager(agent_dir=str(tmp_path))
 
@@ -45,7 +47,9 @@ async def test_acp_manager_execute_task(monkeypatch: pytest.MonkeyPatch, tmp_pat
 
 
 @pytest.mark.asyncio
-async def test_acp_manager_execute_task_async(monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory) -> None:
+async def test_acp_manager_execute_task_async(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
+) -> None:
     """Test async task dispatch in AcpDelegationManager."""
     mgr = AcpDelegationManager(agent_dir=str(tmp_path))
 
@@ -54,7 +58,9 @@ async def test_acp_manager_execute_task_async(monkeypatch: pytest.MonkeyPatch, t
 
     monkeypatch.setattr(mgr, "get_or_create_session", mock_get_or_create_session)
 
-    dispatch_res = await mgr.execute_task_async(cwd=str(tmp_path), prompt="Run background scan")
+    dispatch_res = await mgr.execute_task_async(
+        cwd=str(tmp_path), prompt="Run background scan"
+    )
     assert dispatch_res["status"] == "queued"
     task_id = dispatch_res["task_id"]
 
@@ -64,7 +70,9 @@ async def test_acp_manager_execute_task_async(monkeypatch: pytest.MonkeyPatch, t
     assert status_res["status"] in ("running", "success")
 
 
-def test_acp_manager_list_agents(monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory) -> None:
+def test_acp_manager_list_agents(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
+) -> None:
     """Test listing active ACP worker agents."""
     mgr = AcpDelegationManager(agent_dir=str(tmp_path))
     sess = MockAcpSession(str(tmp_path))

@@ -42,7 +42,9 @@ class AcpClientSession:
         self._request_counter += 1
         return self._request_counter
 
-    def _send_request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _send_request(
+        self, method: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Send a JSON-RPC request to the ACP child process and read response line."""
         if not self.process or self.process.poll() is not None:
             raise RuntimeError(f"ACP worker process in '{self.cwd}' is not running.")
@@ -66,7 +68,9 @@ class AcpClientSession:
         while True:
             line = self.process.stdout.readline()
             if not line:
-                raise RuntimeError(f"ACP worker stdio stream closed for method '{method}'.")
+                raise RuntimeError(
+                    f"ACP worker stdio stream closed for method '{method}'."
+                )
             try:
                 resp = json.loads(line.decode("utf-8").strip())
                 if isinstance(resp, dict) and resp.get("id") == req_id:
@@ -83,23 +87,34 @@ class AcpClientSession:
                 "initialize",
                 {
                     "protocolVersion": "2024-11-05",
-                    "clientInfo": {"name": "mypai_daemon_acp_client", "version": "1.0.0"},
+                    "clientInfo": {
+                        "name": "mypai_daemon_acp_client",
+                        "version": "1.0.0",
+                    },
                     "capabilities": {},
                 },
             )
             logger.debug("ACP initialize handshake success: %s", init_res)
 
             new_sess_res = self._send_request("session/new", {"cwd": self.cwd})
-            self.session_id = new_sess_res.get("sessionId") or new_sess_res.get("session_id") or "acp-session"
+            self.session_id = (
+                new_sess_res.get("sessionId")
+                or new_sess_res.get("session_id")
+                or "acp-session"
+            )
             logger.info("Created ACP session '%s' in '%s'.", self.session_id, self.cwd)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("ACP handshake fallback (sub-process starting in basic mode): %s", exc)
+            logger.warning(
+                "ACP handshake fallback (sub-process starting in basic mode): %s", exc
+            )
 
     def is_alive(self) -> bool:
         """Check if child process is running."""
         return self.process is not None and self.process.poll() is None
 
-    def prompt(self, message: str, mode: str = "default", timeout: float = 120.0) -> dict[str, Any]:
+    def prompt(
+        self, message: str, mode: str = "default", timeout: float = 120.0
+    ) -> dict[str, Any]:
         """Submit a prompt turn to the ACP worker and await completion."""
         start_t = time.time()
         try:

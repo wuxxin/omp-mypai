@@ -22,7 +22,9 @@ def test_get_acp_host_tools_returns_all_8() -> None:
 
 
 @pytest.mark.asyncio
-async def test_acp_tools_blocked_when_suspended(tmp_path: pytest.TempPathFactory) -> None:
+async def test_acp_tools_blocked_when_suspended(
+    tmp_path: pytest.TempPathFactory,
+) -> None:
     """Verify all 8 host tools return suspension error when state is 'suspended'."""
     agent_dir = str(tmp_path)
     state = get_acp_state(agent_dir)

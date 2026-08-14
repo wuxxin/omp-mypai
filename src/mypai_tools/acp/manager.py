@@ -42,7 +42,12 @@ class AcpDelegationManager:
         return new_session
 
     async def execute_task(
-        self, cwd: str, prompt: str, agent_profile: str = "", mode: str = "default", task_id: str = ""
+        self,
+        cwd: str,
+        prompt: str,
+        agent_profile: str = "",
+        mode: str = "default",
+        task_id: str = "",
     ) -> dict[str, Any]:
         """Execute a task turn against an ACP worker process."""
         state = get_acp_state(self.agent_dir)

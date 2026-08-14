@@ -15,7 +15,11 @@ logger = logging.getLogger("mypai_daemon.acp.tools")
 
 
 async def acp_task_fn(
-    cwd: str, prompt: str, agent_profile: str = "", mode: str = "default", agent_dir: str = ""
+    cwd: str,
+    prompt: str,
+    agent_profile: str = "",
+    mode: str = "default",
+    agent_dir: str = "",
 ) -> dict[str, Any]:
     """Delegate task synchronously to an ACP worker process."""
     if not get_acp_state(agent_dir).is_running():
@@ -24,7 +28,9 @@ async def acp_task_fn(
             "error": "ACP delegation is currently suspended in daemon configuration.",
         }
     mgr = get_acp_manager(agent_dir)
-    return await mgr.execute_task(cwd=cwd, prompt=prompt, agent_profile=agent_profile, mode=mode)
+    return await mgr.execute_task(
+        cwd=cwd, prompt=prompt, agent_profile=agent_profile, mode=mode
+    )
 
 
 async def acp_task_async_fn(
@@ -37,7 +43,9 @@ async def acp_task_async_fn(
             "error": "ACP delegation is currently suspended in daemon configuration.",
         }
     mgr = get_acp_manager(agent_dir)
-    return await mgr.execute_task_async(cwd=cwd, prompt=prompt, agent_profile=agent_profile)
+    return await mgr.execute_task_async(
+        cwd=cwd, prompt=prompt, agent_profile=agent_profile
+    )
 
 
 async def acp_task_status_fn(task_id: str = "", agent_dir: str = "") -> dict[str, Any]:
@@ -62,7 +70,9 @@ async def acp_task_result_fn(task_id: str, agent_dir: str = "") -> dict[str, Any
     return mgr.get_task_result(task_id=task_id)
 
 
-async def acp_task_steer_fn(task_id: str, guidance: str, agent_dir: str = "") -> dict[str, Any]:
+async def acp_task_steer_fn(
+    task_id: str, guidance: str, agent_dir: str = ""
+) -> dict[str, Any]:
     """Steer a running ACP subagent turn."""
     if not get_acp_state(agent_dir).is_running():
         return {
@@ -99,7 +109,9 @@ async def acp_list_agents_fn(agent_dir: str = "") -> dict[str, Any]:
     return mgr.list_agents()
 
 
-async def acp_inspect_session_fn(session_id: str, agent_dir: str = "") -> dict[str, Any]:
+async def acp_inspect_session_fn(
+    session_id: str, agent_dir: str = ""
+) -> dict[str, Any]:
     """Inspect transcript history from an ACP session."""
     if not get_acp_state(agent_dir).is_running():
         return {
@@ -132,6 +144,7 @@ def get_acp_host_tools() -> list[Any]:
             if isinstance(params, dict):
                 return fn(**params)
             return fn()
+
         return _exec
 
     return [
@@ -141,10 +154,23 @@ def get_acp_host_tools() -> list[Any]:
             parameters={
                 "type": "object",
                 "properties": {
-                    "cwd": {"type": "string", "description": "Target workspace directory path"},
-                    "prompt": {"type": "string", "description": "Subtask instruction for the worker agent"},
-                    "agent_profile": {"type": "string", "description": "Optional agent role (e.g. '@fixer', '@oracle')"},
-                    "mode": {"type": "string", "enum": ["default", "plan"], "default": "default"},
+                    "cwd": {
+                        "type": "string",
+                        "description": "Target workspace directory path",
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "description": "Subtask instruction for the worker agent",
+                    },
+                    "agent_profile": {
+                        "type": "string",
+                        "description": "Optional agent role (e.g. '@fixer', '@oracle')",
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["default", "plan"],
+                        "default": "default",
+                    },
                 },
                 "required": ["cwd", "prompt"],
             },
@@ -156,9 +182,15 @@ def get_acp_host_tools() -> list[Any]:
             parameters={
                 "type": "object",
                 "properties": {
-                    "cwd": {"type": "string", "description": "Target workspace directory path"},
+                    "cwd": {
+                        "type": "string",
+                        "description": "Target workspace directory path",
+                    },
                     "prompt": {"type": "string", "description": "Subtask instruction"},
-                    "agent_profile": {"type": "string", "description": "Optional agent role"},
+                    "agent_profile": {
+                        "type": "string",
+                        "description": "Optional agent role",
+                    },
                 },
                 "required": ["cwd", "prompt"],
             },
@@ -170,7 +202,10 @@ def get_acp_host_tools() -> list[Any]:
             parameters={
                 "type": "object",
                 "properties": {
-                    "task_id": {"type": "string", "description": "Optional specific task_id to inspect"}
+                    "task_id": {
+                        "type": "string",
+                        "description": "Optional specific task_id to inspect",
+                    }
                 },
             },
             execute=_wrap_exec(acp_task_status_fn),
@@ -194,7 +229,10 @@ def get_acp_host_tools() -> list[Any]:
                 "type": "object",
                 "properties": {
                     "task_id": {"type": "string", "description": "Target task_id"},
-                    "guidance": {"type": "string", "description": "Mid-turn instructions"},
+                    "guidance": {
+                        "type": "string",
+                        "description": "Mid-turn instructions",
+                    },
                 },
                 "required": ["task_id", "guidance"],
             },
@@ -224,7 +262,10 @@ def get_acp_host_tools() -> list[Any]:
             parameters={
                 "type": "object",
                 "properties": {
-                    "session_id": {"type": "string", "description": "Target ACP session_id"}
+                    "session_id": {
+                        "type": "string",
+                        "description": "Target ACP session_id",
+                    }
                 },
                 "required": ["session_id"],
             },
