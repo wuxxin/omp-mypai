@@ -75,12 +75,13 @@ async def queue_worker_loop(queue: EventQueue, session_mgr: OMPSessionManager) -
 
 
 class AccessLogFilter(logging.Filter):
-    """Filter out 200 OK polling logs for session status, session stats, and cron status unless verbose is enabled."""
+    """Filter out 200 OK polling logs for session status, session stats, cron status, and acp status unless verbose is enabled."""
 
     SILENT_ENDPOINTS = (
         "v1/session/status",
         "v1/session/stats",
         "v1/cron/status",
+        "v1/acp/status",
     )
 
     def __init__(self, verbose: bool = False) -> None:
