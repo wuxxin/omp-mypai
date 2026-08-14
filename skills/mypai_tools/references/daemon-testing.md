@@ -67,7 +67,7 @@ submodules/omp-mypai/tools/tests/
 - `test_queue_concurrent_multi_producers`: Launches 4 concurrent `asyncio` producer tasks pushing 35 turns simultaneously. Asserts zero race conditions and correct prioritization.
 
 ### 5.2 `test_session_manager.py` & `test_fault_tolerance.py` (RPC Lifecycle & Resiliency)
-- `test_session_manager_fixed_session`: Asserts `OMPSessionManager` initializes `RpcClient` with `extra_args=["--auto-approve", "--continue", "--session", session_name]`.
+- `test_session_manager_session_uuid_persistence`: Asserts `OMPSessionManager` initializes `RpcClient` with `extra_args=["--auto-approve", "--profile", "mypai", "--resume", "saved-uuid-9999"]`.
 - `test_session_manager_fault_recovery`: Simulates a process crash / socket exception (`ConnectionResetError`). Asserts session manager captures fault, reconnects session, and resumes turn execution.
 
 ### 5.3 `test_scheduler.py` & `test_deep_robustness.py` (Scheduler & Telemetry)

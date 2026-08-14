@@ -92,7 +92,7 @@ async def test_session_manager_session_uuid_persistence(tmp_path: Path) -> None:
         assert mgr2.session_uuid == "saved-uuid-9999"
         # Check that --resume saved-uuid-9999 argument was passed
         mock_client_cls.assert_called_with(
-            extra_args=["--auto-approve", "--resume", "saved-uuid-9999"],
+            extra_args=["--auto-approve", "--profile", "mypai", "--resume", "saved-uuid-9999"],
             cwd=agent_dir,
         )
 

@@ -28,7 +28,7 @@ It maintains a persistent `omp --mode rpc --auto-approve --continue` connection 
 
 ### 2.2 OMP Session Manager (`mypai_daemon.session_manager`)
 * **RPC SDK**: Wraps `omp_rpc.RpcClient`.
-* **Session UUID Persistence & Reattachment**: Reads `session_uuid` from SQLite DB `project_settings` table. Reattaches to existing session via `--resume <session_uuid>` or creates a new session, storing `session_uuid` in DB.
+* **Session UUID Persistence & Reattachment**: Reads `session_uuid` from SQLite DB `project_settings` table. Reattaches to existing session via `--profile mypai --resume <session_uuid>` or creates a new session, storing `session_uuid` in DB.
 * **Session Title**: Automatically sets session display name to `"mypai_daemon - running"`.
 * **Process Recovery**: Monitors PID via `proc.poll()`. On crash or broken pipe, cleans up handles and automatically re-instantiates `RpcClient` with session UUID in `MYPAI_AGENT_DIR`.
 * **Session Actions Supported**: **`prompt`**, **`steer`**, **`followup`**, and **`abort_and_prompt`**.

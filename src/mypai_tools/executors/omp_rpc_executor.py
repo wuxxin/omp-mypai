@@ -133,7 +133,9 @@ async def execute_omp_rpc_job(
         }
 
     target_cwd = job.get("agent_dir") or os.getenv("MYPAI_AGENT_DIR", "")
-    rpc_client_kwargs: dict[str, Any] = {"extra_args": ["--auto-approve", "--continue"]}
+    rpc_client_kwargs: dict[str, Any] = {
+        "extra_args": ["--auto-approve", "--profile", "mypai", "--continue"]
+    }
     if target_cwd and os.path.isdir(target_cwd):
         rpc_client_kwargs["cwd"] = target_cwd
 

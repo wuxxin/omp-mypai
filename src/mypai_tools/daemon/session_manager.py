@@ -163,7 +163,13 @@ class OMPSessionManager:
                             self.agent_dir,
                         )
                         kwargs: dict[str, Any] = {
-                            "extra_args": ["--auto-approve", "--resume", saved_uuid],
+                            "extra_args": [
+                                "--auto-approve",
+                                "--profile",
+                                "mypai",
+                                "--resume",
+                                saved_uuid,
+                            ],
                         }
                         if os.path.isdir(self.agent_dir):
                             kwargs["cwd"] = self.agent_dir
@@ -185,7 +191,7 @@ class OMPSessionManager:
                 # Attempt 2: Create new session if no saved_uuid or reattach failed
                 if client is None:
                     kwargs = {
-                        "extra_args": ["--auto-approve"],
+                        "extra_args": ["--auto-approve", "--profile", "mypai"],
                     }
                     if os.path.isdir(self.agent_dir):
                         kwargs["cwd"] = self.agent_dir
