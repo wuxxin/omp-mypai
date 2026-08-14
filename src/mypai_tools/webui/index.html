@@ -539,11 +539,20 @@
       loadSessionHistory();
     };
 
+    function reloadStatsAndSidecars() {
+      updateStatus();
+      updateStats();
+      updateAcpStatus();
+      updateCronStatus();
+      loadCronJobs();
+    }
+
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.event === 'turn_started') {
           appendLog(`[Turn Start] Task ${data.task_id} (mode: ${data.mode}, source: ${data.source})`, 'info');
+          reloadStatsAndSidecars();
         } else if (data.event === 'turn_completed') {
           const res = data.result || {};
           const out = res.output || res.error || '';
@@ -551,13 +560,14 @@
           if (out) {
             appendLog(`[Output] ${out}`, res.status === 'success' ? 'output' : 'error');
           }
-          updateStats();
+          reloadStatsAndSidecars();
         } else if (data.event === 'message_update') {
           if (data.text) {
             appendLog(`[Stream] ${data.text}`, 'stream');
           }
         } else if (data.event === 'rpc_turn_start' || data.event === 'rpc_turn_end') {
           appendLog(`[RPC Event] ${data.event} (${data.turn || ''})`, 'event');
+          reloadStatsAndSidecars();
         }
       } catch (e) {}
     };
