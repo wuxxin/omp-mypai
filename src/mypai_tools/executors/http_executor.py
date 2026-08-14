@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 
 from mypai_tools.executors.omp_rpc_executor import dispatch_result_to_omp
-from mypai_tools.tools import substitute_vars
+from mypai_tools.tools import build_internal_vars, substitute_vars
 
 logger = logging.getLogger("mypai_daemon.executors.http")
 
@@ -125,16 +125,15 @@ async def execute_http_job(
                 "HTTP %s '%s' returned status %d", method, name, resp.status_code
             )
 
-            internal_vars = {
-                "_RETURN_CODE": 0 if is_success else resp.status_code,
-                "_OUTPUT": output_str,
-                "_ERROR": error_str,
-                "_OBJECT": res_obj,
-                "_HTTP_CODE": resp.status_code,
-                "_DURATION": duration,
-                "_JOB_ID": job.get("id", ""),
-                "_JOB_NAME": name,
-            }
+            internal_vars = build_internal_vars(
+                job,
+                return_code=0 if is_success else resp.status_code,
+                output=output_str,
+                error=error_str,
+                obj=res_obj,
+                http_code=resp.status_code,
+                duration=duration,
+            )
 
             if not is_success:
                 result_prompt_template = (
@@ -179,16 +178,15 @@ async def execute_http_job(
         duration = round(time.time() - start_time, 3)
         err_str = str(exc)
 
-        internal_vars = {
-            "_RETURN_CODE": 1,
-            "_OUTPUT": "",
-            "_ERROR": err_str,
-            "_OBJECT": None,
-            "_HTTP_CODE": 0,
-            "_DURATION": duration,
-            "_JOB_ID": job.get("id", ""),
-            "_JOB_NAME": name,
-        }
+        internal_vars = build_internal_vars(
+            job,
+            return_code=1,
+            output="",
+            error=err_str,
+            obj=None,
+            http_code=0,
+            duration=duration,
+        )
 
         result_prompt_template = (
             job.get("result_error_prompt") or job.get("result_prompt") or ""

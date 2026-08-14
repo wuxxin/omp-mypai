@@ -187,3 +187,24 @@ def test_signal_client_http_exceptions() -> None:
         res = client._http_request("v1/test")
         assert "error" in res
         assert "HTTP 403" in res["error"]
+
+
+@pytest.mark.asyncio
+async def test_internal_vars_substitution_in_result_prompts() -> None:
+    """Verify action, args, kwargs, opts and underscore/uppercase variants expand in result_prompt templates."""
+    job = {
+        "name": "Var Substitution Test",
+        "kind": "python",
+        "action": "print('hello')",
+        "args": ["arg1", "arg2"],
+        "kwargs": {"key": "value"},
+        "opts": {"timeout": 10},
+        "result_prompt": "Action: #[action] | Args: #[args] | Kwargs: #[kwargs] | Opts: #[opts] | Out: #[_OUTPUT]",
+    }
+
+    res = await execute_python_job(job)
+    assert res["status"] == "success"
+    assert "Action: print('hello')" in res["output"]
+    assert 'Args: ["arg1", "arg2"]' in res["output"]
+    assert 'Kwargs: {"key": "value"}' in res["output"]
+    assert 'Opts: {"timeout": 10}' in res["output"]

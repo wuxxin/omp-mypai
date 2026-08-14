@@ -40,6 +40,47 @@ def substitute_vars(val: Any, extra_vars: dict[str, Any] | None = None) -> Any:
     return val
 
 
+def build_internal_vars(
+    job: dict[str, Any],
+    return_code: int = 0,
+    output: str = "",
+    error: str = "",
+    obj: Any = None,
+    http_code: int = 0,
+    duration: float = 0.0,
+) -> dict[str, Any]:
+    """Construct standard internal execution variables for result prompt template substitution.
+
+    Exposes:
+    - Job parameters: action, args, kwargs, opts
+    - Uppercase/Underscore job parameters: _ACTION, _ARGS, _KWARGS, _OPTS
+    - Telemetry metrics: _RETURN_CODE, _OUTPUT, _ERROR, _OBJECT, _HTTP_CODE, _DURATION, _JOB_ID, _JOB_NAME
+    """
+    action = job.get("action", "")
+    args = job.get("args", "")
+    kwargs = job.get("kwargs", "")
+    opts = job.get("opts", "")
+
+    return {
+        "action": action,
+        "args": args,
+        "kwargs": kwargs,
+        "opts": opts,
+        "_ACTION": action,
+        "_ARGS": args,
+        "_KWARGS": kwargs,
+        "_OPTS": opts,
+        "_RETURN_CODE": return_code,
+        "_OUTPUT": output,
+        "_ERROR": error,
+        "_OBJECT": obj,
+        "_HTTP_CODE": http_code,
+        "_DURATION": duration,
+        "_JOB_ID": job.get("id", ""),
+        "_JOB_NAME": job.get("name", "Unnamed Job"),
+    }
+
+
 def format_system_trigger_prompt(
     prompt: str, source: str = "", context: dict[str, Any] | None = None
 ) -> str:

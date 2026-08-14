@@ -9,7 +9,7 @@ import time
 from typing import Any
 
 from mypai_tools.executors.omp_rpc_executor import dispatch_result_to_omp
-from mypai_tools.tools import substitute_vars
+from mypai_tools.tools import build_internal_vars, substitute_vars
 
 try:
     from omp_rpc import RpcClient
@@ -74,16 +74,15 @@ async def execute_shell_job(
     stdout_str = stdout.decode("utf-8", errors="replace").strip()
     stderr_str = stderr.decode("utf-8", errors="replace").strip()
 
-    internal_vars = {
-        "_RETURN_CODE": exit_code,
-        "_OUTPUT": stdout_str,
-        "_ERROR": stderr_str,
-        "_OBJECT": {"exit_code": exit_code, "command": cmd},
-        "_HTTP_CODE": 0,
-        "_DURATION": duration,
-        "_JOB_ID": job.get("id", ""),
-        "_JOB_NAME": name,
-    }
+    internal_vars = build_internal_vars(
+        job,
+        return_code=exit_code,
+        output=stdout_str,
+        error=stderr_str,
+        obj={"exit_code": exit_code, "command": cmd},
+        http_code=0,
+        duration=duration,
+    )
 
     if exit_code != 0:
         result_prompt_template = (
