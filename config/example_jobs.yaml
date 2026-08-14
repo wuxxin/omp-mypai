@@ -7,7 +7,9 @@ jobs:
     action: prompt
     args: []
     kwargs:
-      prompt: Audit active project tasks, verify pending commitments, and reflect on progress. Use 300 words.
+      prompt: |
+        Audit active project todos, verify pending commitments, and reflect on progress. Use 300 words.
+        Dont ask for a followup. Just report.
 
   - name: Hindsight Reflection Sweep
     description: Trigger Hindsight memory reflection sweep across active project memory banks
@@ -25,13 +27,21 @@ jobs:
         Content-Type: application/json
     result:
       action: prompt
-      prompt: ""  # Don't trigger on success
-      error_prompt: |-
-        CRONJOB ERROR: Error triggering Hindsight reflection sweep across project #[HINDSIGHT_BANK_ID] memory bank.
-        job_id: #{_JOB_ID}
-        job_name: #{_JOB_NAME}
+      prompt: "Hindsight Reflection Sweep for #[_JOB_NAME] completed with status #[_HTTP_CODE]. Response: #[_OUTPUT]"
+      error_prompt: |
+        CRON ERROR: http job '#[_JOB_NAME]' failed with http code #[_HTTP_CODE].
+        job_id: #[_JOB_ID]
+        action: #[_ACTION]
+        args: #[_ARGS]
+        kwargs: #[_KWARGS]
+        opts: #[_OPTS]
         http_code: #[_HTTP_CODE]
-        error: #[_ERROR]
+        error:
+        ```log
+        #[_ERROR]
+        ```
+        INSTRUCTIONS: Do not fix this, but add TODO with information how to fix it for later.
+          if a TODO for this job fixing is already existing, disable Job, update TODO that you disabled Job.
 
   - name: Nightly Database Backup & Audit
     description: Run automated database health audit and backup script
@@ -44,31 +54,48 @@ jobs:
       - --quick
     result:
       action: prompt
-      prompt: |-
-        Nightly Database Audit completed successfully for #[_JOB_NAME].
+      prompt: |
+        CRON: Nightly Database Audit completed successfully for #[_JOB_NAME].
         Output:
         ```log
         #[_OUTPUT]
         ```
-      error_prompt: |-
+        FYI only. Dont ask for a followup.
+      error_prompt: |
         CRON ERROR: Shell job '#[_JOB_NAME]' failed with return code #[_RETURN_CODE].
-        Error details:
+        job_id: #[_JOB_ID]
+        action: #[_ACTION]
+        args: #[_ARGS]
+        return_code: #[_RETURN_CODE]
+        error:
         ```log
         #[_ERROR]
         ```
+        INSTRUCTIONS: Do not fix this, but add TODO with information how to fix it for later.
+          if a TODO for this job fixing is already existing, disable Job, update TODO that you disabled Job.
 
   - name: System Resource Metric Calculation
     description: Compute memory usage and system uptime stats in-process
     cron: "0 * * * *"
     enabled: true
     kind: python
-    action: "lambda args, kwargs: {'status': 'healthy', 'uptime_sec': kwargs.get('uptime', 3600)}"
+    action: "lambda args, kwargs: {'status': 'healthy', 'uptime_sec': kwargs.get('uptime', 86400)}"
     args: []
     kwargs:
       uptime: 86400
     result:
-      action: ignore
-      prompt: ""
-      error_prompt: |-
-        CRON ERROR: Python metric calculation failed for '#[_JOB_NAME]'.
-        Error: #[_ERROR]
+      action: prompt
+      prompt: "System Resource Metrics for #[_JOB_NAME]: #[_OUTPUT]"
+      error_prompt: |
+        CRON ERROR: python job '#[_JOB_NAME]' failed with return code #[_RETURN_CODE].
+        job_id: #[_JOB_ID]
+        action: #[_ACTION]
+        args: #[_ARGS]
+        kwargs: #[_KWARGS]
+        return_code: #[_RETURN_CODE]
+        error:
+        ```log
+        #[_ERROR]
+        ```
+        INSTRUCTIONS: Do not fix this, but add TODO with information how to fix it for later.
+          if a TODO for this job fixing is already existing, disable Job, update TODO that you disabled Job.

@@ -678,43 +678,54 @@
         const res = await fetch('/api/v1/session/status');
         const data = await res.json();
         const uuidStr = data.session_id || '--';
-        document.getElementById('tel-session').textContent = data.session_name || 'mypai_daemon - running';
-        document.getElementById('tel-uuid').textContent = uuidStr;
-        document.getElementById('tel-uuid').title = uuidStr;
+
+        const elSess = document.getElementById('tel-session');
+        if (elSess) elSess.textContent = data.session_name || 'mypai_daemon - running';
+        const elUuid = document.getElementById('tel-uuid');
+        if (elUuid) {
+          elUuid.textContent = uuidStr;
+          elUuid.title = uuidStr;
+        }
         const profileStr = data.profile || 'mypai';
         const elProf = document.getElementById('tel-profile');
         if (elProf) elProf.textContent = profileStr;
 
-        document.getElementById('tel-pid').textContent = data.pid || 'N/A';
-        document.getElementById('tel-queue').textContent = data.queue_depth;
-        document.getElementById('tel-uptime').textContent = data.human_uptime || `${data.uptime_sec}s`;
-        if (data.version) {
-          document.getElementById('app-version').textContent = `v${data.version}`;
-        }
+        const elPid = document.getElementById('tel-pid');
+        if (elPid) elPid.textContent = data.pid || 'N/A';
+        const elQueue = document.getElementById('tel-queue');
+        if (elQueue) elQueue.textContent = data.queue_depth;
+        const elUptime = document.getElementById('tel-uptime');
+        if (elUptime) elUptime.textContent = data.human_uptime || `${data.uptime_sec}s`;
+        const elVer = document.getElementById('app-version');
+        if (elVer && data.version) elVer.textContent = `v${data.version}`;
 
         // RPC Status Badge
         const rpcBadge = document.getElementById('rpc-status-badge');
-        const st = (data.status || 'disconnected').toLowerCase();
-        rpcBadge.textContent = st.toUpperCase();
-        if (st === 'connected') {
-          rpcBadge.style.color = 'var(--status-green)';
-        } else if (st === 'reconnecting' || st === 'connecting') {
-          rpcBadge.style.color = 'var(--status-amber)';
-        } else {
-          rpcBadge.style.color = 'var(--status-red)';
+        if (rpcBadge) {
+          const st = (data.status || 'disconnected').toLowerCase();
+          rpcBadge.textContent = st.toUpperCase();
+          if (st === 'connected') {
+            rpcBadge.style.color = 'var(--status-green)';
+          } else if (st === 'reconnecting' || st === 'connecting') {
+            rpcBadge.style.color = 'var(--status-amber)';
+          } else {
+            rpcBadge.style.color = 'var(--status-red)';
+          }
         }
 
         // Currently Running RPC Call
         const callEl = document.getElementById('rpc-active-call-content');
-        if (data.active_call) {
-          const ac = data.active_call;
-          callEl.innerHTML = `
-            <div style="font-weight: 600; color: var(--accent-purple);">Turn: ${ac.task_id} (${ac.mode})</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Profile: <span style="font-weight: 600; color: var(--accent-blue); font-family: 'Fira Code', monospace;">${profileStr}</span> | Running: ${ac.duration_sec}s</div>
-            ${ac.prompt_snippet ? `<div style="font-size: 0.75rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.2rem;">"${ac.prompt_snippet}"</div>` : ''}
-          `;
-        } else {
-          callEl.textContent = 'No active call';
+        if (callEl) {
+          if (data.active_call) {
+            const ac = data.active_call;
+            callEl.innerHTML = `
+              <div style="font-weight: 600; color: var(--accent-purple);">Turn: ${ac.task_id} (${ac.mode})</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Profile: <span style="font-weight: 600; color: var(--accent-blue); font-family: 'Fira Code', monospace;">${profileStr}</span> | Running: ${ac.duration_sec}s</div>
+              ${ac.prompt_snippet ? `<div style="font-size: 0.75rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.2rem;">"${ac.prompt_snippet}"</div>` : ''}
+            `;
+          } else {
+            callEl.textContent = 'No active call';
+          }
         }
 
         // SessionState Card Telemetry
@@ -723,13 +734,18 @@
         if (elModel) elModel.textContent = sState.model || 'default';
         const elThinking = document.getElementById('state-thinking');
         if (elThinking) elThinking.textContent = sState.thinking_level || 'auto';
-        document.getElementById('state-steering').textContent = sState.steering_mode || 'one-at-a-time';
-        document.getElementById('state-streaming').textContent = sState.is_streaming ? 'Yes' : 'No';
-        document.getElementById('state-message-count').textContent = sState.message_count || 0;
+        const elSteering = document.getElementById('state-steering');
+        if (elSteering) elSteering.textContent = sState.steering_mode || 'one-at-a-time';
+        const elStreaming = document.getElementById('state-streaming');
+        if (elStreaming) elStreaming.textContent = sState.is_streaming ? 'Yes' : 'No';
+        const elMsgCount = document.getElementById('state-message-count');
+        if (elMsgCount) elMsgCount.textContent = sState.message_count || 0;
 
         const ctx = sState.context_usage || { tokens: 0, max_tokens: 128000, percentage: 0 };
-        document.getElementById('state-context-text').textContent = `${(ctx.tokens || 0).toLocaleString()} / ${(ctx.max_tokens || 128000).toLocaleString()} (${ctx.percentage || 0}%)`;
-        document.getElementById('state-context-bar').style.width = `${Math.min(100, ctx.percentage || 0)}%`;
+        const elCtxText = document.getElementById('state-context-text');
+        if (elCtxText) elCtxText.textContent = `${(ctx.tokens || 0).toLocaleString()} / ${(ctx.max_tokens || 128000).toLocaleString()} (${ctx.percentage || 0}%)`;
+        const elCtxBar = document.getElementById('state-context-bar');
+        if (elCtxBar) elCtxBar.style.width = `${Math.min(100, ctx.percentage || 0)}%`;
 
       } catch (e) {}
     }
