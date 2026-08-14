@@ -59,13 +59,28 @@ class OMPSessionManager:
                         ws_manager.broadcast(payload), loop
                     )
 
-            if hasattr(client, "on_message_update"):
-                client.on_message_update(
-                    lambda evt: broadcast_event(
-                        "message_update",
-                        {"text": getattr(evt, "text", str(evt))},
+            def _extract_text(evt: Any) -> str:
+                if hasattr(evt, "text") and isinstance(evt.text, str) and evt.text:
+                    return evt.text
+                msg_evt = getattr(evt, "assistant_message_event", None)
+                if msg_evt is not None:
+                    if isinstance(msg_evt, dict):
+                        return msg_evt.get("delta") or msg_evt.get("content") or ""
+                    return (
+                        getattr(msg_evt, "delta", None)
+                        or getattr(msg_evt, "content", None)
+                        or ""
                     )
-                )
+                return str(evt) if isinstance(evt, str) else ""
+
+            if hasattr(client, "on_message_update"):
+
+                def _on_update(evt: Any) -> None:
+                    text = _extract_text(evt)
+                    if text:
+                        broadcast_event("message_update", {"text": text})
+
+                client.on_message_update(_on_update)
             if hasattr(client, "on_turn_start"):
                 client.on_turn_start(
                     lambda evt: broadcast_event(
@@ -185,10 +200,15 @@ class OMPSessionManager:
                 if hasattr(client, "set_custom_tools"):
                     try:
                         from mypai_tools.acp.tools import get_acp_host_tools
+
                         client.set_custom_tools(get_acp_host_tools())
-                        logger.info("Registered 8 ACP host tools into persistent RpcClient.")
+                        logger.info(
+                            "Registered 8 ACP host tools into persistent RpcClient."
+                        )
                     except Exception as exc:  # noqa: BLE001
-                        logger.debug("Failed to register ACP host tools into RpcClient: %s", exc)
+                        logger.debug(
+                            "Failed to register ACP host tools into RpcClient: %s", exc
+                        )
 
                 self.rpc_client = client
                 self.session_name = "mypai_daemon - running"
