@@ -16,9 +16,8 @@ logger = logging.getLogger("mypai_daemon.acp.manager")
 class AcpDelegationManager:
     """Manages worker pool of AcpClientSession instances across target workspace directories."""
 
-    def __init__(self, agent_dir: str = "", profile: str = "") -> None:
+    def __init__(self, agent_dir: str = "") -> None:
         self.agent_dir = agent_dir
-        self.profile = profile or os.getenv("OMP_PROFILE", "mypai")
         self.sessions: dict[str, AcpClientSession] = {}
         self.tasks: dict[str, dict[str, Any]] = {}
         self._lock = asyncio.Lock()
@@ -33,7 +32,7 @@ class AcpDelegationManager:
 
         # Process died or never existed: spawn new worker
         logger.info("Initializing ACP worker session in '%s'...", abs_cwd)
-        new_session = AcpClientSession(cwd=abs_cwd, profile=self.profile)
+        new_session = AcpClientSession(cwd=abs_cwd)
         try:
             new_session.start()
         except Exception as exc:  # noqa: BLE001

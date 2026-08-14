@@ -36,14 +36,9 @@ def format_human_uptime(seconds: float) -> str:
 class OMPSessionManager:
     """Manages persistent omp --mode rpc session connected to a workspace directory."""
 
-    def __init__(
-        self,
-        agent_dir: str = "",
-        session_name: str | None = None,
-        profile: str = "",
-    ) -> None:
+    def __init__(self, agent_dir: str = "", session_name: str | None = None) -> None:
         self.agent_dir = resolve_agent_dir(agent_dir)
-        self.profile = profile or os.getenv("OMP_PROFILE", "mypai")
+        self._profile = os.getenv("OMP_PROFILE", "mypai")
         self.session_name = "mypai_daemon - running"
         self.session_uuid = ""
         self.rpc_client: Any | None = None
@@ -52,6 +47,11 @@ class OMPSessionManager:
         self._lock = asyncio.Lock()
         self.start_time = time.time()
         self.is_busy = False
+
+    @property
+    def profile(self) -> str:
+        """Read-only OMP profile attribute."""
+        return self._profile
 
     def _setup_event_listeners(self, client: Any) -> None:
         """Attach RPC streaming event listeners to forward live events to WebSocket clients."""

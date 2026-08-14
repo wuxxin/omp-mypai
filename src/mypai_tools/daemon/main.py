@@ -239,7 +239,7 @@ def main() -> None:
             db.close()
 
     queue = EventQueue()
-    scheduler = CronScheduler(agent_dir=args.agent_dir, daemon_queue=queue, profile=args.profile)
+    scheduler = CronScheduler(agent_dir=args.agent_dir, daemon_queue=queue)
 
     if args.command == "once":
         logger.info("Running single pass execution...")
@@ -247,12 +247,12 @@ def main() -> None:
         sys.exit(0)
 
     # Subcommand: serve
-    session_mgr = OMPSessionManager(agent_dir=args.agent_dir, profile=args.profile)
+    session_mgr = OMPSessionManager(agent_dir=args.agent_dir)
     signal_client = SignalClient()
 
     # Attach components to FastAPI app state
     app.state.agent_dir = args.agent_dir
-    app.state.profile = args.profile
+    app.state.profile = session_mgr.profile
     app.state.daemon_queue = queue
     app.state.session_manager = session_mgr
     app.state.scheduler = scheduler
