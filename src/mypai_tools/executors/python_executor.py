@@ -7,7 +7,11 @@ import time
 from typing import Any
 
 from mypai_tools.executors.omp_rpc_executor import dispatch_result_to_omp
-from mypai_tools.tools import build_internal_vars, substitute_vars
+from mypai_tools.tools import (
+    build_internal_vars,
+    evaluate_and_dispatch_result_prompt,
+    substitute_vars,
+)
 
 try:
     from omp_rpc import RpcClient
@@ -43,8 +47,6 @@ async def execute_python_job(
             kwargs_val = json.loads(kwargs_val)
         except Exception:  # noqa: BLE001, S110
             pass
-
-    result_action = (job.get("result_action") or "ignore").lower()
 
     logger.info("Executing Python job '%s'...", name)
 
@@ -104,29 +106,14 @@ async def execute_python_job(
             duration=duration,
         )
 
-        res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
-        result_action = job.get("result_action") or res_dict.get("action") or "ignore"
-        result_prompt_template = (
-            job.get("result_prompt") or res_dict.get("prompt") or ""
-        )
-        if isinstance(result_prompt_template, str):
-            result_prompt_template = result_prompt_template.strip()
-
-        if result_prompt_template:
-            if "#" in result_prompt_template:
-                final_output = substitute_vars(
-                    result_prompt_template, extra_vars=internal_vars
-                )
-            else:
-                final_output = f"{result_prompt_template}\n{res_str}"
-        else:
-            final_output = res_str
-
-        dispatch_result_to_omp(
-            result_action,
-            final_output,
+        final_output = evaluate_and_dispatch_result_prompt(
+            job,
+            internal_vars,
+            is_success=True,
+            default_output=res_str,
             daemon_queue=daemon_queue,
             session_mgr=session_mgr,
+            dispatch_fn=dispatch_result_to_omp,
         )
 
         return {
@@ -154,33 +141,14 @@ async def execute_python_job(
             duration=duration,
         )
 
-        res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
-        result_action = job.get("result_action") or res_dict.get("action") or "ignore"
-        result_prompt_template = (
-            job.get("result_error_prompt")
-            or res_dict.get("error_prompt")
-            or job.get("result_prompt")
-            or res_dict.get("prompt")
-            or ""
-        )
-        if isinstance(result_prompt_template, str):
-            result_prompt_template = result_prompt_template.strip()
-
-        if result_prompt_template:
-            if "#" in result_prompt_template:
-                final_output = substitute_vars(
-                    result_prompt_template, extra_vars=internal_vars
-                )
-            else:
-                final_output = f"{result_prompt_template}\n{err_str}"
-        else:
-            final_output = err_str
-
-        dispatch_result_to_omp(
-            result_action,
-            final_output,
+        final_output = evaluate_and_dispatch_result_prompt(
+            job,
+            internal_vars,
+            is_success=False,
+            default_output=err_str,
             daemon_queue=daemon_queue,
             session_mgr=session_mgr,
+            dispatch_fn=dispatch_result_to_omp,
         )
 
         return {

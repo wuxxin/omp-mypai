@@ -9,7 +9,11 @@ import time
 from typing import Any
 
 from mypai_tools.executors.omp_rpc_executor import dispatch_result_to_omp
-from mypai_tools.tools import build_internal_vars, substitute_vars
+from mypai_tools.tools import (
+    build_internal_vars,
+    evaluate_and_dispatch_result_prompt,
+    substitute_vars,
+)
 
 try:
     from omp_rpc import RpcClient
@@ -56,8 +60,6 @@ async def execute_shell_job(
     args_val = job.get("args")
     cmd = build_full_command(raw_cmd, args_val)
 
-    result_action = (job.get("result_action") or "ignore").lower()
-
     logger.info("Executing shell command '%s' for job '%s'...", cmd, name)
 
     env = os.environ.copy()
@@ -84,46 +86,22 @@ async def execute_shell_job(
         duration=duration,
     )
 
-    res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
-    result_action = job.get("result_action") or res_dict.get("action") or "ignore"
-    if exit_code != 0:
-        result_prompt_template = (
-            job.get("result_error_prompt")
-            or res_dict.get("error_prompt")
-            or job.get("result_prompt")
-            or res_dict.get("prompt")
-            or ""
-        )
-    else:
-        result_prompt_template = (
-            job.get("result_prompt") or res_dict.get("prompt") or ""
-        )
-
-    if isinstance(result_prompt_template, str):
-        result_prompt_template = result_prompt_template.strip()
-
-    if result_prompt_template:
-        if "#" in result_prompt_template:
-            final_output = substitute_vars(
-                result_prompt_template, extra_vars=internal_vars
-            )
-        else:
-            out_body = stdout_str if exit_code == 0 else (stderr_str or stdout_str)
-            final_output = f"{result_prompt_template}\n{out_body}"
-    else:
-        final_output = stdout_str
+    is_success = exit_code == 0
+    default_out = stdout_str if is_success else (stderr_str or stdout_str)
+    final_output = evaluate_and_dispatch_result_prompt(
+        job,
+        internal_vars,
+        is_success=is_success,
+        default_output=default_out,
+        daemon_queue=daemon_queue,
+        session_mgr=session_mgr,
+        dispatch_fn=dispatch_result_to_omp,
+    )
 
     logger.info("Shell job '%s' exited with code %d", name, exit_code)
 
-    dispatch_result_to_omp(
-        result_action,
-        final_output,
-        daemon_queue=daemon_queue,
-        session_mgr=session_mgr,
-    )
-
     return {
-        "status": "success" if exit_code == 0 else "error",
+        "status": "success" if is_success else "error",
         "kind": "shell",
         "action": cmd,
         "return_code": exit_code,

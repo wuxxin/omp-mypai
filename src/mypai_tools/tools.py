@@ -75,6 +75,58 @@ def build_internal_vars(
     }
 
 
+def evaluate_and_dispatch_result_prompt(
+    job: dict[str, Any],
+    internal_vars: dict[str, Any],
+    is_success: bool,
+    default_output: str,
+    daemon_queue: Any | None = None,
+    session_mgr: Any | None = None,
+    dispatch_fn: Any | None = None,
+) -> str:
+    """Evaluate result/error prompt template macros and dispatch to OMP session via queue.
+
+    Returns the evaluated final prompt string.
+    """
+    if dispatch_fn is None:
+        from mypai_tools.executors.omp_rpc_executor import dispatch_result_to_omp
+
+        dispatch_fn = dispatch_result_to_omp
+
+    res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
+    result_action = job.get("result_action") or res_dict.get("action") or "ignore"
+
+    if not is_success:
+        template = (
+            job.get("result_error_prompt")
+            or res_dict.get("error_prompt")
+            or job.get("result_prompt")
+            or res_dict.get("prompt")
+            or ""
+        )
+    else:
+        template = job.get("result_prompt") or res_dict.get("prompt") or ""
+
+    if isinstance(template, str):
+        template = template.strip()
+
+    if template:
+        if "#" in template:
+            final_output = substitute_vars(template, extra_vars=internal_vars)
+        else:
+            final_output = f"{template}\n{default_output}"
+    else:
+        final_output = default_output
+
+    dispatch_fn(
+        result_action,
+        final_output,
+        daemon_queue=daemon_queue,
+        session_mgr=session_mgr,
+    )
+    return final_output
+
+
 def format_system_trigger_prompt(
     prompt: str, source: str = "", context: dict[str, Any] | None = None
 ) -> str:

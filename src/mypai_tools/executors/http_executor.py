@@ -8,7 +8,11 @@ from typing import Any
 import httpx
 
 from mypai_tools.executors.omp_rpc_executor import dispatch_result_to_omp
-from mypai_tools.tools import build_internal_vars, substitute_vars
+from mypai_tools.tools import (
+    build_internal_vars,
+    evaluate_and_dispatch_result_prompt,
+    substitute_vars,
+)
 
 logger = logging.getLogger("mypai_daemon.executors.http")
 
@@ -135,41 +139,14 @@ async def execute_http_job(
                 duration=duration,
             )
 
-            res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
-            result_action = (
-                job.get("result_action") or res_dict.get("action") or "ignore"
-            )
-            if not is_success:
-                result_prompt_template = (
-                    job.get("result_error_prompt")
-                    or res_dict.get("error_prompt")
-                    or job.get("result_prompt")
-                    or res_dict.get("prompt")
-                    or ""
-                )
-            else:
-                result_prompt_template = (
-                    job.get("result_prompt") or res_dict.get("prompt") or ""
-                )
-
-            if isinstance(result_prompt_template, str):
-                result_prompt_template = result_prompt_template.strip()
-
-            if result_prompt_template:
-                if "#" in result_prompt_template:
-                    final_output = substitute_vars(
-                        result_prompt_template, extra_vars=internal_vars
-                    )
-                else:
-                    final_output = f"{result_prompt_template}\n{output_str if is_success else error_str}"
-            else:
-                final_output = output_str if is_success else error_str
-
-            dispatch_result_to_omp(
-                result_action,
-                final_output,
+            final_output = evaluate_and_dispatch_result_prompt(
+                job,
+                internal_vars,
+                is_success=is_success,
+                default_output=output_str if is_success else error_str,
                 daemon_queue=daemon_queue,
                 session_mgr=session_mgr,
+                dispatch_fn=dispatch_result_to_omp,
             )
 
             return {
@@ -197,27 +174,14 @@ async def execute_http_job(
             duration=duration,
         )
 
-        result_prompt_template = (
-            job.get("result_error_prompt") or job.get("result_prompt") or ""
-        )
-        if isinstance(result_prompt_template, str):
-            result_prompt_template = result_prompt_template.strip()
-        if result_prompt_template:
-            if "#" in result_prompt_template:
-                final_output = substitute_vars(
-                    result_prompt_template, extra_vars=internal_vars
-                )
-            else:
-                final_output = f"{result_prompt_template}\n{err_str}"
-        else:
-            final_output = err_str
-
-        result_action = job.get("result_action") or ""
-        dispatch_result_to_omp(
-            result_action,
-            final_output,
+        final_output = evaluate_and_dispatch_result_prompt(
+            job,
+            internal_vars,
+            is_success=False,
+            default_output=err_str,
             daemon_queue=daemon_queue,
             session_mgr=session_mgr,
+            dispatch_fn=dispatch_result_to_omp,
         )
 
         return {

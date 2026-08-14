@@ -92,10 +92,12 @@ The following `_`-prefixed variables are populated after job execution and can b
 
 ---
 
-### 4. Result Actions, Result Prompts & Empty Prompt Handling
+### 4. Result Actions, Result Prompts & Centralized Prompt Evaluator (`mypai_tools.tools.evaluate_and_dispatch_result_prompt`)
+
+All job executors (`python`, `shell`, `http`, `omp`) route result prompt evaluation and delivery through `evaluate_and_dispatch_result_prompt`.
 
 * **Nested `result:` Block**:
-  In YAML/JSON configurations (such as `example_jobs.yaml`), result dispatch rules are structured as a nested `result` dictionary:
+  In YAML/JSON configurations (such as `example_jobs.yaml`), result dispatch rules are structured as a nested `result` dictionary or flattened attributes (`result_prompt`, `result_error_prompt`, `result_action`):
   ```yaml
   result:
     action: prompt # 'ignore' | 'prompt' | 'steer' | 'followup' | 'abort_and_prompt'
