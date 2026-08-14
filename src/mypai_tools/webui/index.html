@@ -232,19 +232,23 @@
 <body>
 
   <header>
-    <div class="brand">
-      <span>myPAI Console</span>
-      <span class="brand-badge" id="app-version">v1.0.0</span>
-    </div>
     <div style="display: flex; gap: 1rem; align-items: center;">
-      <span id="session-info" style="font-size: 0.85rem; color: var(--text-muted); font-family: 'Fira Code', monospace;">uuid: Loading...</span>
-      <button class="toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()">
-        <span id="toggle-icon">▶</span> Sidebar
-      </button>
       <div id="status-badge" class="status-badge">
         <div class="status-dot"></div>
         <span id="status-text">Connecting...</span>
       </div>
+      <div class="brand">
+        <span>myPAI Console</span>
+        <span class="brand-badge" id="app-version">v1.0.0</span>
+      </div>
+    </div>
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <button class="toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()">
+        <span id="toggle-icon">▶</span> Sidebar
+      </button>
+      <button class="toggle-btn" id="refresh-all-btn" onclick="reloadStatsAndSidecars()" title="Refresh all stats and sidecars">
+        Refresh
+      </button>
     </div>
   </header>
 
@@ -329,6 +333,14 @@
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
           <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Process PID:</span>
+            <span id="acp-pid" style="font-family: 'Fira Code', monospace;">--</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Uptime:</span>
+            <span id="acp-uptime">0s</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
             <span style="color: var(--text-muted);">Active Workers:</span>
             <span id="acp-active-workers" style="font-weight: 600;">0</span>
           </div>
@@ -409,7 +421,6 @@
       <div class="card">
         <div class="card-title">
           <span>Cron Tasks & Telemetry</span>
-          <button id="refresh-cron-btn" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">Refresh</button>
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem; margin-bottom: 0.75rem;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -449,7 +460,6 @@
     const logConsole = document.getElementById('log-console');
     const statusBadge = document.getElementById('status-badge');
     const statusText = document.getElementById('status-text');
-    const sessionInfo = document.getElementById('session-info');
     const cronTbody = document.getElementById('cron-tbody');
     const eventsCheckbox = document.getElementById('events-checkbox');
     const streamChunksCheckbox = document.getElementById('stream-chunks-checkbox');
@@ -685,11 +695,17 @@
           acpBadge.style.color = 'var(--status-red)';
         }
 
+        const workers = data.workers || [];
+        const firstWorker = workers[0] || {};
+        const elPid = document.getElementById('acp-pid');
+        if (elPid) elPid.textContent = data.pid || firstWorker.pid || 'N/A';
+        const elUptime = document.getElementById('acp-uptime');
+        if (elUptime) elUptime.textContent = data.human_uptime || (firstWorker.uptime_sec !== undefined ? `${firstWorker.uptime_sec}s` : '0s');
+
         document.getElementById('acp-active-workers').textContent = data.active_workers || 0;
         document.getElementById('acp-total-tasks').textContent = data.total_tasks || 0;
 
         const workersList = document.getElementById('acp-workers-list');
-        const workers = data.workers || [];
         if (!workers.length) {
           workersList.textContent = 'No worker processes';
         } else {
@@ -825,11 +841,6 @@
         appendLog(`Failed to toggle cron execution: ${e}`, 'error');
       }
     }
-
-    document.getElementById('refresh-cron-btn').addEventListener('click', () => {
-      loadCronJobs();
-      updateCronStatus();
-    });
 
     setInterval(() => {
       updateStatus();
