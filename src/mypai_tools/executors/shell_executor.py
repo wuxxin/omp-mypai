@@ -84,12 +84,20 @@ async def execute_shell_job(
         duration=duration,
     )
 
+    res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
+    result_action = job.get("result_action") or res_dict.get("action") or "ignore"
     if exit_code != 0:
         result_prompt_template = (
-            job.get("result_error_prompt") or job.get("result_prompt") or ""
+            job.get("result_error_prompt")
+            or res_dict.get("error_prompt")
+            or job.get("result_prompt")
+            or res_dict.get("prompt")
+            or ""
         )
     else:
-        result_prompt_template = job.get("result_prompt") or ""
+        result_prompt_template = (
+            job.get("result_prompt") or res_dict.get("prompt") or ""
+        )
 
     if isinstance(result_prompt_template, str):
         result_prompt_template = result_prompt_template.strip()

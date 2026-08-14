@@ -104,7 +104,11 @@ async def execute_python_job(
             duration=duration,
         )
 
-        result_prompt_template = job.get("result_prompt") or ""
+        res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
+        result_action = job.get("result_action") or res_dict.get("action") or "ignore"
+        result_prompt_template = (
+            job.get("result_prompt") or res_dict.get("prompt") or ""
+        )
         if isinstance(result_prompt_template, str):
             result_prompt_template = result_prompt_template.strip()
 
@@ -150,11 +154,18 @@ async def execute_python_job(
             duration=duration,
         )
 
+        res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
+        result_action = job.get("result_action") or res_dict.get("action") or "ignore"
         result_prompt_template = (
-            job.get("result_error_prompt") or job.get("result_prompt") or ""
+            job.get("result_error_prompt")
+            or res_dict.get("error_prompt")
+            or job.get("result_prompt")
+            or res_dict.get("prompt")
+            or ""
         )
         if isinstance(result_prompt_template, str):
             result_prompt_template = result_prompt_template.strip()
+
         if result_prompt_template:
             if "#" in result_prompt_template:
                 final_output = substitute_vars(

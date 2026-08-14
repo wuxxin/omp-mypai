@@ -135,12 +135,22 @@ async def execute_http_job(
                 duration=duration,
             )
 
+            res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
+            result_action = (
+                job.get("result_action") or res_dict.get("action") or "ignore"
+            )
             if not is_success:
                 result_prompt_template = (
-                    job.get("result_error_prompt") or job.get("result_prompt") or ""
+                    job.get("result_error_prompt")
+                    or res_dict.get("error_prompt")
+                    or job.get("result_prompt")
+                    or res_dict.get("prompt")
+                    or ""
                 )
             else:
-                result_prompt_template = job.get("result_prompt") or ""
+                result_prompt_template = (
+                    job.get("result_prompt") or res_dict.get("prompt") or ""
+                )
 
             if isinstance(result_prompt_template, str):
                 result_prompt_template = result_prompt_template.strip()
@@ -155,7 +165,6 @@ async def execute_http_job(
             else:
                 final_output = output_str if is_success else error_str
 
-            result_action = job.get("result_action") or ""
             dispatch_result_to_omp(
                 result_action,
                 final_output,
