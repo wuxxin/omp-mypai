@@ -50,15 +50,15 @@
   - Displays Session Name (`tel-session`).
   - **Dedicated Session UUID Layout**: Formatted as a full-width monospace block (`word-break: break-all; user-select: all; font-size: 0.78rem`) inside a dark container box with label `SESSION UUID` to prevent font/layout distortion.
   - Displays Steering / Streaming mode (`one-at-a-time` / `no`), User / Assistant Message Counters (`stats-user-msgs` / `stats-asst-msgs`), Tool Calls / Results (`stats-tool-calls` / `stats-tool-results`), Input / Output / Total Token usage, Estimated Cost ($0.0000), and Context Window Usage progress bar.
-- **Card 3: Agent Worker** (renamed from *ACP Process Control*):
-  - Displays ACP state badge (`RUNNING` / `STOPPED`), **Process PID** (`acp-pid`), **Uptime** (`acp-uptime`), active worker processes count, and total task count.
-  - Scrollable worker process list displaying PID, CWD workspace, and uptime per worker.
-  - Action buttons: **Shutdown / Disable** (`POST /api/v1/acp/shutdown`) and **Restart / Enable** (`POST /api/v1/acp/restart`).
-- **Card 4: Tasks** (renamed from *Cron Tasks & Telemetry*):
+- **Card 3: Tasks** (renamed from *Cron Tasks & Telemetry*):
   - Card Header Action buttons: **Export** (`GET /api/v1/cron/export` JSON download) and **Import** (`POST /api/v1/cron/import` JSON upload).
   - Displays global execution state (`Enabled` / `Disabled`), total registered jobs count, active vs inactive job counts.
   - **Global Task Toggle Button**: Interactive button labeled **Disable all Tasks** / **Enable all Tasks** calling `POST /api/v1/cron/disable` or `POST /api/v1/cron/enable`.
   - **Registered Tasks Table**: Queries `GET /api/v1/cron/jobs` on load. Displays task titles, descriptions, 5-field cron schedules, kind badges, call metrics, and one-click **Run Now** buttons (`POST /api/v1/cron/jobs/run_once`).
+- **Card 4: External Agents** (renamed from *ACP Process Control* / *Agent Worker*, placed last):
+  - Displays ACP state badge (`RUNNING` / `STOPPED`), **Process PID** (`acp-pid`), **Uptime** (`acp-uptime`), active worker processes count, and total task count.
+  - Scrollable worker process list displaying PID, CWD workspace, and uptime per worker.
+  - Action buttons: **Shutdown / Disable** (`POST /api/v1/acp/shutdown`) and **Restart / Enable** (`POST /api/v1/acp/restart`).
 
 ### 2.5 Background Polling & Event-Driven Telemetry Sync
 - **Background HTTP Polling**: Non-WebSocket background HTTP polling for status and telemetry (`updateStatus`, `updateAcpStatus`, `updateStats`, `updateCronStatus`) runs every **30 seconds** (`30,000ms`).

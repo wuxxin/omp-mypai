@@ -375,39 +375,6 @@
         </div>
       </div>
 
-      <!-- Agent Worker Process Control Card -->
-      <div class="card">
-        <div class="card-title">
-          <span>Agent Worker</span>
-          <span id="acp-state-badge" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; background: rgba(16, 185, 129, 0.2); color: var(--status-green); font-weight: 600;">Running</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Process PID:</span>
-            <span id="acp-pid" style="font-family: 'Fira Code', monospace;">--</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Uptime:</span>
-            <span id="acp-uptime">0s</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Active Workers:</span>
-            <span id="acp-active-workers" style="font-weight: 600;">0</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Total Tasks:</span>
-            <span id="acp-total-tasks">0</span>
-          </div>
-          <div id="acp-workers-list" style="max-height: 100px; overflow-y: auto; font-size: 0.75rem; font-family: 'Fira Code', monospace; color: var(--text-muted); background: rgba(15, 23, 42, 0.5); padding: 0.4rem; border-radius: 6px; border: 1px solid var(--card-border);">
-            No worker processes
-          </div>
-          <div style="display: flex; gap: 0.5rem; margin-top: 0.3rem;">
-            <button onclick="shutdownAcp()" style="flex: 1; padding: 0.4rem; font-size: 0.75rem; background: linear-gradient(135deg, #ef4444, #dc2626);">Shutdown / Disable</button>
-            <button onclick="restartAcp()" style="flex: 1; padding: 0.4rem; font-size: 0.75rem; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));">Restart / Enable</button>
-          </div>
-        </div>
-      </div>
-
       <!-- Tasks & Scheduled Jobs Card -->
       <div class="card">
         <div class="card-title">
@@ -447,6 +414,39 @@
               <tr><td colspan="5" style="color: var(--text-muted); text-align: center;">Loading tasks...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- External Agents Process Control Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>External Agents</span>
+          <span id="acp-state-badge" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; background: rgba(16, 185, 129, 0.2); color: var(--status-green); font-weight: 600;">Running</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Process PID:</span>
+            <span id="acp-pid" style="font-family: 'Fira Code', monospace;">--</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Uptime:</span>
+            <span id="acp-uptime">0s</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Active Workers:</span>
+            <span id="acp-active-workers" style="font-weight: 600;">0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Total Tasks:</span>
+            <span id="acp-total-tasks">0</span>
+          </div>
+          <div id="acp-workers-list" style="max-height: 100px; overflow-y: auto; font-size: 0.75rem; font-family: 'Fira Code', monospace; color: var(--text-muted); background: rgba(15, 23, 42, 0.5); padding: 0.4rem; border-radius: 6px; border: 1px solid var(--card-border);">
+            No worker processes
+          </div>
+          <div style="display: flex; gap: 0.5rem; margin-top: 0.3rem;">
+            <button onclick="shutdownAcp()" style="flex: 1; padding: 0.4rem; font-size: 0.75rem; background: linear-gradient(135deg, #ef4444, #dc2626);">Shutdown / Disable</button>
+            <button onclick="restartAcp()" style="flex: 1; padding: 0.4rem; font-size: 0.75rem; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));">Restart / Enable</button>
+          </div>
         </div>
       </div>
     </aside>
