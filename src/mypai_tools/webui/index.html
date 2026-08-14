@@ -622,7 +622,6 @@
         const res = await fetch('/api/v1/session/status');
         const data = await res.json();
         const uuidStr = data.session_id || '--';
-        sessionInfo.textContent = `uuid: ${uuidStr.substring(0, 8)}...`;
         document.getElementById('tel-session').textContent = data.session_name || 'mypai_daemon - running';
         document.getElementById('tel-uuid').textContent = uuidStr;
         document.getElementById('tel-uuid').title = uuidStr;
