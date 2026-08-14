@@ -51,10 +51,8 @@ def build_internal_vars(
 ) -> dict[str, Any]:
     """Construct standard internal execution variables for result prompt template substitution.
 
-    Exposes:
-    - Job parameters: action, args, kwargs, opts
-    - Uppercase/Underscore job parameters: _ACTION, _ARGS, _KWARGS, _OPTS
-    - Telemetry metrics: _RETURN_CODE, _OUTPUT, _ERROR, _OBJECT, _HTTP_CODE, _DURATION, _JOB_ID, _JOB_NAME
+    Exposes strictly _UPPERCASE internal variables:
+    _ACTION, _ARGS, _KWARGS, _OPTS, _RETURN_CODE, _OUTPUT, _ERROR, _OBJECT, _HTTP_CODE, _DURATION, _JOB_ID, _JOB_NAME
     """
     action = job.get("action", "")
     args = job.get("args", "")
@@ -62,10 +60,6 @@ def build_internal_vars(
     opts = job.get("opts", "")
 
     return {
-        "action": action,
-        "args": args,
-        "kwargs": kwargs,
-        "opts": opts,
         "_ACTION": action,
         "_ARGS": args,
         "_KWARGS": kwargs,

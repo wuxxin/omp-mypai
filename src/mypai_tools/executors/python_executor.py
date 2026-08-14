@@ -58,9 +58,8 @@ async def execute_python_job(
 
     try:
         import contextlib
-        import io
-
         import inspect
+        import io
 
         stdout_buf = io.StringIO()
         clean_code = code.strip()

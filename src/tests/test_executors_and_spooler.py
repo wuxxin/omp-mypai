@@ -191,7 +191,7 @@ def test_signal_client_http_exceptions() -> None:
 
 @pytest.mark.asyncio
 async def test_internal_vars_substitution_in_result_prompts() -> None:
-    """Verify action, args, kwargs, opts and underscore/uppercase variants expand in result_prompt templates."""
+    """Verify strictly _UPPERCASE internal variables expand in result_prompt templates."""
     job = {
         "name": "Var Substitution Test",
         "kind": "python",
@@ -199,7 +199,7 @@ async def test_internal_vars_substitution_in_result_prompts() -> None:
         "args": ["arg1", "arg2"],
         "kwargs": {"key": "value"},
         "opts": {"timeout": 10},
-        "result_prompt": "Action: #[action] | Args: #[args] | Kwargs: #[kwargs] | Opts: #[opts] | Out: #[_OUTPUT]",
+        "result_prompt": "Action: #[_ACTION] | Args: #[_ARGS] | Kwargs: #[_KWARGS] | Opts: #[_OPTS] | Out: #[_OUTPUT]",
     }
 
     res = await execute_python_job(job)

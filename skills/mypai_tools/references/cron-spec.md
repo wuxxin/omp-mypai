@@ -77,10 +77,10 @@ The following `_`-prefixed variables are populated after job execution and can b
 
 | Macro Variable | Description | Delivered Content |
 | :--- | :--- | :--- |
-| **`#[action]` / `#[_ACTION]`** | Executed action string | Target CLI command, Python code/lambda, HTTP method, or RPC verb |
-| **`#[args]` / `#[_ARGS]`** | Positional arguments | Positional argument string or serialized JSON array |
-| **`#[kwargs]` / `#[_KWARGS]`** | Keyword arguments | Serialized JSON dictionary of keyword parameters |
-| **`#[opts]` / `#[_OPTS]`** | Options dictionary | Serialized JSON dictionary of execution options (headers, timeout, etc.) |
+| **`#[_ACTION]`** | Executed action string | Target CLI command, Python code/lambda, HTTP method, or RPC verb |
+| **`#[_ARGS]`** | Positional arguments | Positional argument string or serialized JSON array |
+| **`#[_KWARGS]`** | Keyword arguments | Serialized JSON dictionary of keyword parameters |
+| **`#[_OPTS]`** | Options dictionary | Serialized JSON dictionary of execution options (headers, timeout, etc.) |
 | **`#[_RETURN_CODE]`** | Status / Exit code | Process exit status, `0` for 2xx HTTP / Python / OMP success, non-zero for errors |
 | **`#[_OUTPUT]`** | Primary output | Shell stdout, HTTP response body text, Python return string, OMP assistant text |
 | **`#[_ERROR]`** | Primary error details | Shell stderr, HTTP error details, Python exception traceback, OMP error trace |
