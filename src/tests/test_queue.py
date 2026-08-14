@@ -10,25 +10,31 @@ async def test_queue_enqueue_and_priority() -> None:
 
     # Enqueue items with different priorities
     await queue.enqueue(prompt="Normal webui prompt", mode="prompt", source="webui")
-    await queue.enqueue(prompt="High priority steer", mode="steer", source="webui")
     await queue.enqueue(prompt="Background cron job", mode="prompt", source="cron")
+    await queue.enqueue(prompt="High priority steer", mode="steer", source="webui")
+    await queue.enqueue(prompt="Abort active turn", mode="abort", source="webui")
+    await queue.enqueue(prompt="UI response", mode="ui_interaction", source="webui")
 
-    assert queue.depth() == 3
+    assert queue.depth() == 5
 
-    # High-priority steer (priority 0) should come out first
-    item1 = await queue.get_next()
-    assert item1["mode"] == "steer"
-    assert item1["prompt"] == "High priority steer"
+    # Priority 0 items (steer, abort, ui_interaction) should come out first
+    p0_modes = set()
+    for _ in range(3):
+        item = await queue.get_next()
+        p0_modes.add(item["mode"])
+        assert item["priority"] == 0
 
-    # Interactive turn (priority 1) should come out second
-    item2 = await queue.get_next()
-    assert item2["source"] == "webui"
-    assert item2["prompt"] == "Normal webui prompt"
+    assert p0_modes == {"steer", "abort", "ui_interaction"}
 
-    # Background task (priority 2) should come out third
-    item3 = await queue.get_next()
-    assert item3["source"] == "cron"
-    assert item3["prompt"] == "Background cron job"
+    # Interactive turn (priority 1) should come out next
+    item4 = await queue.get_next()
+    assert item4["source"] == "webui"
+    assert item4["prompt"] == "Normal webui prompt"
+
+    # Background task (priority 2) should come out last
+    item5 = await queue.get_next()
+    assert item5["source"] == "cron"
+    assert item5["prompt"] == "Background cron job"
 
     assert queue.depth() == 0
 

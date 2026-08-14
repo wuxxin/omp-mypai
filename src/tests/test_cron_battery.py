@@ -258,7 +258,12 @@ async def test_http_executor_outcomes(mocker) -> None:
     res_s = await execute_http_job(job_success)
     assert res_s["status"] == "success"
     assert res_s["output"] == '{"status": "ok"}'
-    mock_dispatch.assert_called_with("prompt", 'HTTP_OK: {"status": "ok"}')
+    mock_dispatch.assert_called_with(
+        "prompt",
+        'HTTP_OK: {"status": "ok"}',
+        daemon_queue=None,
+        session_mgr=None,
+    )
 
     job_fail = {
         "name": "HTTP Failure",
@@ -270,4 +275,6 @@ async def test_http_executor_outcomes(mocker) -> None:
     }
     res_f = await execute_http_job(job_fail)
     assert res_f["status"] == "error"
-    mock_dispatch.assert_called_with("steer", "HTTP_FAIL_CODE: 400")
+    mock_dispatch.assert_called_with(
+        "steer", "HTTP_FAIL_CODE: 400", daemon_queue=None, session_mgr=None
+    )

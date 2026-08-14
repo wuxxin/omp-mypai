@@ -19,7 +19,11 @@ class FaultyRpcClient(FakeRpcClient):
         self.call_count += 1
         if self.call_count == 1:
             raise ConnectionResetError("OMP RPC socket crashed mid-turn")
-        return {"status": "ok", "response": f"Recovered turn: {text}"}
+        self.prompts_received.append((text, "prompt"))
+        self.last_assistant_text = f"Recovered turn: {text}"
+        res = {"status": "ok", "response": self.last_assistant_text}
+        self.trigger_turn_end()
+        return res
 
     def prompt_and_wait(self, text: str, timeout: float = 120.0):
         res = self.prompt(text)

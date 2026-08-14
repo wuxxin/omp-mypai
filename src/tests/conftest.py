@@ -18,6 +18,11 @@ class FakeRpcClient:
         self.prompts_received: list[tuple[str, str]] = []
         self.pid = 12345
         self._process = self
+        self._on_turn_end_listeners: list[Any] = []
+        self._on_turn_start_listeners: list[Any] = []
+        self._on_agent_end_listeners: list[Any] = []
+        self._on_message_update_listeners: list[Any] = []
+        self.last_assistant_text = ""
 
     def poll(self) -> None:
         return None
@@ -32,36 +37,64 @@ class FakeRpcClient:
     def install_headless_ui(self) -> None:
         pass
 
+    def on_turn_end(self, listener: Any) -> None:
+        self._on_turn_end_listeners.append(listener)
+
+    def on_turn_start(self, listener: Any) -> None:
+        self._on_turn_start_listeners.append(listener)
+
+    def on_agent_end(self, listener: Any) -> None:
+        self._on_agent_end_listeners.append(listener)
+
+    def on_message_update(self, listener: Any) -> None:
+        self._on_message_update_listeners.append(listener)
+
+    def trigger_turn_end(self, turn_id: str = "t1") -> None:
+        class MockTurnEndEvent:
+            def __init__(self, tid: str) -> None:
+                self.turn_id = tid
+
+        for listener in list(self._on_turn_end_listeners):
+            listener(MockTurnEndEvent(turn_id))
+
     def prompt(self, text: str) -> dict[str, Any]:
         self.prompts_received.append((text, "prompt"))
-        return {"status": "ok", "response": f"Echo: {text}"}
+        self.last_assistant_text = f"Echo: {text}"
+        res = {"status": "ok", "response": self.last_assistant_text}
+        self.trigger_turn_end()
+        return res
 
-    def prompt_and_wait(self, text: str, timeout: float = 120.0) -> Any:
-        self.prompts_received.append((text, "prompt_and_wait"))
-
-        class MockPromptTurn:
-            def __init__(self, t: str) -> None:
-                self.assistant_text = f"Echo: {t}"
-
-        return MockPromptTurn(text)
-
-    def require_assistant_text(self) -> str:
-        return "Echo Assistant Text"
+    def get_last_assistant_text(self) -> str:
+        return self.last_assistant_text
 
     def steer(self, text: str) -> dict[str, Any]:
         self.prompts_received.append((text, "steer"))
-        return {"status": "ok", "response": f"Steer Echo: {text}"}
+        self.last_assistant_text = f"Steer Echo: {text}"
+        res = {"status": "ok", "response": self.last_assistant_text}
+        self.trigger_turn_end()
+        return res
 
     def followup(self, text: str) -> dict[str, Any]:
         self.prompts_received.append((text, "followup"))
-        return {"status": "ok", "response": f"Followup Echo: {text}"}
+        self.last_assistant_text = f"Followup Echo: {text}"
+        res = {"status": "ok", "response": self.last_assistant_text}
+        self.trigger_turn_end()
+        return res
 
     def follow_up(self, text: str) -> dict[str, Any]:
         return self.followup(text)
 
     def abort_and_prompt(self, text: str) -> dict[str, Any]:
         self.prompts_received.append((text, "abort_and_prompt"))
-        return {"status": "ok", "response": f"Abort Echo: {text}"}
+        self.last_assistant_text = f"Abort Echo: {text}"
+        res = {"status": "ok", "response": self.last_assistant_text}
+        self.trigger_turn_end()
+        return res
+
+    def abort(self) -> dict[str, Any]:
+        self.prompts_received.append(("abort", "abort"))
+        self.trigger_turn_end()
+        return {"status": "aborted"}
 
 
 @pytest.fixture

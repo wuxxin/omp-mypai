@@ -30,7 +30,7 @@ async def test_session_manager_modes(tmp_path) -> None:
     # Test steer mode
     res_steer = await mgr.execute_turn(prompt="Interrupt now", mode="steer")
     assert res_steer["status"] == "success"
-    assert "Steer Echo" in res_steer["output"]
+    assert "steer dispatched" in res_steer["output"]
 
     # Test followup mode
     res_followup = await mgr.execute_turn(prompt="Add extra context", mode="followup")
