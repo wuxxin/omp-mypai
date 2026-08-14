@@ -169,12 +169,12 @@
 
     <!-- Persistent RpcClient Process -->
     <g transform="translate(312, 32)">
-      <rect x="0" y="0" width="280" height="112" rx="6" fill="#0f172a" stroke="#0f172a" stroke-width="1.2"/>
-      <text x="16" y="24" class="node-title" fill="#ffffff">RpcClient Subprocess</text>
-      <text x="16" y="42" class="node-sub" fill="#94a3b8">omp --mode rpc --profile mypai</text>
-      <text x="16" y="58" class="node-sub" fill="#94a3b8">Single Persistent Child Process</text>
-      <text x="16" y="74" class="node-sub" fill="#94a3b8">Non-blocking prompt() / steer()</text>
-      <text x="16" y="90" class="node-sub" fill="#38bdf8">Zero isolated temp clients</text>
+      <rect x="0" y="0" width="280" height="112" rx="6" fill="#f1f5f9" stroke="#0f172a" stroke-width="1.5"/>
+      <text x="16" y="24" class="node-title" fill="#0f172a">RpcClient Subprocess</text>
+      <text x="16" y="42" class="node-sub" fill="#1e293b">omp --mode rpc --profile mypai</text>
+      <text x="16" y="58" class="node-sub" fill="#334155">Single Persistent Child Process</text>
+      <text x="16" y="74" class="node-sub" fill="#334155">Non-blocking prompt() / steer()</text>
+      <text x="16" y="90" class="node-sub" fill="#0369a1">Zero isolated temp clients</text>
     </g>
 
     <!-- Event Listeners & Signal -->
@@ -203,7 +203,7 @@
     <rect x="220" y="11" width="14" height="10" rx="2" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
     <text x="242" y="20" class="legend-text">Standard Component</text>
 
-    <rect x="380" y="11" width="14" height="10" rx="2" fill="#0f172a"/>
+    <rect x="380" y="11" width="14" height="10" rx="2" fill="#f1f5f9" stroke="#0f172a" stroke-width="1.2"/>
     <text x="402" y="20" class="legend-text">Persistent Core Subprocess</text>
 
     <rect x="580" y="11" width="14" height="10" rx="2" fill="#f0fdf4" stroke="#059669" stroke-width="1"/>
