@@ -232,14 +232,13 @@
 <body>
 
   <header>
-    <div style="display: flex; gap: 1rem; align-items: center;">
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <div class="brand">
+        <span>myPAI Console</span>
+      </div>
       <div id="status-badge" class="status-badge">
         <div class="status-dot"></div>
         <span id="status-text">Connecting...</span>
-      </div>
-      <div class="brand">
-        <span>myPAI Console</span>
-        <span class="brand-badge" id="app-version">v1.0.0</span>
       </div>
     </div>
     <div style="display: flex; gap: 0.75rem; align-items: center;">
@@ -258,7 +257,7 @@
         <div class="card-title">
           <span>RPC Session Live Console</span>
           <div style="display: flex; align-items: center; gap: 1rem;">
-            <button onclick="loadSessionHistory()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">Reload History</button>
+            <button onclick="loadSessionHistory(true)" class="toggle-btn" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">Reload History</button>
             <button onclick="clearConsole()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">Clear Console</button>
             <label class="checkbox-label">
               <input type="checkbox" id="stream-chunks-checkbox" onchange="toggleStreamChunksFilter()" />
@@ -266,7 +265,7 @@
             </label>
             <label class="checkbox-label">
               <input type="checkbox" id="events-checkbox" onchange="toggleEventsFilter()" />
-              Include Debug Events
+              Show Events
             </label>
             <span style="font-size: 0.75rem; color: var(--text-muted); font-family: 'Fira Code', monospace;">Port 52080</span>
           </div>
@@ -295,7 +294,10 @@
       <div class="card">
         <div class="card-title">
           <span>RPC Connection & Active Call</span>
-          <button onclick="reconnectRpc()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Reconnect</button>
+          <div style="display: flex; gap: 0.4rem;">
+            <button onclick="reconnectRpc()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Reconnect</button>
+            <button onclick="abortRpcTurn()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: linear-gradient(135deg, #ef4444, #dc2626);">Abort</button>
+          </div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -421,6 +423,11 @@
       <div class="card">
         <div class="card-title">
           <span>Cron Tasks & Telemetry</span>
+          <div style="display: flex; gap: 0.4rem;">
+            <button onclick="exportCronJobs()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Export</button>
+            <button onclick="document.getElementById('cron-file-input').click()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Import</button>
+            <input type="file" id="cron-file-input" accept=".json" style="display: none;" onchange="importCronJobs(event)" />
+          </div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem; margin-bottom: 0.75rem;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -518,8 +525,12 @@
     // Load Turn History from Daemon API
     let loadedHistoryIds = new Set();
 
-    async function loadSessionHistory() {
+    async function loadSessionHistory(force = false) {
       try {
+        if (force) {
+          logConsole.innerHTML = '<div class="log-entry info">[Console History Reloaded]</div>';
+          loadedHistoryIds.clear();
+        }
         const res = await fetch('/api/v1/session/history');
         const history = await res.json();
         if (!Array.isArray(history) || !history.length) return;
@@ -528,7 +539,9 @@
           if (loadedHistoryIds.has(item.task_id)) return;
           loadedHistoryIds.add(item.task_id);
 
-          appendLog(`[Turn ${item.mode.toUpperCase()}] Task ${item.task_id} (${item.duration_sec || 0}s)`, 'prompt');
+          const modeStr = item.mode ? item.mode.toUpperCase() : 'PROMPT';
+          const promptText = item.prompt || `Task ${item.task_id}`;
+          appendLog(`[Turn (${modeStr})] ${promptText}`, 'prompt');
           if (item.output) {
             appendLog(`[Output] ${item.output}`, 'output');
           }
@@ -741,6 +754,58 @@
       } catch (e) {
         appendLog(`Failed to reconnect RPC: ${e}`, 'error');
       }
+    }
+
+    async function abortRpcTurn() {
+      try {
+        appendLog('Aborting active RPC turn...', 'info');
+        await fetch('/api/v1/session/abort', { method: 'POST' });
+        appendLog('RPC Turn abort request sent.', 'success');
+        reloadStatsAndSidecars();
+      } catch (e) {
+        appendLog(`Failed to abort RPC turn: ${e}`, 'error');
+      }
+    }
+
+    async function exportCronJobs() {
+      try {
+        const res = await fetch('/api/v1/cron/export');
+        const jobs = await res.json();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jobs, null, 2));
+        const dlAnchor = document.createElement('a');
+        dlAnchor.setAttribute("href", dataStr);
+        dlAnchor.setAttribute("download", "mypai_cron_jobs.json");
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+        dlAnchor.remove();
+        appendLog(`Exported ${jobs.length || 0} cron jobs to JSON file.`, 'info');
+      } catch (e) {
+        appendLog(`Failed to export cron jobs: ${e}`, 'error');
+      }
+    }
+
+    async function importCronJobs(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const jobs = JSON.parse(e.target.result);
+          const res = await fetch('/api/v1/cron/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(jobs)
+          });
+          const data = await res.json();
+          appendLog(`Imported ${data.imported || 0} new jobs, updated ${data.updated || 0} existing jobs.`, 'success');
+          loadCronJobs();
+          updateCronStatus();
+        } catch (err) {
+          appendLog(`Failed to import cron jobs: ${err}`, 'error');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
     }
 
     async function shutdownAcp() {

@@ -12,7 +12,12 @@ from fastapi.responses import FileResponse, HTMLResponse
 from mypai_tools.daemon.api.acp_router import router as acp_router
 from mypai_tools.daemon.api.ws import router as ws_router
 from mypai_tools.daemon.api.ws import ws_manager
-from mypai_tools.persistence import CronJobModel, get_db_session
+from mypai_tools.persistence import (
+    CronJobModel,
+    export_jobs_from_db,
+    get_db_session,
+    import_jobs_to_db,
+)
 from pydantic import BaseModel, Field
 
 app = FastAPI(
@@ -94,6 +99,20 @@ async def session_abort_and_prompt(
 ) -> dict[str, Any]:
     req.mode = "abort_and_prompt"
     return await session_prompt(req, request)
+
+
+@app.post("/api/v1/session/abort")
+async def session_abort(request: Request) -> dict[str, Any]:
+    session_mgr = getattr(request.app.state, "session_manager", None)
+    if not session_mgr:
+        raise HTTPException(status_code=500, detail="Session Manager uninitialized.")
+    if session_mgr.client and hasattr(session_mgr.client, "abort"):
+        try:
+            session_mgr.client.abort()
+        except Exception:  # noqa: BLE001, S110
+            pass
+    await ws_manager.broadcast({"event": "turn_aborted"})
+    return {"status": "aborted"}
 
 
 @app.get("/api/v1/session/status")
@@ -324,6 +343,30 @@ async def cron_status(request: Request) -> dict[str, Any]:
             "enabled_jobs": enabled_count,
             "disabled_jobs": disabled_count,
         }
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/cron/export")
+async def cron_export_jobs(request: Request) -> list[dict[str, Any]]:
+    session = get_db_session(request.app.state.agent_dir)
+    try:
+        return export_jobs_from_db(session)
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/cron/import")
+async def cron_import_jobs(
+    request: Request, jobs: list[dict[str, Any]]
+) -> dict[str, Any]:
+    session = get_db_session(request.app.state.agent_dir)
+    try:
+        imported, updated = import_jobs_to_db(session, jobs)
+        scheduler = getattr(request.app.state, "scheduler", None)
+        if scheduler:
+            scheduler.sync_jobs_from_db()
+        return {"status": "imported", "imported": imported, "updated": updated}
     finally:
         session.close()
 

@@ -371,6 +371,7 @@ class OMPSessionManager:
                 "session_name": self.session_name,
                 "session_uuid": self.session_uuid,
                 "return_code": return_code,
+                "prompt": prompt,
                 "output": res_output,
                 "error": error_msg,
                 "duration_sec": duration,

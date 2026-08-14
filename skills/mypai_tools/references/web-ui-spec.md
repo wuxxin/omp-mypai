@@ -17,19 +17,19 @@
 ## 2. Component Specifications
 
 ### 2.1 Header & Status Indicator
-- **WebSocket Connection Status**: Positioned at the far left of the header bar (left of the `myPAI Console` title), showing real-time WebSocket stream state: `Connected` (green pulsing dot) or `Disconnected` (red dot).
-- **Brand Badge**: Displays `myPAI Console` brand title and version tag (e.g. `v1.0.0`).
+- **Brand Title**: Displays `myPAI Console` title.
+- **WebSocket Connection Status**: Positioned directly after `myPAI Console`, showing real-time WebSocket stream state: `Connected` (green pulsing dot) or `Disconnected` (red dot).
 - **Header Controls**:
   - **Sidebar Toggle**: Positioned on the right header bar (`▶ Sidebar`), expanding/collapsing the right sidebar panel with layout persistence in `localStorage`.
   - **Global Refresh Button**: Positioned at the far right of the header bar (`Refresh`). Clicking it triggers an immediate full reload of all sidebar cards and telemetry (`reloadStatsAndSidecars()`).
 
 ### 2.2 Transcript & Log Stream
 - Subscribes to `WS /api/v1/ws`.
-- **Automatic History Restoration**: Queries `GET /api/v1/session/history` on load to automatically restore past turn prompts and complete assistant outputs.
+- **Automatic History Restoration**: Queries `GET /api/v1/session/history` on load or when clicking **Reload History** (calling `loadSessionHistory(true)`) to clear and restore past turn prompts and complete assistant outputs.
 - **Full Preformatted Output**: Renders multi-line responses and code blocks using `white-space: pre-wrap` without line truncation.
 - **Live Text Delta Streaming**: Receives real-time text updates (`message_update` events) extracted from `omp_rpc` `MessageUpdateEvent` text deltas.
 - **Stream Chunks Toggle**: Includes **Show Stream Chunks** toggle checkbox (persisted via `localStorage`). When unchecked (default), intermediate streaming deltas are hidden and only the final complete output line (`[Output]`) is displayed. When checked, live streaming tokens (`[Stream]`) are appended in real-time.
-- Includes quick-action controls: **Reload History**, **Clear Console**, **Show Stream Chunks**, and **Include Debug Events** filter toggle.
+- Includes quick-action controls: **Reload History**, **Clear Console**, **Show Stream Chunks**, and **Show Events** filter toggle.
 
 ### 2.3 Interactive Control Line
 - **Input Textarea**: Allows human operator to type prompts directly into the active `omp` session.
@@ -45,7 +45,7 @@
 - **RPC Connection & Active Call Panel**:
   - Displays RPC Status, **Daemon Profile** (`mypai` / `OMP_PROFILE`), daemon process PID, uptime counter, and turn queue depth.
   - **Currently Running RPC Call**: Displays active turn ID, execution mode, running profile name, duration counter, and prompt snippet.
-  - Action button: **Reconnect** (`POST /api/v1/session/reconnect`).
+  - Action buttons: **Reconnect** (`POST /api/v1/session/reconnect`) and **Abort** (`POST /api/v1/session/abort`).
 - **ACP Process Control Panel**:
   - Displays ACP state badge (`RUNNING` / `STOPPED`), **Process PID** (`acp-pid`), **Uptime** (`acp-uptime`), active worker processes count, and total task count.
   - Scrollable worker process list displaying PID, CWD workspace, and uptime per worker.
@@ -54,6 +54,7 @@
 - **Session Stats & Cost Panel**: Real-time user/assistant message counters, tool call stats, input/output/total token counters, and estimated session cost ($0.0000).
 - **Cron Telemetry & Tasks Panel**:
   - Displays global execution state (`Enabled` / `Disabled`), total registered jobs count, active vs inactive job counts.
+  - Action buttons in card header: **Export** (`GET /api/v1/cron/export` JSON download) and **Import** (`POST /api/v1/cron/import` JSON upload).
   - **Global Cron Toggle**: Interactive button calling `POST /api/v1/cron/enable` or `POST /api/v1/cron/disable`.
   - **Registered Cron Tasks Table**: Queries `GET /api/v1/cron/jobs` on load. Displays task titles, descriptions, 5-field cron schedules, kind badges, call metrics, and one-click **Run Now** buttons (`POST /api/v1/cron/jobs/run_once`).
 
