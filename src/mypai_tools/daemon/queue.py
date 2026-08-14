@@ -44,6 +44,20 @@ class EventQueue:
             return 1
         return 2
 
+    def _broadcast_queue_update(self) -> None:
+        """Helper to broadcast queue depth update via WebSocket if event loop is running."""
+        try:
+            from mypai_tools.daemon.api.ws import ws_manager
+
+            cur_loop = asyncio.get_running_loop()
+            cur_loop.create_task(
+                ws_manager.broadcast(
+                    {"event": "queue_updated", "queue_depth": self.depth()}
+                )
+            )
+        except RuntimeError:
+            pass
+
     async def enqueue(
         self,
         prompt: str,
@@ -78,6 +92,7 @@ class EventQueue:
                 priority,
                 self._queue.qsize(),
             )
+            self._broadcast_queue_update()
             return item
 
     async def get_next(self) -> dict[str, Any]:
@@ -90,6 +105,7 @@ class EventQueue:
         """Mark task execution as completed and record in history."""
         if self.active_task_id == task_id:
             self.active_task_id = None
+        self._broadcast_queue_update()
         result["task_id"] = task_id
         self.history.append(result)
         if len(self.history) > 100:

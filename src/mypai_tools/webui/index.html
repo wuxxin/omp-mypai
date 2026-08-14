@@ -588,6 +588,27 @@
       logConsole.scrollTop = logConsole.scrollHeight;
     }
 
+    // 30-Second Periodic Sidebar Refresh
+    setInterval(reloadStatsAndSidecars, 30000);
+
+    const SIDEBAR_REFRESH_EVENTS = new Set([
+      'queue_updated',
+      'turn_started',
+      'turn_completed',
+      'rpc_agent_start',
+      'rpc_agent_end',
+      'rpc_turn_start',
+      'rpc_turn_end',
+      'rpc_message_start',
+      'rpc_message_end',
+      'rpc_tool_execution_start',
+      'rpc_tool_execution_end',
+      'rpc_auto_compaction_start',
+      'rpc_auto_compaction_end',
+      'rpc_auto_retry_start',
+      'rpc_auto_retry_end'
+    ]);
+
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -598,7 +619,6 @@
           }
           activeStreamBuffer = '';
           activeStreamEntry = null;
-          reloadStatsAndSidecars();
         } else if (data.event === 'turn_completed') {
           const res = data.result || {};
           const out = res.output || res.error || '';
@@ -608,13 +628,15 @@
           if (out) {
             appendLog(`[Output] ${out}`, res.status === 'success' ? 'output' : 'error');
           }
-          reloadStatsAndSidecars();
         } else if (data.event === 'message_update') {
           if (data.text) {
             updateStreamActivity(data.text);
           }
-        } else if (data.event === 'rpc_turn_start' || data.event === 'rpc_turn_end') {
+        } else if (data.event && data.event.startsWith('rpc_')) {
           appendLog(`[RPC Event] ${data.event} (${data.turn || ''})`, 'event');
+        }
+
+        if (SIDEBAR_REFRESH_EVENTS.has(data.event)) {
           reloadStatsAndSidecars();
         }
       } catch (e) {}

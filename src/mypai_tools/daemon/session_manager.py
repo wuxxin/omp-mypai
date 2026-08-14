@@ -92,34 +92,40 @@ class OMPSessionManager:
                         broadcast_event("message_update", {"text": text})
 
                 client.on_message_update(_on_update)
-            if hasattr(client, "on_turn_start"):
-                client.on_turn_start(
-                    lambda evt: broadcast_event(
-                        "rpc_turn_start",
-                        {"turn": getattr(evt, "turn_id", "")},
-                    )
-                )
-            if hasattr(client, "on_turn_end"):
 
-                def _on_turn_end(evt: Any) -> None:
-                    broadcast_event(
-                        "rpc_turn_end",
-                        {"turn": getattr(evt, "turn_id", "")},
-                    )
-                    _signal_turn_done()
+            rpc_event_map = {
+                "on_agent_start": "rpc_agent_start",
+                "on_agent_end": "rpc_agent_end",
+                "on_turn_start": "rpc_turn_start",
+                "on_turn_end": "rpc_turn_end",
+                "on_message_start": "rpc_message_start",
+                "on_message_end": "rpc_message_end",
+                "on_tool_execution_start": "rpc_tool_execution_start",
+                "on_tool_execution_end": "rpc_tool_execution_end",
+                "on_auto_compaction_start": "rpc_auto_compaction_start",
+                "on_auto_compaction_end": "rpc_auto_compaction_end",
+                "on_auto_retry_start": "rpc_auto_retry_start",
+                "on_auto_retry_end": "rpc_auto_retry_end",
+            }
 
-                client.on_turn_end(_on_turn_end)
+            for method_name, event_type in rpc_event_map.items():
+                if hasattr(client, method_name):
 
-            if hasattr(client, "on_agent_end"):
+                    def _make_handler(evt_name: str):
+                        def _handler(evt: Any) -> None:
+                            broadcast_event(
+                                evt_name,
+                                {
+                                    "turn": getattr(evt, "turn_id", ""),
+                                    "event": str(evt),
+                                },
+                            )
+                            if evt_name in ("rpc_turn_end", "rpc_agent_end"):
+                                _signal_turn_done()
 
-                def _on_agent_end(evt: Any) -> None:
-                    broadcast_event(
-                        "rpc_agent_end",
-                        {"event": str(evt)},
-                    )
-                    _signal_turn_done()
+                        return _handler
 
-                client.on_agent_end(_on_agent_end)
+                    getattr(client, method_name)(_make_handler(event_type))
         except Exception as exc:  # noqa: BLE001
             logger.debug("Failed to set up event listeners on RpcClient: %s", exc)
 
