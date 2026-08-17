@@ -36,15 +36,29 @@ Registered into `omp_rpc.RpcClient` via `set_custom_tools()`:
 
 ## 3. SQLite State Persistence & REST Control API
 
-### State Management (`AcpState`)
-* Key name: `"acp_execution_state"` saved in `SettingsModel` (SQLite).
-* Values: `"running"` (default) or `"suspended"`.
-* When state is `"suspended"`, all `@host_tool` functions return:
-  `{"status": "error", "error": "ACP delegation is currently suspended in daemon configuration."}`.
+### State & Task Execution Array Management (`SettingsModel`)
+* **ACP Execution State**: Key `"acp_execution_state"` saved in `SettingsModel` (SQLite `settings` table). Values: `"running"` (default), `"suspended"`, or `"shutdown"`. When `"suspended"`, all host tools return an error.
+* **Persistent ACP Execution Array**: Key `"acp_execution_array"` saved in `SettingsModel` (SQLite `settings` table). Contains the historical array of all executed and started ACP tasks persisted across daemon restarts.
+  * **Entry Schema**:
+    ```json
+    {
+      "task_id": "acp-task-8a9b1c2d",
+      "start_time": "2026-08-18T01:03:18Z",
+      "cwd": "/path/to/workspace",
+      "prompt": "Analyze repository architecture",
+      "agent_profile": "fixer",
+      "status": "completed",
+      "output": "Task completed successfully...",
+      "error": "",
+      "duration_sec": 4.25,
+      "completed_at": "2026-08-18T01:03:22Z"
+    }
+    ```
+  * **Lifecycle & Sync**: `AcpDelegationManager` loads `acp_execution_array` from SQLite `settings` on startup into `self.tasks` and updates the array in SQLite whenever a task is started, completed, errored, or cancelled.
 
 ### REST API Endpoints (`mypai_tools.daemon.api.acp_router`)
 
-* **`GET /api/v1/acp/status`**: Get current state (`running` vs `suspended`), active worker child PIDs, task queue depth, `running_tasks`, and recent `finished_tasks`.
+* **`GET /api/v1/acp/status`**: Get current state (`running` vs `suspended`), active worker child PIDs, task queue depth, `running_tasks`, and recent `finished_tasks` from `acp_execution_array`.
 * **`GET /api/v1/acp/tasks/{task_id}`**: Fetch details and output of a specific ACP task.
 * **`POST /api/v1/acp/enable`**: Enable ACP execution state in SQLite settings and broadcast WebSocket event `acp_state_changed`.
 * **`POST /api/v1/acp/suspend`** / **`POST /api/v1/acp/disable`**: Suspend ACP execution state in SQLite settings.

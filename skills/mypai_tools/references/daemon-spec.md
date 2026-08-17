@@ -112,7 +112,7 @@ When resolving the next action to execute on the persistent `omp_rpc` session:
 
 - Databases are dynamically partitioned per workspace at `~/.omp/profiles/<profile>/data/omp-mypai/daemon/agent-<basedir>-<hash>.db`.
 - SQLite configured with WAL mode (`PRAGMA journal_mode=WAL`) and 30-second busy timeout (`timeout=30.0`).
-- Manages `cron_jobs`, `settings` (`session_uuid`, `acp_execution_state`), and `turn_history` audit records.
+- Manages `cron_jobs`, `settings` (`session_uuid`, `acp_execution_state`, `acp_execution_array`), and `turn_history` audit records.
 
 ---
 

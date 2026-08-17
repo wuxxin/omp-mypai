@@ -13,13 +13,14 @@ from mypai_tools.persistence import (
 logger = logging.getLogger("mypai_daemon.acp.state")
 
 SETTING_KEY_ACP_STATE = "acp_execution_state"
+SETTING_KEY_ACP_EXECUTION_ARRAY = "acp_execution_array"
 STATE_RUNNING = "running"
 STATE_SUSPENDED = "suspended"
 STATE_SHUTDOWN = "shutdown"
 
 
 class AcpState:
-    """Manages SQLite settings persistence for ACP intra-agent delegation state."""
+    """Manages SQLite settings persistence for ACP intra-agent delegation state and execution history."""
 
     def __init__(self, agent_dir: str = "") -> None:
         self.agent_dir = resolve_agent_dir(agent_dir)
@@ -79,6 +80,37 @@ class AcpState:
             set_setting(db, SETTING_KEY_ACP_STATE, STATE_SHUTDOWN)
             logger.info("ACP execution state set to 'shutdown'.")
             return self.get_status()
+        finally:
+            db.close()
+
+    def get_execution_array(self) -> list[dict[str, Any]]:
+        """Fetch persistent ACP execution array from SQLite settings."""
+        import json
+
+        db = get_db_session(self.agent_dir)
+        try:
+            val = get_setting(db, SETTING_KEY_ACP_EXECUTION_ARRAY, default="[]")
+            if isinstance(val, str) and val.strip():
+                parsed = json.loads(val)
+                return parsed if isinstance(parsed, list) else []
+            if isinstance(val, list):
+                return val
+            return []
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Error fetching ACP execution array from DB: %s", exc)
+            return []
+        finally:
+            db.close()
+
+    def set_execution_array(self, tasks: list[dict[str, Any]]) -> None:
+        """Save ACP execution array into SQLite settings."""
+        import json
+
+        db = get_db_session(self.agent_dir)
+        try:
+            set_setting(db, SETTING_KEY_ACP_EXECUTION_ARRAY, json.dumps(tasks))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Error saving ACP execution array to DB: %s", exc)
         finally:
             db.close()
 

@@ -29,6 +29,28 @@ class AcpDelegationManager:
         self._lock = asyncio.Lock()
         self.daemon_queue: Any = None
         self.ws_manager: Any = None
+        self._load_execution_array()
+
+    def _load_execution_array(self) -> None:
+        """Load persistent acp_execution_array from SettingsModel into self.tasks."""
+        try:
+            state = get_acp_state(self.agent_dir)
+            array = state.get_execution_array()
+            for task in array:
+                if isinstance(task, dict) and "task_id" in task:
+                    if "start_time" not in task:
+                        task["start_time"] = task.get("created_at", "")
+                    self.tasks[task["task_id"]] = task
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Error loading acp_execution_array from DB: %s", exc)
+
+    def _save_execution_array(self) -> None:
+        """Persist current tasks array into SettingsModel."""
+        try:
+            state = get_acp_state(self.agent_dir)
+            state.set_execution_array(list(self.tasks.values()))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Error saving acp_execution_array to DB: %s", exc)
 
     def ensure_default_worker(self) -> None:
         """Ensure initial ACP worker is attached to the target workspace directory on startup if enabled."""
@@ -78,8 +100,10 @@ class AcpDelegationManager:
             }
 
         task_id = f"acp-task-{uuid.uuid4().hex[:8]}"
+        now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         task_record: dict[str, Any] = {
             "task_id": task_id,
+            "start_time": now_iso,
             "cwd": cwd,
             "prompt": prompt,
             "agent_profile": agent_profile,
@@ -88,10 +112,11 @@ class AcpDelegationManager:
             "error": "",
             "session_id": "",
             "duration_sec": 0.0,
-            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "created_at": now_iso,
             "completed_at": None,
         }
         self.tasks[task_id] = task_record
+        self._save_execution_array()
 
         if self.ws_manager:
             try:
@@ -122,6 +147,7 @@ class AcpDelegationManager:
                         "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     }
                 )
+                self._save_execution_array()
             except Exception as exc:  # noqa: BLE001
                 duration = round(time.time() - start_t, 3)
                 task_record.update(
@@ -132,6 +158,7 @@ class AcpDelegationManager:
                         "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     }
                 )
+                self._save_execution_array()
 
             if self.ws_manager:
                 try:
@@ -203,6 +230,8 @@ class AcpDelegationManager:
             session.cancel()
 
         task["status"] = "cancelled"
+        task["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        self._save_execution_array()
         return {"status": "cancelled", "task_id": task_id}
 
     def list_agents(self) -> dict[str, Any]:

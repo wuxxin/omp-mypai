@@ -188,3 +188,54 @@ def test_acp_startup_attaches_default_worker(
     agents = mgr.list_agents()
     assert len(agents["workers"]) == 1
     assert agents["workers"][0]["cwd"] == str(tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_acp_execution_array_persistence_in_settings_model(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
+) -> None:
+    """Verify that started and executed ACP tasks persist in acp_execution_array in SettingsModel across restarts."""
+    from mypai_tools.acp.manager import AcpDelegationManager
+    from mypai_tools.acp.state import SETTING_KEY_ACP_EXECUTION_ARRAY, get_acp_state
+
+    agent_dir = str(tmp_path)
+    mgr = AcpDelegationManager(agent_dir=agent_dir)
+
+    def mock_get_or_create_session(cwd: str) -> MockAcpSession:
+        return MockAcpSession(cwd, will_fail=False)
+
+    monkeypatch.setattr(mgr, "get_or_create_session", mock_get_or_create_session)
+
+    res = await mgr.execute_task_async(
+        cwd=agent_dir, prompt="Build persistent index", agent_profile="architect"
+    )
+    task_id = res["task_id"]
+
+    # Wait briefly for background execution to complete
+    for _ in range(20):
+        t = mgr.tasks.get(task_id)
+        if t and t.get("status") == "completed":
+            break
+        await asyncio.sleep(0.05)
+
+    # Check that state.get_execution_array() reads from SettingsModel
+    state = get_acp_state(agent_dir)
+    raw_array = state.get_execution_array()
+    assert len(raw_array) >= 1
+
+    saved_task = next(t for t in raw_array if t["task_id"] == task_id)
+    assert saved_task["task_id"] == task_id
+    assert "start_time" in saved_task
+    assert saved_task["start_time"] != ""
+    assert saved_task["cwd"] == agent_dir
+    assert saved_task["prompt"] == "Build persistent index"
+    assert saved_task["agent_profile"] == "architect"
+    assert saved_task["status"] == "completed"
+
+    # Simulate daemon restart by initializing a new AcpDelegationManager instance
+    new_mgr = AcpDelegationManager(agent_dir=agent_dir)
+    assert task_id in new_mgr.tasks
+    reloaded = new_mgr.tasks[task_id]
+    assert reloaded["prompt"] == "Build persistent index"
+    assert reloaded["agent_profile"] == "architect"
+    assert reloaded["start_time"] == saved_task["start_time"]
