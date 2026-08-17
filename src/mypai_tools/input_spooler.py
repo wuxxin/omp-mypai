@@ -26,7 +26,20 @@ DEFAULT_HINDSIGHT_URL = os.getenv("HINDSIGHT_URL", "http://localhost:8888")
 DEFAULT_BANK_ID = os.getenv("HINDSIGHT_BANK_ID", os.getenv("OMP_PROFILE", "mypai"))
 DEFAULT_QUIESCENCE_SECONDS = 10.0
 DEFAULT_POLL_INTERVAL_SECONDS = 2.0
-DEFAULT_STATE_FILE = str(Path.home() / ".omp" / "spooler_processed_hashes.json")
+
+
+def get_spooler_state_file(profile: str = "") -> str:
+    """Get persistent state file path for input spooler within profile directory."""
+    prof = profile or os.getenv("OMP_PROFILE", "mypai")
+    if prof and prof != "default":
+        state_dir = Path.home() / ".omp" / "profiles" / prof / "data" / "omp-mypai"
+    else:
+        state_dir = Path.home() / ".omp" / "data" / "omp-mypai"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    return str(state_dir / "spooler_processed_hashes.json")
+
+
+DEFAULT_STATE_FILE = get_spooler_state_file()
 
 MEDIA_EXTENSIONS = {".wav", ".mp3", ".m4a", ".mp4", ".mov", ".flac"}
 IGNORED_SUFFIXES = {".tmp", ".part", ".crdownload", ".download"}
@@ -569,6 +582,10 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     if not parsed.mode:
         parser.print_help(sys.stderr)
         sys.exit(1)
+    if parsed.profile:
+        os.environ["OMP_PROFILE"] = parsed.profile
+        if parsed.state_file == DEFAULT_STATE_FILE:
+            parsed.state_file = get_spooler_state_file(parsed.profile)
     return parsed
 
 

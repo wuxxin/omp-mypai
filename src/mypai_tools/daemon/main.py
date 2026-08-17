@@ -200,7 +200,7 @@ def main() -> None:
         from mypai_tools.persistence import get_db_session, import_jobs_to_db
         from mypai_tools.tools import load_jobs_file
 
-        db = get_db_session(args.agent_dir)
+        db = get_db_session(args.agent_dir, profile=args.profile)
         try:
             jobs_list = load_jobs_file(args.file_path)
             imported_count, updated_count = import_jobs_to_db(db, jobs_list)
@@ -222,7 +222,7 @@ def main() -> None:
         from mypai_tools.persistence import export_jobs_from_db, get_db_session
         from mypai_tools.tools import dump_jobs_file
 
-        db = get_db_session(args.agent_dir)
+        db = get_db_session(args.agent_dir, profile=args.profile)
         try:
             jobs = export_jobs_from_db(db)
             output_file = dump_jobs_file(args.file_path, jobs, fmt=args.format)

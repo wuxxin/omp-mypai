@@ -244,38 +244,51 @@ def get_project_dir_hash(agent_dir: str = "") -> str:
     return get_agent_dir_hash(agent_dir)
 
 
-def get_agent_db_path(agent_dir: str = "") -> str:
-    """Get absolute SQLite database path for given MYPAI_AGENT_DIR."""
+def get_profile_name(profile: str = "") -> str:
+    """Get active OMP profile name from parameter, environment, or default 'mypai'."""
+    return profile or os.environ.get("OMP_PROFILE", "mypai")
+
+
+def get_profile_data_dir(profile: str = "") -> str:
+    """Get the target data directory for omp-mypai in the active profile."""
+    prof = get_profile_name(profile)
+    if prof and prof != "default":
+        return os.path.expanduser(f"~/.omp/profiles/{prof}/data/omp-mypai")
+    return os.path.expanduser("~/.omp/data/omp-mypai")
+
+
+def get_agent_db_path(agent_dir: str = "", profile: str = "") -> str:
+    """Get absolute SQLite database path for given MYPAI_AGENT_DIR in profile directory."""
     basedir, shorthash = get_agent_dir_info(agent_dir)
     plugin_data = os.environ.get(
         "MYPAI_PLUGIN_DATA",
-        os.path.expanduser("~/.omp/data/omp-mypai"),
+        get_profile_data_dir(profile),
     )
     daemon_db_dir = os.path.join(plugin_data, "daemon")
     os.makedirs(daemon_db_dir, exist_ok=True)
     return os.path.join(daemon_db_dir, f"agent-{basedir}-{shorthash}.db")
 
 
-def get_project_db_path(agent_dir: str = "") -> str:
+def get_project_db_path(agent_dir: str = "", profile: str = "") -> str:
     """Alias for get_agent_db_path."""
-    return get_agent_db_path(agent_dir)
+    return get_agent_db_path(agent_dir, profile=profile)
 
 
-def get_daemon_pid_path(agent_dir: str = "") -> str:
-    """Get daemon PID file path for given agent directory."""
+def get_daemon_pid_path(agent_dir: str = "", profile: str = "") -> str:
+    """Get daemon PID file path for given agent directory in profile directory."""
     basedir, shorthash = get_agent_dir_info(agent_dir)
     plugin_data = os.environ.get(
         "MYPAI_PLUGIN_DATA",
-        os.path.expanduser("~/.omp/data/omp-mypai"),
+        get_profile_data_dir(profile),
     )
     daemon_dir = os.path.join(plugin_data, "daemon")
     os.makedirs(daemon_dir, exist_ok=True)
     return os.path.join(daemon_dir, f"mypai-daemon-{basedir}-{shorthash}.pid")
 
 
-def is_daemon_running(agent_dir: str = "") -> bool:
+def is_daemon_running(agent_dir: str = "", profile: str = "") -> bool:
     """Check if daemon process PID exists and is actively running."""
-    pid_path = get_daemon_pid_path(agent_dir)
+    pid_path = get_daemon_pid_path(agent_dir, profile=profile)
     if not os.path.isfile(pid_path):
         return False
     try:
@@ -287,10 +300,13 @@ def is_daemon_running(agent_dir: str = "") -> bool:
         return False
 
 
-def get_db_session(agent_dir: str = ""):
-    """Create engine with SQLite WAL mode, create database tables, and return Session."""
-    db_path = get_agent_db_path(agent_dir)
-    engine = create_engine(f"sqlite:///{db_path}", echo=False)
+def get_db_session(agent_dir: str = "", profile: str = ""):
+    """Create a scoped SQLAlchemy session connected to SQLite database for target MYPAI_AGENT_DIR."""
+    db_path = get_agent_db_path(agent_dir, profile=profile)
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False, "timeout": 30.0},
+    )
 
     with engine.connect() as conn:
         conn.execute(text("PRAGMA journal_mode=WAL;"))
