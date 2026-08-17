@@ -49,3 +49,33 @@ async def test_session_manager_get_status(tmp_path) -> None:
     assert status["session_name"] == "mypai_daemon - running"
     assert status["queue_depth"] == 2
     assert status["is_busy"] is False
+
+
+@pytest.mark.asyncio
+async def test_session_manager_abort_updates_last_turn(tmp_path) -> None:
+    fake_client = FakeRpcClient()
+    mgr = OMPSessionManager(agent_dir=str(tmp_path))
+    mgr.rpc_client = fake_client
+
+    # Simulate an active turn in progress
+    mgr.is_busy = True
+    mgr.active_call = {
+        "task_id": "task_active_99",
+        "mode": "prompt",
+        "source": "webui",
+        "start_time": 1000.0,
+        "prompt_snippet": "Analyze repo structure",
+    }
+
+    res = mgr.abort()
+    assert res["status"] == "aborted"
+    assert mgr.is_busy is False
+    assert mgr.active_call is None
+    assert mgr.last_turn is not None
+    assert mgr.last_turn["task_id"] == "task_active_99"
+    assert mgr.last_turn["status"] == "aborted"
+    assert mgr.last_turn["prompt_snippet"] == "Analyze repo structure"
+
+    status = mgr.get_status()
+    assert status["last_turn"]["status"] == "aborted"
+    assert status["last_turn"]["task_id"] == "task_active_99"

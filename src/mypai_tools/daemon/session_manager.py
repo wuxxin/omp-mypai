@@ -279,6 +279,45 @@ class OMPSessionManager:
 
         return self.rpc_client
 
+    def abort(self) -> dict[str, Any]:
+        """Abort active turn, clear active_call, record last_turn as aborted, and signal client."""
+        client = self.triage_connection()
+        if client and hasattr(client, "abort"):
+            try:
+                client.abort()
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Error calling client.abort(): %s", exc)
+
+        self._turn_done_event.set()
+
+        if self.active_call:
+            elapsed = round(time.time() - self.active_call.get("start_time", time.time()), 3)
+            self.last_turn = {
+                "task_id": self.active_call.get("task_id", "aborted"),
+                "mode": self.active_call.get("mode", "prompt"),
+                "source": self.active_call.get("source", "user"),
+                "duration_sec": elapsed,
+                "prompt_snippet": self.active_call.get("prompt_snippet", "Aborted by user"),
+                "status": "aborted",
+                "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+        elif not self.last_turn:
+            self.last_turn = {
+                "task_id": "aborted",
+                "mode": "abort",
+                "source": "webui",
+                "duration_sec": 0.0,
+                "prompt_snippet": "Turn aborted by user",
+                "status": "aborted",
+                "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+        else:
+            self.last_turn["status"] = "aborted"
+
+        self.is_busy = False
+        self.active_call = None
+        return {"status": "aborted", "last_turn": self.last_turn}
+
     async def execute_turn(
         self,
         prompt: str,
@@ -308,12 +347,7 @@ class OMPSessionManager:
             if clean_mode == "steer":
                 client.steer(prompt)
             elif clean_mode == "abort":
-                if hasattr(client, "abort"):
-                    try:
-                        client.abort()
-                    except Exception:  # noqa: BLE001
-                        pass
-                self._turn_done_event.set()
+                return self.abort()
             elif clean_mode == "abort_retry":
                 if hasattr(client, "abort_retry"):
                     try:

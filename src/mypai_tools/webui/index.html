@@ -881,8 +881,10 @@
     async function abortTurn() {
       try {
         appendLog('Aborting active turn & purging Turn Queue...', 'info');
-        await fetch('/api/v1/session/abort', { method: 'POST' });
+        const res = await fetch('/api/v1/session/abort', { method: 'POST' });
+        const data = await res.json();
         appendLog('Turn Aborted and Turn Queue flushed.', 'success');
+        updateSessionTelemetry();
         reloadAll();
       } catch (err) {
         appendLog(`Failed to abort turn: ${err}`, 'error');
@@ -921,6 +923,12 @@
           activeStreamEntry = null;
           appendLog(`[Turn Completed] Task ${data.task_id} (${res.duration_sec || 0}s)`, res.status === 'success' ? 'success' : 'error');
           if (out) appendLog(`[Output] ${out}`, res.status === 'success' ? 'output' : 'error');
+        } else if (data.event === 'turn_aborted') {
+          streamingBadge.classList.remove('active');
+          appendLog('[Turn Aborted] Active turn and queue purged.', 'error');
+          activeStreamBuffer = '';
+          activeStreamEntry = null;
+          updateSessionTelemetry();
         } else if (data.event === 'message_update') {
           streamingBadge.classList.add('active');
           if (showStreamChunks && data.text) {
@@ -1007,12 +1015,18 @@
           turnMsgsCalls.textContent = '1 turn running';
         } else if (data.last_turn) {
           turnBadge.textContent = '[Inactive]';
-          turnBadge.style.color = 'var(--text-muted)';
-          turnStatusText.textContent = 'Inactive';
+          turnBadge.style.color = data.last_turn.status === 'aborted' ? 'var(--status-amber)' : 'var(--text-muted)';
+          turnStatusText.textContent = data.last_turn.status === 'aborted' ? 'Inactive (Aborted)' : 'Inactive';
           turnCurrentId.textContent = `${data.last_turn.task_id}@${data.last_turn.mode}`;
           turnRuntime.textContent = `${data.last_turn.duration_sec}s`;
           turnSnippetBox.textContent = `"${data.last_turn.prompt_snippet || ''}"`;
-          turnMsgsCalls.textContent = data.last_turn.status === 'success' ? 'Last turn completed OK' : 'Last turn completed with error';
+          if (data.last_turn.status === 'aborted') {
+            turnMsgsCalls.textContent = 'Turn Aborted by User';
+          } else if (data.last_turn.status === 'success') {
+            turnMsgsCalls.textContent = 'Last turn completed OK';
+          } else {
+            turnMsgsCalls.textContent = 'Last turn completed with error';
+          }
         } else {
           turnBadge.textContent = '[Inactive]';
           turnBadge.style.color = 'var(--text-muted)';

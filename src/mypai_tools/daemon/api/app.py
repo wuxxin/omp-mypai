@@ -91,14 +91,9 @@ async def session_abort(request: Request) -> dict[str, Any]:
     if not session_mgr:
         raise HTTPException(status_code=500, detail="Session Manager uninitialized.")
 
-    if session_mgr.rpc_client and hasattr(session_mgr.rpc_client, "abort"):
-        try:
-            session_mgr.rpc_client.abort()
-        except Exception:  # noqa: BLE001
-            pass
-
-    await ws_manager.broadcast({"event": "turn_aborted"})
-    return {"status": "aborted"}
+    res = session_mgr.abort()
+    await ws_manager.broadcast({"event": "turn_aborted", "last_turn": session_mgr.last_turn})
+    return res
 
 
 @app.get("/api/v1/session/status")
