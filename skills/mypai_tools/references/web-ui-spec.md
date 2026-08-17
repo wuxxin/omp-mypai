@@ -9,7 +9,7 @@
 ## 1. Screen Wireframe Layout
 
 ```
-myPAI Console * Connected (steady green/red) STREAMING (red 'ON AIR' pulse if active, grey if idle) | Session | Cron | Team | Refresh | ? Help
+myPAI Console * Connected (steady green/red) STREAMING (red 'ON AIR' pulse if active, grey if idle) | Session | Cron | Team | [?] | [⟳ Refresh]
 
 RPC Session Live Console             Reload History  Clear Console  [ ] Show Stream Chunks  [x] Show Events  Port: 52080
 +-----------------------------------------------------------------------------------------------+

@@ -190,19 +190,62 @@
       border: none;
     }
 
-    .btn-help {
-      background: rgba(59, 130, 246, 0.15);
-      border: 1px solid rgba(59, 130, 246, 0.4);
+    .btn-help-icon {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
       color: #93c5fd;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 50%;
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      font-weight: 600;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
-    .btn-help:hover {
+    .btn-help-icon:hover {
       background: rgba(59, 130, 246, 0.25);
-      color: white;
       border-color: #60a5fa;
+      color: white;
+      transform: scale(1.08);
+    }
+
+    .btn-refresh {
+      background: rgba(59, 130, 246, 0.14);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #93c5fd;
+      padding: 0.45rem 1.15rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 95px;
+    }
+    .btn-refresh:hover {
+      background: rgba(59, 130, 246, 0.3);
+      border-color: #60a5fa;
+      color: white;
+      transform: translateY(-1px);
+    }
+    .btn-refresh.flashing {
+      background: rgba(16, 185, 129, 0.3);
+      border-color: rgba(16, 185, 129, 0.9);
+      color: #6ee7b7;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.65);
+      animation: refresh-flash 0.8s ease-in-out;
+    }
+    @keyframes refresh-flash {
+      0% { transform: scale(1); box-shadow: 0 0 0 rgba(16, 185, 129, 0); }
+      50% { transform: scale(1.05); box-shadow: 0 0 16px rgba(16, 185, 129, 0.75); }
+      100% { transform: scale(1); box-shadow: 0 0 0 rgba(16, 185, 129, 0); }
     }
 
     .log-console {
@@ -455,9 +498,8 @@
       <button class="tab-btn active" id="tab-btn-session" onclick="switchTab('session')">Session</button>
       <button class="tab-btn" id="tab-btn-cron" onclick="switchTab('cron')">Cron</button>
       <button class="tab-btn" id="tab-btn-team" onclick="switchTab('team')">Team</button>
-      <button class="btn-action" onclick="reloadAll()" title="Refresh Telemetry">Refresh</button>
-      <button class="btn-action btn-help" id="shortcuts-info-btn" onclick="toggleShortcutsOverlay()" title="Keyboard Shortcuts &amp; Help (F1 / ?)"><span style="font-weight: 700;">?</span> Help</button>
-      <button class="btn-action" id="sidebar-toggle-btn" onclick="toggleSidebar()">▶ Sidebar</button>
+      <button class="btn-help-icon" id="shortcuts-info-btn" onclick="toggleShortcutsOverlay()" title="Keyboard Shortcuts &amp; Help (F1 / ?)" aria-label="Help and Shortcuts">?</button>
+      <button id="refresh-btn" class="btn-refresh" onclick="reloadAll()" title="Refresh Telemetry">⟳ Refresh</button>
     </div>
   </header>
 
@@ -724,7 +766,6 @@
     let sidebarCollapsed = localStorage.getItem('mypai_sidebar_collapsed') === 'true';
     if (sidebarCollapsed) {
       document.getElementById('main-grid').classList.add('collapsed');
-      document.getElementById('sidebar-toggle-btn').textContent = '◀ Sidebar';
     }
 
     function toggleSidebar() {
@@ -733,10 +774,8 @@
       localStorage.setItem('mypai_sidebar_collapsed', sidebarCollapsed);
       if (sidebarCollapsed) {
         grid.classList.add('collapsed');
-        document.getElementById('sidebar-toggle-btn').textContent = '◀ Sidebar';
       } else {
         grid.classList.remove('collapsed');
-        document.getElementById('sidebar-toggle-btn').textContent = '▶ Sidebar';
       }
     }
 
@@ -1205,7 +1244,16 @@
       } catch (e) {}
     }
 
-    function reloadAll() {
+    function reloadAll(isAuto = false) {
+      const refreshBtn = document.getElementById('refresh-btn');
+      if (refreshBtn) {
+        refreshBtn.classList.remove('flashing');
+        void refreshBtn.offsetWidth; // trigger DOM reflow for CSS keyframe reset
+        refreshBtn.classList.add('flashing');
+        setTimeout(() => {
+          if (refreshBtn) refreshBtn.classList.remove('flashing');
+        }, 800);
+      }
       updateSessionTelemetry();
       updateStats();
       updateCronStatus();
@@ -1213,7 +1261,7 @@
       updateTeamStatus();
     }
 
-    setInterval(reloadAll, 30000);
+    setInterval(() => reloadAll(true), 30000);
     reloadAll();
   </script>
 
