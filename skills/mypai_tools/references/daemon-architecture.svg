@@ -36,285 +36,252 @@
   <rect width="1200" height="840" class="bg-paper"/>
 
   <!-- ==================== HEADER ==================== -->
-  <text x="40" y="24" class="header-tag">SYSTEM ARCHITECTURE &amp; CONCURRENCY MODEL</text>
-  <text x="40" y="52" class="title-main">myPAI Daemon 2-Tier Execution Architecture</text>
-  <text x="40" y="72" class="subtitle">Parallel background execution plane coupled with a serialized priority-flush TurnQueue and persistent OMP RPC session</text>
+  <text x="40" y="28" class="header-tag">CORE ARCHITECTURE SPECIFICATION</text>
+  <text x="40" y="56" class="title-main">myPAI Daemon 2-Tier Execution Architecture</text>
+  <text x="40" y="76" class="subtitle">Single Ingress Rule: Parallel background plane, serialized priority TurnQueue, and dedicated OMP RPC driver</text>
 
   <!-- ==================== ZONES ==================== -->
 
   <!-- ZONE 1: Ingress & Event Producers -->
-  <rect x="40" y="96" width="320" height="304" rx="8" class="zone-bg"/>
-  <rect x="52" y="100" width="188" height="12" rx="2" fill="#faf7f2"/>
+  <rect x="40" y="96" width="320" height="348" rx="8" class="zone-bg"/>
+  <rect x="52" y="100" width="224" height="12" rx="2" fill="#faf7f2"/>
   <text x="56" y="109" class="zone-eyebrow">INGRESS &amp; EVENT PRODUCERS</text>
 
   <!-- ZONE 2: Tier 1 Parallel Background Execution -->
-  <rect x="40" y="420" width="320" height="336" rx="8" class="zone-bg"/>
-  <rect x="52" y="424" width="268" height="12" rx="2" fill="#faf7f2"/>
-  <text x="56" y="433" class="zone-eyebrow">TIER 1: BACKGROUND EXECUTION PLANE</text>
+  <rect x="40" y="460" width="320" height="300" rx="8" class="zone-bg"/>
+  <rect x="52" y="464" width="268" height="12" rx="2" fill="#faf7f2"/>
+  <text x="56" y="473" class="zone-eyebrow">TIER 1: BACKGROUND EXECUTION PLANE</text>
 
   <!-- ZONE 3: Tier 2 Serialized TurnQueue Plane (FOCAL ZONE) -->
-  <rect x="388" y="96" width="404" height="660" rx="8" class="zone-bg" stroke="rgba(235, 108, 54, 0.25)" stroke-width="1"/>
-  <rect x="400" y="100" width="288" height="12" rx="2" fill="#faf7f2"/>
-  <text x="404" y="109" class="zone-eyebrow" fill="#eb6c36">TIER 2: SERIALIZED OMP TURN QUEUE PLANE</text>
+  <rect x="388" y="96" width="404" height="664" rx="8" class="zone-bg" stroke="rgba(235, 108, 54, 0.25)" stroke-width="1"/>
+  <rect x="400" y="100" width="320" height="12" rx="2" fill="#faf7f2"/>
+  <text x="404" y="109" class="zone-eyebrow" fill="#eb6c36">TIER 2: SERIALIZED TURN QUEUE ARBITER</text>
 
   <!-- ZONE 4: Execution Engine & Host Tools -->
-  <rect x="820" y="96" width="340" height="660" rx="8" class="zone-bg"/>
-  <rect x="832" y="100" width="248" height="12" rx="2" fill="#faf7f2"/>
-  <text x="836" y="109" class="zone-eyebrow">PERSISTENT RPC HARNESS &amp; TOOLS</text>
+  <rect x="820" y="96" width="340" height="664" rx="8" class="zone-bg"/>
+  <rect x="832" y="100" width="288" height="12" rx="2" fill="#faf7f2"/>
+  <text x="836" y="109" class="zone-eyebrow">OMP RPC DRIVER &amp; HOST TOOLS</text>
 
+  <!-- ==================== CONNECTORS (Drawn Before Boxes) ==================== -->
 
-  <!-- ==================== CONNECTORS & ARROWS (Drawn before boxes) ==================== -->
+  <!-- Ingress -> TurnQueue -->
+  <!-- WebUI to TurnQueue -->
+  <path d="M 336 156 L 412 156" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+  <rect x="344" y="142" width="60" height="12" rx="2" fill="#faf7f2"/>
+  <text x="374" y="151" class="conn-label" fill="#2e5aa8" text-anchor="middle">ENQUEUE</text>
 
-  <!-- Ingress 1A -> TurnQueue (x=336,y=156 -> x=408,y=156) -->
-  <path d="M 336,156 H 408" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+  <!-- Signal to TurnQueue -->
+  <path d="M 336 236 L 372 236 A 8 8 0 0 0 380 228 L 380 188 A 8 8 0 0 1 388 180 L 412 180" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+  <rect x="344" y="222" width="60" height="12" rx="2" fill="#faf7f2"/>
+  <text x="374" y="231" class="conn-label" fill="#4f5d75" text-anchor="middle">ENQUEUE</text>
 
-  <!-- Ingress 1B -> TurnQueue (x=336,y=256 to x=408,y=200 with orthogonal elbow) -->
-  <path d="M 336,256 H 372 Q 380,256 380,248 V 208 Q 380,200 388,200 H 408" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+  <!-- Spooler to TurnQueue -->
+  <path d="M 336 316 L 372 316 A 8 8 0 0 0 380 308 L 380 212 A 8 8 0 0 1 388 204 L 412 204" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
 
-  <!-- Ingress 1C -> TurnQueue (x=336,y=352 to x=408,y=244 with orthogonal elbow) -->
-  <path d="M 336,352 H 364 Q 372,352 372,344 V 252 Q 372,244 380,244 H 408" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+  <!-- Control-Plane Abort: Instant Queue Purge & Direct Signal -->
+  <path d="M 336 396 L 412 396" fill="none" stroke="#eb6c36" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-accent)"/>
+  <rect x="344" y="382" width="60" height="12" rx="2" fill="#faf7f2"/>
+  <text x="374" y="391" class="conn-label" fill="#eb6c36" text-anchor="middle">PURGE Q</text>
 
-  <!-- Scheduler 2A -> Registry 2B (x=200,y=508 to x=200,y=532) -->
-  <path d="M 200,508 V 532" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <!-- Direct Abort Signal to SessionManager -->
+  <path d="M 336 408 L 372 408 A 8 8 0 0 0 380 400 L 380 76 A 8 8 0 0 1 388 68 L 836 68 A 8 8 0 0 1 844 76 L 844 140" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="560" y="58" width="108" height="12" rx="2" fill="#faf7f2"/>
+  <text x="614" y="67" class="conn-label" fill="#eb6c36" text-anchor="middle">INSTANT ABORT SIGNAL</text>
 
-  <!-- Registry 2B -> Executors 2C (x=200,y=592 to x=200,y=616) -->
-  <path d="M 200,592 V 616" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <!-- Background Executors Result -> TurnQueue -->
+  <path d="M 336 708 L 412 708" fill="none" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+  <rect x="344" y="694" width="60" height="12" rx="2" fill="#faf7f2"/>
+  <text x="374" y="703" class="conn-label" fill="#4f5d75" text-anchor="middle">RESULT P4</text>
 
-  <!-- Executors 2C -> Evaluator 2D (x=200,y=676 to x=200,y=700) -->
-  <path d="M 200,676 V 700" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <!-- ACP Callback -> TurnQueue (Priority 2) -->
+  <path d="M 336 684 L 372 684 A 8 8 0 0 0 380 676 L 380 652 A 8 8 0 0 1 388 644 L 412 644" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="344" y="670" width="60" height="12" rx="2" fill="#faf7f2"/>
+  <text x="374" y="679" class="conn-label" fill="#eb6c36" text-anchor="middle">ACP CB P2</text>
 
-  <!-- Evaluator 2D -> TurnQueue 3A (Enqueues Result Call with is_result_call=True) -->
-  <path d="M 336,724 H 368 Q 376,724 376,716 V 288 Q 376,280 384,280 H 408" fill="none" stroke="#eb6c36" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow-accent)"/>
+  <!-- TurnQueue -> Worker Loop -->
+  <path d="M 590 352 L 590 440" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="548" y="388" width="84" height="12" rx="2" fill="#faf7f2"/>
+  <text x="590" y="397" class="conn-label" fill="#eb6c36" text-anchor="middle">GET_NEXT(IDLE)</text>
 
-  <!-- TurnQueue 3A -> Worker Loop 3B (x=590,y=336 to x=590,y=368) -->
-  <path d="M 590,336 V 368" fill="none" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+  <!-- Worker Loop -> Session Manager (Private Call) -->
+  <path d="M 768 492 L 844 492" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="776" y="478" width="64" height="12" rx="2" fill="#faf7f2"/>
+  <text x="808" y="487" class="conn-label" fill="#eb6c36" text-anchor="middle">EXECUTE_TURN</text>
 
-  <!-- Worker Loop 3B -> SessionManager 4A (x=756,y=400 to x=840,y=188 with elbow) -->
-  <path d="M 756,400 H 792 Q 800,400 800,392 V 196 Q 800,188 808,188 H 840" fill="none" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+  <!-- Session Manager -> RpcClient -->
+  <path d="M 990 244 L 990 280" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
 
-  <!-- Worker Loop 3B -> SQLite 3C (History logging) (x=590,y=432 to x=590,y=468) -->
-  <path d="M 590,432 V 468" fill="none" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <!-- RpcClient -> WebSocket Stream -->
+  <path d="M 990 384 L 990 568" fill="none" stroke="#2e5aa8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-link)"/>
+  <rect x="948" y="468" width="84" height="12" rx="2" fill="#faf7f2"/>
+  <text x="990" y="477" class="conn-label" fill="#2e5aa8" text-anchor="middle">TOKEN STREAM</text>
 
-  <!-- SessionManager 4A -> RpcClient 4B (x=990,y=236 to x=990,y=268) -->
-  <path d="M 990,236 V 268" fill="none" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+  <!-- WebSocket -> WebUI -->
+  <path d="M 844 644 L 808 644 A 8 8 0 0 1 800 636 L 800 52 A 8 8 0 0 0 792 44 L 208 44 A 8 8 0 0 0 200 52 L 200 132" fill="none" stroke="#2e5aa8" stroke-width="1" marker-end="url(#arrow-link)"/>
+  <rect x="460" y="34" width="84" height="12" rx="2" fill="#faf7f2"/>
+  <text x="502" y="43" class="conn-label" fill="#2e5aa8" text-anchor="middle">WS BROADCAST</text>
 
-  <!-- RpcClient 4B -> Cron Host Tools 4C (Tool registration) (x=990,y=352 to x=990,y=384) -->
-  <path d="M 990,352 V 384" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <!-- ==================== NODES (Boxes) ==================== -->
 
-  <!-- RpcClient 4B -> ACP Host Tools 4D (Tool registration) (x=960,y=352 to x=960,y=508) -->
-  <path d="M 960,352 V 508" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <!-- ZONE 1 NODES: Ingress -->
+  <!-- WebUI Console -->
+  <rect x="64" y="132" width="272" height="64" rx="6" fill="#ffffff" stroke="#2e5aa8" stroke-width="1"/>
+  <rect x="72" y="138" width="48" height="12" rx="2" fill="transparent" stroke="#2e5aa8" stroke-width="0.8"/>
+  <text x="96" y="147" class="tag-text" fill="#2e5aa8" text-anchor="middle">HTTP / WS</text>
+  <text x="200" y="156" class="node-name" text-anchor="middle">WebUI Console &amp; REST API</text>
+  <text x="200" y="174" class="node-sub" text-anchor="middle">Port 52080 • /api/v1/session/*</text>
 
-  <!-- Cron Host Tools 4C -> SQLite 3C (Direct DB queries) (x=840,y=428 to x=756,y=504 with elbow) -->
-  <path d="M 840,428 H 808 Q 800,428 800,436 V 496 Q 800,504 792,504 H 756" fill="none" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <!-- Signal Gateway -->
+  <rect x="64" y="212" width="272" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="72" y="218" width="44" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
+  <text x="94" y="227" class="tag-text" fill="#4f5d75" text-anchor="middle">WEBHOOK</text>
+  <text x="200" y="236" class="node-name" text-anchor="middle">Signal Gateway Client</text>
+  <text x="200" y="254" class="node-sub" text-anchor="middle">Whitelist Filter • Auto-enqueue</text>
 
-  <!-- ACP Host Tools 4D -> External ACP Workers 4E (Async process control) (x=990,y=584 to x=990,y=624) -->
-  <path d="M 990,584 V 624" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+  <!-- Input Spooler -->
+  <rect x="64" y="292" width="272" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="72" y="298" width="44" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
+  <text x="94" y="307" class="tag-text" fill="#4f5d75" text-anchor="middle">SIDECAR</text>
+  <text x="200" y="316" class="node-name" text-anchor="middle">Input Spooler Daemon</text>
+  <text x="200" y="334" class="node-sub" text-anchor="middle">Audio STT • Hindsight Injection</text>
 
-  <!-- RpcClient 4B -> WebSocket Broadcaster 3D (Events streaming) (x=840,y=316 to x=756,y=636) -->
-  <path d="M 840,316 H 812 Q 804,316 804,324 V 628 Q 804,636 796,636 H 756" fill="none" stroke="#2e5aa8" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow-link)"/>
+  <!-- Control-Plane Abort -->
+  <rect x="64" y="372" width="272" height="60" rx="6" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1"/>
+  <rect x="72" y="378" width="48" height="12" rx="2" fill="transparent" stroke="#eb6c36" stroke-width="0.8"/>
+  <text x="96" y="387" class="tag-text" fill="#eb6c36" text-anchor="middle">INTERRUPT</text>
+  <text x="200" y="396" class="node-name-focal" text-anchor="middle">Instant Control-Plane Abort</text>
+  <text x="200" y="414" class="node-sub" text-anchor="middle">POST /session/abort • Instant Purge</text>
 
-  <!-- WebSocket Broadcaster 3D -> WebUI Ingress 1A (Live telemetry return) (x=424,y=656 to x=200,y=196) -->
-  <path d="M 424,656 H 388 Q 380,656 380,648 V 760 Q 380,768 372,768 H 28 Q 20,768 20,760 V 164 Q 20,156 28,156 H 56" fill="none" stroke="#2e5aa8" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow-link)"/>
+  <!-- ZONE 2 NODES: Background Execution Plane -->
+  <!-- CronScheduler Engine -->
+  <rect x="64" y="492" width="272" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="72" y="498" width="40" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
+  <text x="92" y="507" class="tag-text" fill="#4f5d75" text-anchor="middle">ENGINE</text>
+  <text x="200" y="516" class="node-name" text-anchor="middle">CronScheduler Core</text>
+  <text x="200" y="534" class="node-sub" text-anchor="middle">APScheduler • SQLite Job Sync</text>
 
+  <!-- Concurrency Registry -->
+  <rect x="64" y="572" width="272" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="72" y="578" width="48" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
+  <text x="96" y="587" class="tag-text" fill="#4f5d75" text-anchor="middle">REGISTRY</text>
+  <text x="200" y="596" class="node-name" text-anchor="middle">running_jobs Concurrency</text>
+  <text x="200" y="614" class="node-sub" text-anchor="middle">Overlap Prevention • Task Table</text>
 
-  <!-- ==================== ARROW LABELS (Masked with gap) ==================== -->
+  <!-- Parallel Executors & ACP Subagents -->
+  <rect x="64" y="652" width="272" height="92" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="72" y="658" width="56" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
+  <text x="100" y="667" class="tag-text" fill="#4f5d75" text-anchor="middle">EXECUTORS</text>
+  <text x="200" y="676" class="node-name" text-anchor="middle">Parallel Job Executors</text>
+  <text x="200" y="694" class="node-sub" text-anchor="middle">Shell • Python • HTTP Tasks</text>
+  <text x="200" y="710" class="node-sub" fill="#eb6c36" text-anchor="middle">ACP External Workers (omp --mode acp)</text>
+  <text x="200" y="726" class="node-sub" text-anchor="middle">Auto-attached to $MYPAI_AGENT_DIR</text>
 
-  <!-- Label 1A -> TurnQueue -->
-  <rect x="344" y="142" width="56" height="11" rx="2" fill="#faf7f2"/>
-  <text x="372" y="150" class="conn-label" fill="#2e5aa8" text-anchor="middle">SUBMIT</text>
-
-  <!-- Label Evaluator -> TurnQueue -->
-  <rect x="340" y="270" width="64" height="11" rx="2" fill="#faf7f2"/>
-  <text x="372" y="278" class="conn-label" fill="#eb6c36" text-anchor="middle">RESULT_CALL</text>
-
-  <!-- Label TurnQueue -> Worker -->
-  <rect x="556" y="342" width="68" height="11" rx="2" fill="#faf7f2"/>
-  <text x="590" y="350" class="conn-label" fill="#eb6c36" text-anchor="middle">GET_NEXT</text>
-
-  <!-- Label Worker -> SessionMgr -->
-  <rect x="760" y="228" width="80" height="11" rx="2" fill="#faf7f2"/>
-  <text x="800" y="236" class="conn-label" fill="#eb6c36" text-anchor="middle">EXECUTE_TURN</text>
-
-
-  <!-- ==================== ZONE 1 NODES: INGRESS ==================== -->
-
-  <!-- Node 1A: WebUI Console & REST API -->
-  <rect x="56" y="124" width="280" height="64" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.18)" stroke-width="1"/>
-  <rect x="64" y="130" width="34" height="12" rx="2" fill="transparent" stroke="#2e5aa8" stroke-width="0.8"/>
-  <text x="81" y="139" class="tag-text" fill="#2e5aa8" text-anchor="middle">HTTP/WS</text>
-  <text x="106" y="140" class="node-name">WebUI Console &amp; REST API</text>
-  <text x="64" y="158" class="node-sub">Port: 52080 · /api/v1/session/* · /api/v1/ws</text>
-  <text x="64" y="174" class="node-body">Multi-turn composer &amp; 3-tab live telemetry</text>
-
-  <!-- Node 1B: Signal Webhook Gateway -->
-  <rect x="56" y="220" width="280" height="64" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.18)" stroke-width="1"/>
-  <rect x="64" y="226" width="36" height="12" rx="2" fill="transparent" stroke="#2e5aa8" stroke-width="0.8"/>
-  <text x="82" y="235" class="tag-text" fill="#2e5aa8" text-anchor="middle">SIGNAL</text>
-  <text x="108" y="236" class="node-name">Signal Gateway &amp; Webhook</text>
-  <text x="64" y="254" class="node-sub">SignalClient · Sender Whitelist Filter</text>
-  <text x="64" y="270" class="node-body">Verified human inbound chat messages</text>
-
-  <!-- Node 1C: Input Spooler Daemon -->
-  <rect x="56" y="316" width="280" height="64" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.18)" stroke-width="1"/>
-  <rect x="64" y="322" width="38" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
-  <text x="83" y="331" class="tag-text" fill="#4f5d75" text-anchor="middle">SPOOLER</text>
-  <text x="110" y="332" class="node-name">Input Spooler Daemon</text>
-  <text x="64" y="350" class="node-sub">mypai_input_spooler · STT &amp; Hindsight</text>
-  <text x="64" y="366" class="node-body">File watcher, voice transcribe &amp; notification</text>
-
-
-  <!-- ==================== ZONE 2 NODES: TIER 1 BACKGROUND ==================== -->
-
-  <!-- Node 2A: CronScheduler Engine -->
-  <rect x="56" y="448" width="280" height="60" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.18)" stroke-width="1"/>
-  <rect x="64" y="454" width="38" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
-  <text x="83" y="463" class="tag-text" fill="#4f5d75" text-anchor="middle">ENGINE</text>
-  <text x="110" y="464" class="node-name">CronScheduler Engine</text>
-  <text x="64" y="482" class="node-sub">APScheduler 3.10 · Cron/Interval Triggers</text>
-  <text x="64" y="496" class="node-body">Global toggle, schedule sync &amp; run_once</text>
-
-  <!-- Node 2B: running_jobs Concurrency Registry -->
-  <rect x="56" y="532" width="280" height="60" rx="6" fill="rgba(46,90,168,0.04)" stroke="#2e5aa8" stroke-width="1"/>
-  <rect x="64" y="538" width="48" height="12" rx="2" fill="transparent" stroke="#2e5aa8" stroke-width="0.8"/>
-  <text x="88" y="547" class="tag-text" fill="#2e5aa8" text-anchor="middle">REGISTRY</text>
-  <text x="120" y="548" class="node-name">running_jobs Registry</text>
-  <text x="64" y="566" class="node-sub">Dict[str, asyncio.Task] · Duplicate Lock</text>
-  <text x="64" y="580" class="node-body">Overlapping policy: Skip &amp; log notice</text>
-
-  <!-- Node 2C: Parallel Job Executors -->
-  <rect x="56" y="616" width="280" height="60" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.18)" stroke-width="1"/>
-  <rect x="64" y="622" width="46" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
-  <text x="87" y="631" class="tag-text" fill="#4f5d75" text-anchor="middle">WORKERS</text>
-  <text x="118" y="632" class="node-name">Parallel Job Executors</text>
-  <text x="64" y="650" class="node-sub">HTTP (30s) · Shell (120s) · Python (5s)</text>
-  <text x="64" y="664" class="node-body">Background tasks with timeouts &amp; env inject</text>
-
-  <!-- Node 2D: Result & Lineage Evaluator -->
-  <rect x="56" y="700" width="280" height="44" rx="6" fill="rgba(235,108,54,0.06)" stroke="#eb6c36" stroke-width="1"/>
-  <text x="196" y="718" class="node-name" fill="#eb6c36" text-anchor="middle">Result &amp; Error Lineage Evaluator</text>
-  <text x="196" y="734" class="node-sub" text-anchor="middle">Macro Replacement (#[_OUTPUT]) · is_result_call=True</text>
-
-
-  <!-- ==================== ZONE 3 NODES: TIER 2 TURN QUEUE (FOCAL) ==================== -->
-
-  <!-- Node 3A: TurnQueue Priority State Machine (Focal Node) -->
-  <rect x="408" y="124" width="364" height="212" rx="8" fill="rgba(235,108,54,0.06)" stroke="#eb6c36" stroke-width="1.5"/>
-  <rect x="420" y="132" width="46" height="14" rx="2" fill="#eb6c36"/>
-  <text x="443" y="142" class="tag-text" fill="#ffffff" text-anchor="middle">CORE FOCAL</text>
-  <text x="474" y="144" class="node-name-focal">TurnQueue State Machine</text>
-  <text x="420" y="162" class="node-sub" fill="#eb6c36">Priority-Flush Multi-Producer Queue (Rule 1-4)</text>
-
-  <!-- TurnQueue Inner Rules Card -->
-  <rect x="420" y="172" width="340" height="152" rx="6" fill="#ffffff" stroke="rgba(235,108,54,0.3)" stroke-width="0.8"/>
-  <text x="432" y="190" class="node-name" font-size="11">Priority-Flush Decision Rules:</text>
+  <!-- ZONE 3 NODES: Tier 2 Serialized Turn Queue Plane -->
+  <!-- TurnQueue Arbiter (FOCAL NODE) -->
+  <rect x="412" y="140" width="356" height="212" rx="6" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+  <rect x="424" y="148" width="68" height="12" rx="2" fill="transparent" stroke="#eb6c36" stroke-width="0.8"/>
+  <text x="458" y="157" class="tag-text" fill="#eb6c36" text-anchor="middle">ARBITER</text>
+  <text x="590" y="162" class="node-name-focal" text-anchor="middle">TurnQueue Priority State Machine</text>
+  <text x="590" y="180" class="node-sub" text-anchor="middle">Deterministic Priority-Flush State Engine</text>
   
-  <circle cx="438" cy="208" r="3" fill="#ef4444"/>
-  <text x="448" y="211" class="node-body"><b>Rule 1 (Abort &amp; Purge):</b> Drop ALL pending items, abort immediately</text>
+  <!-- Priority Rows -->
+  <rect x="424" y="196" width="332" height="24" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="432" y="212" class="node-sub" font-weight="600" fill="#eb6c36">P0: ABORT</text>
+  <text x="510" y="212" class="node-body">Instant Purge &amp; Flush Queue</text>
 
-  <circle cx="438" cy="232" r="3" fill="#f59e0b"/>
-  <text x="448" y="235" class="node-body"><b>Rule 2 (Steer):</b> Dequeue FIFO steer (mid-turn interrupt prompt)</text>
+  <rect x="424" y="224" width="332" height="24" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="432" y="240" class="node-sub" font-weight="600" fill="#eb6c36">P1: STEER</text>
+  <text x="510" y="240" class="node-body">FIFO Mid-Turn Steering Interrupt</text>
 
-  <circle cx="438" cy="256" r="3" fill="#3b82f6"/>
-  <text x="448" y="259" class="node-body"><b>Rule 3 (Followup):</b> Dequeue FIFO followup (appends to turn context)</text>
+  <rect x="424" y="252" width="332" height="24" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="432" y="268" class="node-sub" font-weight="600" fill="#eb6c36">P2: ACP CALLBACK</text>
+  <text x="548" y="268" class="node-body">External Subagent Result Callback</text>
 
-  <circle cx="438" cy="280" r="3" fill="#10b981"/>
-  <text x="448" y="283" class="node-body"><b>Rule 4 (Prompt):</b> Dequeue FIFO prompt ONLY when session is idle</text>
+  <rect x="424" y="280" width="332" height="24" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="432" y="296" class="node-sub" font-weight="600" fill="#4f5d75">P3: FOLLOWUP</text>
+  <text x="518" y="296" class="node-body">FIFO Turn Appending</text>
 
-  <text x="432" y="310" class="node-sub">Thread-safe async queue · History buffer (last 100 turns)</text>
+  <rect x="424" y="308" width="332" height="24" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="432" y="324" class="node-sub" font-weight="600" fill="#4f5d75">P4: PROMPT</text>
+  <text x="510" y="324" class="node-body">FIFO Dispatched only when Agent is IDLE</text>
 
-  <!-- Node 3B: queue_worker_loop -->
-  <rect x="424" y="368" width="332" height="64" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.18)" stroke-width="1"/>
-  <rect x="434" y="374" width="44" height="12" rx="2" fill="transparent" stroke="#eb6c36" stroke-width="0.8"/>
-  <text x="456" y="383" class="tag-text" fill="#eb6c36" text-anchor="middle">WORKER</text>
-  <text x="486" y="384" class="node-name">queue_worker_loop</text>
-  <text x="434" y="404" class="node-sub">Async Coroutine · Sequential Turn Dispatch</text>
-  <text x="434" y="420" class="node-body">Awaits session readiness, handles abort signals &amp; lifecycle</text>
+  <!-- queue_worker_loop -->
+  <rect x="412" y="440" width="356" height="104" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1.2"/>
+  <rect x="424" y="448" width="56" height="12" rx="2" fill="transparent" stroke="#1c1917" stroke-width="0.8"/>
+  <text x="452" y="457" class="tag-text" fill="#1c1917" text-anchor="middle">WORKER</text>
+  <text x="590" y="468" class="node-name" text-anchor="middle">queue_worker_loop (Sole Consumer)</text>
+  <text x="590" y="488" class="node-sub" text-anchor="middle">item = await queue.get_next(is_session_busy)</text>
+  <text x="590" y="504" class="node-body" text-anchor="middle">Calls await session_mgr.execute_turn(item)</text>
+  <text x="590" y="520" class="node-sub" text-anchor="middle">queue.mark_completed(task_id, res) • Broadcast Turn Event</text>
 
-  <!-- Node 3C: SQLite Database -->
-  <rect x="424" y="468" width="332" height="72" rx="6" fill="rgba(45,49,66,0.04)" stroke="#4f5d75" stroke-width="1"/>
-  <rect x="434" y="474" width="40" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
-  <text x="454" y="483" class="tag-text" fill="#4f5d75" text-anchor="middle">STORAGE</text>
-  <text x="482" y="484" class="node-name">SQLite Database (WAL Mode)</text>
-  <text x="434" y="504" class="node-sub">agent-{basedir}-{hash}.db · busy_timeout=30s</text>
-  <text x="434" y="520" class="node-body">Cron job schemas, execution telemetry &amp; session UUIDs</text>
+  <!-- Result Lineage & Callback Gate -->
+  <rect x="412" y="580" width="356" height="152" rx="6" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+  <rect x="424" y="588" width="56" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
+  <text x="452" y="597" class="tag-text" fill="#4f5d75" text-anchor="middle">LINEAGE</text>
+  <text x="590" y="608" class="node-name" text-anchor="middle">Result Evaluation &amp; Macro Expansion</text>
+  <text x="590" y="628" class="node-sub" text-anchor="middle">Macro Replacement: #[_RESULT], #[_ERROR], #[_RETURNCODE]</text>
+  <text x="590" y="648" class="node-body" text-anchor="middle">is_result_call=True • origin_job_id Lineage Tagging</text>
+  <text x="590" y="668" class="node-sub" text-anchor="middle">Prevents downstream recursion &amp; infinite event loops</text>
+  <text x="590" y="688" class="node-body" text-anchor="middle">ACP Callback: format_system_trigger_prompt (Priority 2)</text>
+  <text x="590" y="708" class="node-sub" fill="#eb6c36" text-anchor="middle">Main agent receives completed external work without polling</text>
 
-  <!-- Node 3D: WebSocket Broadcaster -->
-  <rect x="424" y="608" width="332" height="68" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.18)" stroke-width="1"/>
-  <rect x="434" y="614" width="36" height="12" rx="2" fill="transparent" stroke="#2e5aa8" stroke-width="0.8"/>
-  <text x="452" y="623" class="tag-text" fill="#2e5aa8" text-anchor="middle">EVENTS</text>
-  <text x="478" y="624" class="node-name">WebSocket Broadcaster</text>
-  <text x="434" y="644" class="node-sub">/api/v1/ws · Live Stream Chunks &amp; Turn Events</text>
-  <text x="434" y="660" class="node-body">turn_started, turn_completed, message_update, cron_task</text>
+  <!-- ZONE 4 NODES: OMP RPC Driver & Host Tools -->
+  <!-- OMPSessionManager -->
+  <rect x="844" y="140" width="292" height="104" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1.2"/>
+  <rect x="856" y="148" width="48" height="12" rx="2" fill="transparent" stroke="#1c1917" stroke-width="0.8"/>
+  <text x="880" y="157" class="tag-text" fill="#1c1917" text-anchor="middle">DRIVER</text>
+  <text x="990" y="166" class="node-name" text-anchor="middle">OMPSessionManager</text>
+  <text x="990" y="184" class="node-sub" text-anchor="middle">Subprocess Driver • Session UUID Persistence</text>
+  <text x="990" y="200" class="node-body" text-anchor="middle">Private execute_turn() invoked ONLY by worker loop</text>
+  <text x="990" y="216" class="node-sub" text-anchor="middle">State Telemetry • Context Window • Triage</text>
 
+  <!-- RpcClient Subprocess -->
+  <rect x="844" y="280" width="292" height="104" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="856" y="288" width="44" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
+  <text x="878" y="297" class="tag-text" fill="#4f5d75" text-anchor="middle">PROCESS</text>
+  <text x="990" y="306" class="node-name" text-anchor="middle">omp --mode rpc Process</text>
+  <text x="990" y="324" class="node-sub" text-anchor="middle">Profile: mypai • Model: llama.cpp/qwen3</text>
+  <text x="990" y="340" class="node-body" text-anchor="middle">JSON-RPC Stdout/Stdin Pipe</text>
+  <text x="990" y="356" class="node-sub" text-anchor="middle">Native Host Tool Injection Point</text>
 
-  <!-- ==================== ZONE 4 NODES: HARNESS & HOST TOOLS ==================== -->
+  <!-- Native Host Tools -->
+  <rect x="844" y="420" width="292" height="112" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="856" y="428" width="56" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
+  <text x="884" y="437" class="tag-text" fill="#4f5d75" text-anchor="middle">HOST TOOLS</text>
+  <text x="990" y="446" class="node-name" text-anchor="middle">Custom Native Host Tools</text>
+  <text x="990" y="464" class="node-sub" text-anchor="middle">cron_add_job, cron_run_once, cron_list_jobs</text>
+  <text x="990" y="480" class="node-sub" text-anchor="middle">cron_enable_job, cron_disable_job, cron_status</text>
+  <text x="990" y="496" class="node-sub" fill="#eb6c36" text-anchor="middle">acp_task_async, acp_task_status, acp_task_result</text>
+  <text x="990" y="512" class="node-sub" text-anchor="middle">acp_task_cancel, acp_list_agents</text>
 
-  <!-- Node 4A: OMPSessionManager (Focal Node 2) -->
-  <rect x="840" y="124" width="300" height="112" rx="8" fill="rgba(235,108,54,0.06)" stroke="#eb6c36" stroke-width="1.5"/>
-  <rect x="852" y="132" width="46" height="14" rx="2" fill="#eb6c36"/>
-  <text x="875" y="142" class="tag-text" fill="#ffffff" text-anchor="middle">FOCAL RPC</text>
-  <text x="906" y="144" class="node-name-focal">OMPSessionManager</text>
-  <text x="852" y="166" class="node-sub" fill="#eb6c36">Persistent Process Manager &amp; UUID Reattachment</text>
-  <text x="852" y="186" class="node-body">• Spawns omp --mode rpc --profile mypai</text>
-  <text x="852" y="202" class="node-body">• Registers custom in-process host_tool callables</text>
-  <text x="852" y="218" class="node-body">• Event listeners: on_turn_start, on_turn_end, on_agent_end</text>
-
-  <!-- Node 4B: RpcClient Subprocess -->
-  <rect x="840" y="268" width="300" height="84" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.18)" stroke-width="1"/>
-  <rect x="852" y="274" width="44" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
-  <text x="874" y="283" class="tag-text" fill="#4f5d75" text-anchor="middle">SUBPROC</text>
-  <text x="904" y="284" class="node-name">RpcClient Subprocess</text>
-  <text x="852" y="304" class="node-sub">omp-rpc JSON-RPC Protocol over Stdio</text>
-  <text x="852" y="322" class="node-body">prompt, steer, followup, abort, abort_retry, get_state</text>
-  <text x="852" y="338" class="node-body">Streams raw LLM chunks and tool calls live</text>
-
-  <!-- Node 4C: Native Cron Host Tools -->
-  <rect x="840" y="384" width="300" height="96" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.18)" stroke-width="1"/>
-  <rect x="852" y="390" width="56" height="12" rx="2" fill="transparent" stroke="#10b981" stroke-width="0.8"/>
-  <text x="880" y="399" class="tag-text" fill="#10b981" text-anchor="middle">HOST TOOLS</text>
-  <text x="916" y="400" class="node-name">Native Cron Host Tools</text>
-  <text x="852" y="420" class="node-sub">mypai_tools.host_tools.cron_tools (12 Host Tools)</text>
-  <text x="852" y="438" class="node-body">add_job, run_once, list_jobs, update_job, delete_job,</text>
-  <text x="852" y="454" class="node-body">enable_job, disable_job, import_jobs, export_jobs,</text>
-  <text x="852" y="470" class="node-body">global_enable, global_disable, status</text>
-
-  <!-- Node 4D: Async ACP Host Tools -->
-  <rect x="840" y="508" width="300" height="84" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.18)" stroke-width="1"/>
-  <rect x="852" y="514" width="46" height="12" rx="2" fill="transparent" stroke="#2e5aa8" stroke-width="0.8"/>
-  <text x="875" y="523" class="tag-text" fill="#2e5aa8" text-anchor="middle">ACP TOOLS</text>
-  <text x="906" y="524" class="node-name">Async ACP Host Tools</text>
-  <text x="852" y="544" class="node-sub">mypai_tools.acp.tools (7 Async Tools)</text>
-  <text x="852" y="562" class="node-body">acp_task_async, acp_task_status, acp_task_result,</text>
-  <text x="852" y="578" class="node-body">acp_task_steer, acp_task_cancel, acp_list_agents</text>
-
-  <!-- Node 4E: External Agent Workers -->
-  <rect x="840" y="624" width="300" height="60" rx="6" fill="rgba(46,90,168,0.04)" stroke="#2e5aa8" stroke-width="1"/>
-  <rect x="852" y="630" width="48" height="12" rx="2" fill="transparent" stroke="#2e5aa8" stroke-width="0.8"/>
-  <text x="876" y="639" class="tag-text" fill="#2e5aa8" text-anchor="middle">ACP POOL</text>
-  <text x="908" y="640" class="node-name">External ACP Agent Workers</text>
-  <text x="852" y="658" class="node-sub">Headless Oh-My-Pi Worker Subprocesses</text>
-  <text x="852" y="672" class="node-body">Background delegation without harness blocking</text>
-
+  <!-- Storage & Broadcast -->
+  <rect x="844" y="568" width="292" height="152" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <rect x="856" y="576" width="56" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="0.8"/>
+  <text x="884" y="585" class="tag-text" fill="#4f5d75" text-anchor="middle">STORAGE</text>
+  <text x="990" y="596" class="node-name" text-anchor="middle">SQLite WAL &amp; WebSockets</text>
+  <text x="990" y="616" class="node-sub" text-anchor="middle">Database: agent-{basedir}-{hash}.db</text>
+  <text x="990" y="632" class="node-body" text-anchor="middle">Tables: cron_jobs, settings, turn_history</text>
+  <text x="990" y="652" class="node-sub" text-anchor="middle">WebSocket Broadcast: /api/v1/ws</text>
+  <text x="990" y="668" class="node-body" text-anchor="middle">turn_started, message_update, turn_completed</text>
+  <text x="990" y="684" class="node-sub" fill="#eb6c36" text-anchor="middle">acp_task_started, acp_task_completed</text>
+  <text x="990" y="700" class="node-body" text-anchor="middle">turn_aborted, acp_state_changed</text>
 
   <!-- ==================== LEGEND STRIP ==================== -->
-  <line x1="40" y1="784" x2="1160" y2="784" stroke="rgba(45,49,66,0.12)" stroke-width="0.8"/>
+  <line x1="40" y1="784" x2="1160" y2="784" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="40" y="804" class="zone-eyebrow">LEGEND</text>
   
-  <text x="40" y="808" class="zone-eyebrow">LEGEND</text>
+  <rect x="120" y="796" width="16" height="10" rx="2" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1"/>
+  <text x="144" y="805" class="legend-text">Focal / State Machine / ACP</text>
 
-  <!-- Legend Item 1: Focal Core -->
-  <rect x="120" y="800" width="14" height="10" rx="2" fill="rgba(235,108,54,0.15)" stroke="#eb6c36" stroke-width="1"/>
-  <text x="142" y="808" class="legend-text">Focal Core State Machine &amp; Session Manager</text>
+  <rect x="340" y="796" width="16" height="10" rx="2" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+  <text x="364" y="805" class="legend-text">Core Daemon Service</text>
 
-  <!-- Legend Item 2: Ingress / Web -->
-  <rect x="420" y="800" width="14" height="10" rx="2" fill="#ffffff" stroke="#2e5aa8" stroke-width="1"/>
-  <text x="442" y="808" class="legend-text">Ingress, WebSockets &amp; External ACP</text>
+  <rect x="520" y="796" width="16" height="10" rx="2" fill="#ffffff" stroke="#2e5aa8" stroke-width="1"/>
+  <text x="544" y="805" class="legend-text">HTTP / WebUI / Streaming</text>
 
-  <!-- Legend Item 3: Solid Dispatch Flow -->
-  <line x1="680" y1="805" x2="712" y2="805" stroke="#eb6c36" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
-  <text x="722" y="808" class="legend-text">Serialized Turn Execution Flow</text>
+  <line x1="720" y1="801" x2="744" y2="801" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <text x="752" y="805" class="legend-text">Priority / Execution Dispatch</text>
 
-  <!-- Legend Item 4: Async / Return Flow -->
-  <line x1="920" y1="805" x2="952" y2="805" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
-  <text x="962" y="808" class="legend-text">Async Telemetry / Result Enqueue</text>
-
+  <line x1="940" y1="801" x2="964" y2="801" stroke="#eb6c36" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-accent)"/>
+  <text x="972" y="805" class="legend-text">Control-Plane Interrupt / Purge</text>
 </svg>

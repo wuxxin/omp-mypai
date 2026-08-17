@@ -6,6 +6,8 @@ This document details the architectural specification for the **ACP (Agent Contr
 
 ## 1. Asynchronous Delegation Architecture
 
+![myPAI ACP Intra-Agent Worker Delegation Architecture](daemon-acp-architecture.svg)
+
 The ACP task delegation system enables the primary `mypai_daemon` agent (`omp --mode rpc`) to dispatch asynchronous subagent tasks to worker processes (`omp --mode acp`) running in target workspace directories without blocking the main agent.
 
 - **Zero Synchronous RPC / ACP Calls**: All ACP task dispatches are purely asynchronous (`acp_task_async`), returning a `task_id` immediately.

@@ -1,0 +1,212 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 840" width="1200" height="840">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');
+
+      .bg-paper { fill: #faf7f2; }
+      .zone-bg { fill: rgba(45, 49, 66, 0.02); stroke: rgba(45, 49, 66, 0.12); stroke-width: 0.8; }
+      .zone-eyebrow { font-family: 'Geist Mono', monospace; font-size: 8px; fill: #4f5d75; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; }
+      .title-main { font-family: 'Instrument Serif', serif; font-size: 26px; fill: #1c1917; }
+      .subtitle { font-family: 'Geist', sans-serif; font-size: 11px; fill: #4f5d75; }
+      .header-tag { font-family: 'Geist Mono', monospace; font-size: 8px; fill: #eb6c36; letter-spacing: 0.14em; font-weight: 600; }
+
+      .node-name { font-family: 'Geist', sans-serif; font-size: 12px; font-weight: 600; fill: #1c1917; }
+      .node-name-focal { font-family: 'Geist', sans-serif; font-size: 13px; font-weight: 700; fill: #eb6c36; }
+      .node-sub { font-family: 'Geist Mono', monospace; font-size: 8.5px; fill: #4f5d75; }
+      .node-body { font-family: 'Geist', sans-serif; font-size: 9.5px; fill: #334155; }
+      .tag-text { font-family: 'Geist Mono', monospace; font-size: 7px; letter-spacing: 0.08em; font-weight: 600; }
+      
+      .conn-label { font-family: 'Geist Mono', monospace; font-size: 7.5px; letter-spacing: 0.08em; font-weight: 600; }
+      .legend-text { font-family: 'Geist Mono', monospace; font-size: 8.5px; fill: #4f5d75; }
+    </style>
+
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+    </marker>
+    <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+    </marker>
+    <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="840" class="bg-paper"/>
+
+  <!-- ==================== HEADER ==================== -->
+  <text x="40" y="28" class="header-tag">SUBLEVEL ARCHITECTURE: ACP INTRA-AGENT WORKER DELEGATION</text>
+  <text x="40" y="56" class="title-main">myPAI ACP Worker Delegation &amp; Process Pool</text>
+  <text x="40" y="76" class="subtitle">Asynchronous external subagent workers, default startup workspace attachment, and TurnQueue completion callback</text>
+
+  <!-- ==================== ZONES ==================== -->
+  <!-- Zone 1: State & Controller -->
+  <rect x="40" y="96" width="260" height="664" rx="8" class="zone-bg"/>
+  <rect x="52" y="100" width="200" height="12" rx="2" fill="#faf7f2"/>
+  <text x="56" y="109" class="zone-eyebrow">1. STATE &amp; REST CONTROL</text>
+
+  <!-- Zone 2: Process Pool & Workspace Isolation (Focal) -->
+  <rect x="324" y="96" width="472" height="664" rx="8" class="zone-bg" stroke="rgba(235, 108, 54, 0.25)" stroke-width="1"/>
+  <rect x="336" y="100" width="340" height="12" rx="2" fill="#faf7f2"/>
+  <text x="340" y="109" class="zone-eyebrow" fill="#eb6c36">2. WORKER POOL &amp; PROFILE ISOLATION</text>
+
+  <!-- Zone 3: Task Store & TurnQueue Integration -->
+  <rect x="820" y="96" width="340" height="664" rx="8" class="zone-bg"/>
+  <rect x="832" y="100" width="280" height="12" rx="2" fill="#faf7f2"/>
+  <text x="836" y="109" class="zone-eyebrow">3. TASK ENGINE &amp; ASYNC CALLBACK</text>
+
+  <!-- ==================== CONNECTORS ==================== -->
+  <!-- State -> Manager -->
+  <path d="M 276 220 L 348 220" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="284" y="206" width="56" height="12" rx="2" fill="#faf7f2"/>
+  <text x="312" y="215" class="conn-label" fill="#eb6c36" text-anchor="middle">ACTIVE</text>
+
+  <!-- Manager -> Default Worker Attachment -->
+  <path d="M 560 272 L 560 308" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="510" y="282" width="100" height="12" rx="2" fill="#faf7f2"/>
+  <text x="560" y="291" class="conn-label" fill="#eb6c36" text-anchor="middle">ON STARTUP</text>
+
+  <!-- Default Worker -> Subprocess -->
+  <path d="M 560 412 L 560 448" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- Manager Dispatch -> Task Engine -->
+  <path d="M 772 220 L 844 220" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="780" y="206" width="56" height="12" rx="2" fill="#faf7f2"/>
+  <text x="808" y="215" class="conn-label" fill="#eb6c36" text-anchor="middle">DISPATCH</text>
+
+  <!-- Task Completion -> TurnQueue Callback -->
+  <path d="M 990 380 L 990 416" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="948" y="390" width="84" height="12" rx="2" fill="#faf7f2"/>
+  <text x="990" y="399" class="conn-label" fill="#eb6c36" text-anchor="middle">ENQUEUE P2</text>
+
+  <!-- Task Completion -> WebSocket Broadcast -->
+  <path d="M 990 532 L 990 568" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+  <rect x="948" y="542" width="84" height="12" rx="2" fill="#faf7f2"/>
+  <text x="990" y="551" class="conn-label" fill="#2e5aa8" text-anchor="middle">BROADCAST</text>
+
+  <!-- ==================== NODES ==================== -->
+
+  <!-- ZONE 1 NODES: State & REST Control -->
+  <!-- SQLite State DB -->
+  <rect x="64" y="128" width="212" height="72" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <text x="76" y="146" class="tag-text" fill="#4f5d75">SQLITE</text>
+  <text x="170" y="156" class="node-name" text-anchor="middle">acp_execution_state</text>
+  <text x="170" y="174" class="node-sub" text-anchor="middle">Key: acp_execution_state in settings</text>
+  <text x="170" y="190" class="node-body" text-anchor="middle">'running' | 'suspended' | 'shutdown'</text>
+
+  <!-- AcpState Controller -->
+  <rect x="64" y="228" width="212" height="108" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1.2"/>
+  <text x="76" y="246" class="tag-text" fill="#1c1917">STATE</text>
+  <text x="170" y="256" class="node-name" text-anchor="middle">AcpState Controller</text>
+  <text x="170" y="276" class="node-sub" text-anchor="middle">Singleton instance per agent_dir</text>
+  <text x="170" y="294" class="node-body" text-anchor="middle">is_running(): Gatekeeper for dispatch</text>
+  <text x="170" y="312" class="node-sub" text-anchor="middle">enable(), suspend(), shutdown()</text>
+  <text x="170" y="328" class="node-body" text-anchor="middle">Persists state across daemon restarts</text>
+
+  <!-- REST Control API -->
+  <rect x="64" y="364" width="212" height="116" rx="6" fill="#ffffff" stroke="#2e5aa8" stroke-width="1"/>
+  <text x="76" y="382" class="tag-text" fill="#2e5aa8">REST API</text>
+  <text x="170" y="392" class="node-name" text-anchor="middle">ACP Control Router</text>
+  <text x="170" y="412" class="node-sub" text-anchor="middle">/api/v1/acp/status (GET)</text>
+  <text x="170" y="428" class="node-sub" text-anchor="middle">/api/v1/acp/tasks/{task_id} (GET)</text>
+  <text x="170" y="444" class="node-sub" text-anchor="middle">/enable, /suspend, /shutdown (POST)</text>
+  <text x="170" y="460" class="node-sub" text-anchor="middle">/restart: Restarts worker process pool</text>
+  <text x="170" y="476" class="node-body" text-anchor="middle">Broadcasting acp_state_changed</text>
+
+  <!-- Host Tools Injection -->
+  <rect x="64" y="508" width="212" height="132" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <text x="76" y="526" class="tag-text" fill="#4f5d75">HOST TOOLS</text>
+  <text x="170" y="536" class="node-name" text-anchor="middle">Injected ACP Host Tools</text>
+  <text x="170" y="556" class="node-sub" fill="#eb6c36" text-anchor="middle">acp_task_async(cwd, prompt)</text>
+  <text x="170" y="574" class="node-sub" text-anchor="middle">acp_task_status(task_id)</text>
+  <text x="170" y="590" class="node-sub" text-anchor="middle">acp_task_result(task_id)</text>
+  <text x="170" y="606" class="node-sub" text-anchor="middle">acp_task_steer(task_id, guidance)</text>
+  <text x="170" y="622" class="node-sub" text-anchor="middle">acp_task_cancel(task_id), acp_list_agents</text>
+
+  <!-- ZONE 2 NODES: Worker Pool & Profile Isolation (Focal Box) -->
+  <!-- AcpDelegationManager -->
+  <rect x="348" y="128" width="424" height="144" rx="6" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+  <text x="360" y="148" class="node-name-focal">AcpDelegationManager (Singleton Pool)</text>
+  <text x="360" y="168" class="node-sub">sessions: dict[abs_cwd -> AcpClientSession] • tasks: dict[task_id -> record]</text>
+  <text x="360" y="188" class="node-body">• get_or_create_session(cwd): Returns alive session or spawns process.</text>
+  <text x="360" y="206" class="node-body">• ensure_default_worker(): Auto-attaches initial worker on startup.</text>
+  <text x="360" y="224" class="node-body">• set_daemon_queue(queue): Connects TurnQueue for async callbacks.</text>
+  <text x="360" y="244" class="node-sub" fill="#eb6c36">• set_ws_manager(ws): Connects live WebSocket task event stream.</text>
+  <text x="360" y="262" class="node-body">• shutdown_workers() / restart_workers(): Full lifecycle cleanup.</text>
+
+  <!-- Auto-attached Default Worker Session -->
+  <rect x="348" y="308" width="424" height="104" rx="6" fill="#ffffff" stroke="#eb6c36" stroke-width="1.2"/>
+  <rect x="360" y="316" width="92" height="12" rx="2" fill="transparent" stroke="#eb6c36" stroke-width="0.8"/>
+  <text x="406" y="325" class="tag-text" fill="#eb6c36" text-anchor="middle">STARTUP WORKER</text>
+  <text x="560" y="334" class="node-name-focal" text-anchor="middle">Default Workspace Session ($MYPAI_AGENT_DIR)</text>
+  <text x="560" y="354" class="node-sub" text-anchor="middle">CWD: resolve_agent_dir(agent_dir) • Child Process PID Active</text>
+  <text x="560" y="372" class="node-body" text-anchor="middle">Provisioned immediately on daemon launch (No re-enable needed)</text>
+  <text x="560" y="390" class="node-sub" fill="#eb6c36" text-anchor="middle">Profile: default/main (~/.omp/agent/oh-my-pi) • Base tools loaded</text>
+
+  <!-- Profile Isolation Architecture Box -->
+  <rect x="348" y="448" width="424" height="168" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1.2"/>
+  <text x="360" y="468" class="node-name">Profile Separation &amp; Subprocess Model</text>
+  <text x="360" y="488" class="node-sub">Why ACP Workers never inherit the 'mypai' profile:</text>
+  <text x="360" y="508" class="node-body">1. Main Agent runs in 'mypai' profile (~/.omp/profiles/mypai/agent/).</text>
+  <text x="360" y="526" class="node-body">2. ACP Workers run in base Oh-My-Pi profile (~/.omp/agent/).</text>
+  <text x="360" y="544" class="node-body">3. Enables the mypai agent to orchestrate and steer external base tools.</text>
+  <text x="360" y="564" class="node-sub" fill="#eb6c36">4. Spawns: omp --mode acp --profile &lt;default&gt; via stdin/stdout pipe.</text>
+  <text x="360" y="584" class="node-body">5. Completely isolated memory banks, config, and system prompts.</text>
+  <text x="360" y="602" class="node-sub" text-anchor="middle">Independent crash resilience: worker crash never impacts daemon.</text>
+
+  <!-- External Workspace Sessions -->
+  <rect x="348" y="644" width="424" height="68" rx="6" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="1"/>
+  <text x="360" y="664" class="node-name">On-Demand Multi-Workspace Sessions</text>
+  <text x="360" y="684" class="node-sub">Spawns dedicated AcpClientSession when task targets external CWD.</text>
+  <text x="360" y="702" class="node-body">E.g., /home/user/other-project • Reused across tasks in that directory.</text>
+
+  <!-- ZONE 3 NODES: Task Engine & Async Callback -->
+  <!-- execute_task_async -->
+  <rect x="844" y="128" width="292" height="100" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1.2"/>
+  <text x="990" y="152" class="node-name" text-anchor="middle">execute_task_async()</text>
+  <text x="990" y="172" class="node-sub" text-anchor="middle">Non-blocking task dispatcher</text>
+  <text x="990" y="190" class="node-body" text-anchor="middle">1. Generates task_id: acp-task-xxxxxxxx</text>
+  <text x="990" y="206" class="node-body" text-anchor="middle">2. Initializes task_record (status='running')</text>
+  <text x="990" y="222" class="node-sub" text-anchor="middle">3. Returns task_id immediately (&lt; 2ms)</text>
+
+  <!-- Background Runner & Task Store -->
+  <rect x="844" y="252" width="292" height="128" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <text x="990" y="276" class="node-name" text-anchor="middle">Background Executor Task</text>
+  <text x="990" y="296" class="node-sub" text-anchor="middle">loop.run_in_executor(None, session.prompt)</text>
+  <text x="990" y="314" class="node-body" text-anchor="middle">Executes prompt against worker subprocess</text>
+  <text x="990" y="332" class="node-body" text-anchor="middle">Normalizes status: 'completed' | 'error'</text>
+  <text x="990" y="350" class="node-sub" text-anchor="middle">Records duration_sec, output, error, completed_at</text>
+  <text x="990" y="366" class="node-body" text-anchor="middle">Stored in tasks dict and accessible via API</text>
+
+  <!-- TurnQueue Callback Ingestion -->
+  <rect x="844" y="416" width="292" height="116" rx="6" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+  <text x="990" y="440" class="node-name-focal" text-anchor="middle">Automatic TurnQueue Callback</text>
+  <text x="990" y="460" class="node-sub" text-anchor="middle">source: 'acp_callback' • priority: Priority.SYSTEM_EVENT (2)</text>
+  <text x="990" y="478" class="node-body" text-anchor="middle">[ACP Subagent Task Completed / Failed]</text>
+  <text x="990" y="494" class="node-body" text-anchor="middle">Task ID, Workspace CWD, Duration, Result</text>
+  <text x="990" y="512" class="node-sub" fill="#eb6c36" text-anchor="middle">Main agent notified instantly without polling</text>
+
+  <!-- WebSockets & UI Stream -->
+  <rect x="844" y="568" width="292" height="144" rx="6" fill="#ffffff" stroke="#2e5aa8" stroke-width="1"/>
+  <text x="990" y="592" class="node-name" text-anchor="middle">WebUI Team Sidecar &amp; Viewer</text>
+  <text x="990" y="612" class="node-sub" fill="#2e5aa8" text-anchor="middle">Events: acp_task_started • acp_task_completed</text>
+  <text x="990" y="630" class="node-body" text-anchor="middle">Team Tab: Displays running &amp; active worker tasks</text>
+  <text x="990" y="648" class="node-body" text-anchor="middle">Finished Tasks: Last 5 completed tasks list</text>
+  <text x="990" y="666" class="node-sub" fill="#2e5aa8" text-anchor="middle">[View] Output overlay inside live console</text>
+  <text x="990" y="684" class="node-body" text-anchor="middle">Press Escape to restore RPC live stream</text>
+
+  <!-- ==================== LEGEND STRIP ==================== -->
+  <line x1="40" y1="784" x2="1160" y2="784" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="40" y="804" class="zone-eyebrow">LEGEND</text>
+  
+  <rect x="120" y="796" width="16" height="10" rx="2" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1"/>
+  <text x="144" y="805" class="legend-text">ACP Pool / Startup Worker / Callback</text>
+
+  <rect x="420" y="796" width="16" height="10" rx="2" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+  <text x="444" y="805" class="legend-text">Core Manager &amp; Process Pool</text>
+
+  <line x1="720" y1="801" x2="744" y2="801" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <text x="752" y="805" class="legend-text">Task Dispatch &amp; P2 Callback</text>
+
+  <line x1="940" y1="801" x2="964" y2="801" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+  <text x="972" y="805" class="legend-text">WebSocket Broadcast &amp; UI</text>
+</svg>

@@ -1,0 +1,47 @@
+flowchart TD
+    %% Main Daemon & State Layer
+    subgraph DaemonCore ["Daemon Core & State Controller"]
+        STATE_DB[(SQLite Settings<br/>acp_execution_state)]
+        ACP_STATE["AcpState Controller<br/>(running / suspended / shutdown)"]
+        ACP_MGR["AcpDelegationManager<br/>(Singleton Workspace Session Pool)"]
+        STARTUP["ensure_default_worker()<br/>(Auto-attach to $MYPAI_AGENT_DIR on launch)"]
+    end
+
+    %% Session Pool & Process Management
+    subgraph ProcessPool ["Worker Process Pool (External Oh-My-Pi Base Instances)"]
+        SESS_DEFAULT["AcpClientSession (Workspace Root)<br/>(CWD: $MYPAI_AGENT_DIR | Profile: default/main)"]
+        SESS_EXT["AcpClientSession (External Repo N)<br/>(CWD: /path/to/other/repo | Profile: default/main)"]
+        ACP_PROC["omp --mode acp (Subprocesses)<br/>(Isolated child PID, JSON-RPC pipe)"]
+    end
+
+    %% Task Tracking & Async Dispatch
+    subgraph TaskEngine ["Task Execution Engine"]
+        DISPATCH["execute_task_async()<br/>(Async Worker Dispatch & UUID Tracking)"]
+        TASK_STORE["tasks: dict[task_id -> task_record]<br/>(status, duration, prompt, output, error)"]
+    end
+
+    %% Event Streams & Turn Queue Integration
+    subgraph IntegrationLayer ["Daemon Integration & Real-time Telemetry"]
+        WS["WebSocket Broadcast<br/>(acp_task_started, acp_task_completed, acp_state_changed)"]
+        TURN_Q["TurnQueue Ingestion<br/>(source='acp_callback', priority=Priority.SYSTEM_EVENT)"]
+        WEBUI["WebUI Team Sidecar<br/>(Running Tasks & Finished Tasks Viewer)"]
+    end
+
+    %% Lifecycle and Auto-attach
+    STATE_DB <-->|"Persist State"| ACP_STATE
+    ACP_STATE -->|"Verify Active"| ACP_MGR
+    ACP_MGR -->|"On Startup"| STARTUP
+    STARTUP -->|"Attach Worker"| SESS_DEFAULT
+    ACP_MGR -->|"On Demand"| SESS_EXT
+    SESS_DEFAULT -->|"Supervise Process"| ACP_PROC
+    SESS_EXT -->|"Supervise Process"| ACP_PROC
+
+    %% Execution and Ingestion
+    ACP_MGR -->|"Async Task"| DISPATCH
+    DISPATCH -->|"Prompt Worker"| ACP_PROC
+    DISPATCH -->|"Initialize Record"| TASK_STORE
+    DISPATCH -->|"Broadcast Started"| WS
+    ACP_PROC -->|"Return Output / Error"| TASK_STORE
+    TASK_STORE -->|"Broadcast Completed"| WS
+    TASK_STORE -->|"Enqueue Callback (P2)"| TURN_Q
+    WS -->|"Stream Updates"| WEBUI

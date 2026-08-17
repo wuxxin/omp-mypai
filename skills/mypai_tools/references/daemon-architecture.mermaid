@@ -1,9 +1,10 @@
 flowchart TD
     %% Ingress & Producers Layer
-    subgraph IngressLayer ["Ingress & Event Producers"]
+    subgraph IngressLayer ["Ingress & Event Producers (Single Ingress Rule)"]
         WEBUI["WebUI Console & REST API<br/>(Port 52080 / ws://api/v1/ws)"]
         SIGNAL["Signal Webhook Gateway<br/>(SignalClient & Whitelist Filter)"]
         SPOOLER["Input Spooler Daemon<br/>(Inbox Watcher, STT, Hindsight)"]
+        CONTROL_ABORT["Control-Plane Interrupt<br/>(POST /api/v1/session/abort)"]
     end
 
     %% Tier 1: Parallel Background Execution Plane
@@ -22,14 +23,14 @@ flowchart TD
     end
 
     %% Tier 2: Serialized OMP Turn Queue Plane
-    subgraph Tier2 ["Tier 2: Serialized OMP RPC Turn Queue Plane"]
-        TURN_QUEUE["TurnQueue (Priority-Flush State Machine)<br/>(Rule 1: Abort Purge | Rule 2: Steer | Rule 3: Followup | Rule 4: Idle Prompt)"]
-        WORKER_LOOP["queue_worker_loop<br/>(Async Worker Coroutine)"]
+    subgraph Tier2 ["Tier 2: Serialized OMP RPC Turn Queue Plane (Single Arbiter)"]
+        TURN_QUEUE["TurnQueue (5-Priority State Machine)<br/>(P0: Abort | P1: Steer | P2: ACP Callback | P3: Followup | P4: Prompt)"]
+        WORKER_LOOP["queue_worker_loop<br/>(Sole Caller of session_mgr.execute_turn)"]
     end
 
     %% Execution & Persistent Session Layer
     subgraph SessionLayer ["Persistent OMP RPC Session & Host Tools"]
-        SESS_MGR["OMPSessionManager<br/>(UUID Reattachment & Telemetry)"]
+        SESS_MGR["OMPSessionManager<br/>(Driver: Process Lifecycle & Telemetry)"]
         RPC_CLIENT["RpcClient Subprocess<br/>(omp --mode rpc --profile mypai)"]
         
         subgraph HostTools ["Native Host Tools (In-Process)"]
@@ -44,22 +45,25 @@ flowchart TD
         WS_STREAM["WebSocket Broadcast Stream<br/>(turn_started, turn_completed, etc.)"]
     end
 
-    %% Ingress Flow
-    WEBUI -->|"Turns: prompt, steer, followup, abort"| TURN_QUEUE
+    %% Ingress Flow (All Enqueue except direct Control-Plane Abort)
+    WEBUI -->|"POST /prompt, /steer, /followup"| TURN_QUEUE
     SIGNAL -->|"Verified Inbound Messages"| TURN_QUEUE
     SPOOLER -->|"Transcribed Audio Prompts"| TURN_QUEUE
+    CONTROL_ABORT -.->|"Instant Purge"| TURN_QUEUE
+    CONTROL_ABORT -->|"Signal Abort"| SESS_MGR
     
     %% Tier 1 Execution Flow
     SQLITE <-->|"Sync Jobs & Telemetry"| SCHEDULER
     SCHEDULER -->|"Check Job ID"| REGISTRY
     REGISTRY -->|"Spawn Async Task"| Executors
     Executors -->|"Output / Error / Exitcode"| RESULT_EVAL
-    RESULT_EVAL -->|"is_result_call=True (mode != log)"| TURN_QUEUE
+    RESULT_EVAL -->|"Enqueue (is_result_call=True)"| TURN_QUEUE
+    EXEC_ACP -->|"Async Completion Callback (Priority 2)"| TURN_QUEUE
     
     %% Tier 2 Serialization Flow
     TURN_QUEUE -->|"get_next(is_session_busy)"| WORKER_LOOP
-    WORKER_LOOP -->|"Execute Serialized Turn"| SESS_MGR
-    SESS_MGR -->|"Manage Connection"| RPC_CLIENT
+    WORKER_LOOP -->|"execute_turn(item)"| SESS_MGR
+    SESS_MGR -->|"RPC Dispatch"| RPC_CLIENT
     
     %% Host Tools & Subprocess Binding
     RPC_CLIENT -->|"Register Host Tools"| HostTools
@@ -68,6 +72,6 @@ flowchart TD
     
     %% Streaming & Telemetry
     RPC_CLIENT -->|"Stream Chunks & Events"| SESS_MGR
-    SESS_MGR -->|"Broadcast"| WS_STREAM
-    WS_STREAM -->|"Live Updates"| WEBUI
-    WORKER_LOOP -->|"Record History"| SQLITE
+    SESS_MGR -->|"Broadcast Events"| WS_STREAM
+    WS_STREAM -->|"Live UI Stream"| WEBUI
+    WORKER_LOOP -->|"Record Completed Turns"| SQLITE

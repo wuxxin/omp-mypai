@@ -1,0 +1,225 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 840" width="1200" height="840">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');
+
+      .bg-paper { fill: #faf7f2; }
+      .zone-bg { fill: rgba(45, 49, 66, 0.02); stroke: rgba(45, 49, 66, 0.12); stroke-width: 0.8; }
+      .zone-eyebrow { font-family: 'Geist Mono', monospace; font-size: 8px; fill: #4f5d75; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; }
+      .title-main { font-family: 'Instrument Serif', serif; font-size: 26px; fill: #1c1917; }
+      .subtitle { font-family: 'Geist', sans-serif; font-size: 11px; fill: #4f5d75; }
+      .header-tag { font-family: 'Geist Mono', monospace; font-size: 8px; fill: #eb6c36; letter-spacing: 0.14em; font-weight: 600; }
+
+      .node-name { font-family: 'Geist', sans-serif; font-size: 12px; font-weight: 600; fill: #1c1917; }
+      .node-name-focal { font-family: 'Geist', sans-serif; font-size: 13px; font-weight: 700; fill: #eb6c36; }
+      .node-sub { font-family: 'Geist Mono', monospace; font-size: 8.5px; fill: #4f5d75; }
+      .node-body { font-family: 'Geist', sans-serif; font-size: 9.5px; fill: #334155; }
+      .tag-text { font-family: 'Geist Mono', monospace; font-size: 7px; letter-spacing: 0.08em; font-weight: 600; }
+      
+      .conn-label { font-family: 'Geist Mono', monospace; font-size: 7.5px; letter-spacing: 0.08em; font-weight: 600; }
+      .legend-text { font-family: 'Geist Mono', monospace; font-size: 8.5px; fill: #4f5d75; }
+    </style>
+
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+    </marker>
+    <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+    </marker>
+    <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="840" class="bg-paper"/>
+
+  <!-- ==================== HEADER ==================== -->
+  <text x="40" y="28" class="header-tag">SUBLEVEL ARCHITECTURE: CRON SCHEDULER &amp; PARALLEL CONCURRENCY</text>
+  <text x="40" y="56" class="title-main">myPAI CronScheduler &amp; Parallel Executors</text>
+  <text x="40" y="76" class="subtitle">APScheduler engine with SQLite sync, non-blocking concurrent executors, and TurnQueue result lineage</text>
+
+  <!-- ==================== ZONES ==================== -->
+  <!-- Zone 1: Scheduler & Persistence -->
+  <rect x="40" y="96" width="260" height="664" rx="8" class="zone-bg"/>
+  <rect x="52" y="100" width="220" height="12" rx="2" fill="#faf7f2"/>
+  <text x="56" y="109" class="zone-eyebrow">1. SCHEDULER &amp; PERSISTENCE</text>
+
+  <!-- Zone 2: Concurrency & Executors (Focal) -->
+  <rect x="324" y="96" width="472" height="664" rx="8" class="zone-bg" stroke="rgba(235, 108, 54, 0.25)" stroke-width="1"/>
+  <rect x="336" y="100" width="340" height="12" rx="2" fill="#faf7f2"/>
+  <text x="340" y="109" class="zone-eyebrow" fill="#eb6c36">2. CONCURRENCY PLANE &amp; PARALLEL EXECUTORS</text>
+
+  <!-- Zone 3: Lineage & Turn Ingestion -->
+  <rect x="820" y="96" width="340" height="664" rx="8" class="zone-bg"/>
+  <rect x="832" y="100" width="280" height="12" rx="2" fill="#faf7f2"/>
+  <text x="836" y="109" class="zone-eyebrow">3. RESULT EVALUATION &amp; QUEUE INGESTION</text>
+
+  <!-- ==================== CONNECTORS ==================== -->
+  <!-- DB -> Sync -->
+  <path d="M 170 200 L 170 236" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <rect x="136" y="210" width="68" height="12" rx="2" fill="#faf7f2"/>
+  <text x="170" y="219" class="conn-label" fill="#4f5d75" text-anchor="middle">SYNC JOBS</text>
+
+  <!-- Sync -> Scheduler Core -->
+  <path d="M 170 300 L 170 336" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- Scheduler Trigger -> Concurrency Guard -->
+  <path d="M 276 384 L 348 384" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="284" y="370" width="56" height="12" rx="2" fill="#faf7f2"/>
+  <text x="312" y="379" class="conn-label" fill="#eb6c36" text-anchor="middle">TRIGGER</text>
+
+  <!-- Guard -> Parallel Executors -->
+  <path d="M 560 416 L 560 452" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="520" y="426" width="80" height="12" rx="2" fill="#faf7f2"/>
+  <text x="560" y="435" class="conn-label" fill="#eb6c36" text-anchor="middle">SPAWN TASK</text>
+
+  <!-- Executors -> Result Evaluation -->
+  <path d="M 772 548 L 844 548" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="780" y="534" width="56" height="12" rx="2" fill="#faf7f2"/>
+  <text x="808" y="543" class="conn-label" fill="#eb6c36" text-anchor="middle">OUTPUT</text>
+
+  <!-- Result Evaluation -> TurnQueue -->
+  <path d="M 990 396 L 990 432" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+  <rect x="948" y="406" width="84" height="12" rx="2" fill="#faf7f2"/>
+  <text x="990" y="415" class="conn-label" fill="#2e5aa8" text-anchor="middle">ENQUEUE</text>
+
+  <!-- Telemetry -> DB -->
+  <path d="M 844 680 L 170 680 A 8 8 0 0 1 162 672 L 162 200" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <rect x="460" y="670" width="84" height="12" rx="2" fill="#faf7f2"/>
+  <text x="502" y="679" class="conn-label" fill="#4f5d75" text-anchor="middle">UPDATE STATS</text>
+
+  <!-- ==================== NODES ==================== -->
+
+  <!-- ZONE 1 NODES: Scheduler & Persistence -->
+  <!-- SQLite DB -->
+  <rect x="64" y="128" width="212" height="72" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <text x="76" y="146" class="tag-text" fill="#4f5d75">SQLITE</text>
+  <text x="170" y="156" class="node-name" text-anchor="middle">cron_jobs Table</text>
+  <text x="170" y="174" class="node-sub" text-anchor="middle">kind, cron, enabled, opts, result</text>
+  <text x="170" y="190" class="node-body" text-anchor="middle">agent-{basedir}-{hash}.db</text>
+
+  <!-- Sync Engine -->
+  <rect x="64" y="236" width="212" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <text x="76" y="254" class="tag-text" fill="#4f5d75">SYNC</text>
+  <text x="170" y="262" class="node-name" text-anchor="middle">sync_jobs_from_db()</text>
+  <text x="170" y="280" class="node-sub" text-anchor="middle">Diff &amp; update cron triggers dynamically</text>
+
+  <!-- APScheduler Core -->
+  <rect x="64" y="336" width="212" height="116" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1.2"/>
+  <text x="76" y="354" class="tag-text" fill="#1c1917">CORE</text>
+  <text x="170" y="364" class="node-name" text-anchor="middle">APScheduler Engine</text>
+  <text x="170" y="384" class="node-sub" text-anchor="middle">BackgroundScheduler (AsyncIO)</text>
+  <text x="170" y="402" class="node-body" text-anchor="middle">CronTrigger / IntervalTrigger</text>
+  <text x="170" y="420" class="node-sub" text-anchor="middle">Global Enable / Disable Switch</text>
+  <text x="170" y="436" class="node-body" text-anchor="middle">run_once Immediate Execution</text>
+
+  <!-- REST & Host Tool API -->
+  <rect x="64" y="488" width="212" height="100" rx="6" fill="#ffffff" stroke="#2e5aa8" stroke-width="1"/>
+  <text x="76" y="506" class="tag-text" fill="#2e5aa8">CRUD API</text>
+  <text x="170" y="516" class="node-name" text-anchor="middle">Cron API &amp; Host Tools</text>
+  <text x="170" y="534" class="node-sub" text-anchor="middle">/api/v1/cron/jobs (GET/POST/PUT)</text>
+  <text x="170" y="550" class="node-sub" text-anchor="middle">/enable, /disable, /export, /import</text>
+  <text x="170" y="568" class="node-body" text-anchor="middle">Native Host Tools for Agent Self-Scheduling</text>
+
+  <!-- ZONE 2 NODES: Concurrency & Parallel Executors (Focal Box) -->
+  <!-- Concurrency Registry & Overlap Guard -->
+  <rect x="348" y="128" width="424" height="136" rx="6" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+  <text x="360" y="148" class="node-name-focal">running_jobs Registry &amp; Overlap Guard</text>
+  <text x="360" y="168" class="node-sub">Data Structure: running_jobs: dict[str, asyncio.Task]</text>
+  <text x="360" y="188" class="node-body">• On Trigger: checks if job_id already exists in running_jobs.</text>
+  <text x="360" y="206" class="node-body">• IF RUNNING: skips trigger, logs warning, records overlap telemetry.</text>
+  <text x="360" y="224" class="node-body">• IF IDLE: registers task, spawns non-blocking executor coroutine.</text>
+  <text x="360" y="244" class="node-sub" fill="#eb6c36">• Guarantees long-running background tasks never stampede or duplicate.</text>
+
+  <!-- Parallel Executors Container -->
+  <rect x="348" y="280" width="424" height="236" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1.2"/>
+  <text x="360" y="302" class="node-name">Parallel Background Job Executors (Tier 1 Plane)</text>
+  
+  <!-- Shell Job -->
+  <rect x="360" y="316" width="400" height="36" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="372" y="338" class="node-sub" font-weight="600" fill="#1c1917">SHELL EXECUTOR</text>
+  <text x="500" y="338" class="node-body">subprocess bash • env vars • timeout_sec</text>
+
+  <!-- HTTP Job -->
+  <rect x="360" y="356" width="400" height="36" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="372" y="378" class="node-sub" font-weight="600" fill="#2e5aa8">HTTP EXECUTOR</text>
+  <text x="496" y="378" class="node-body">httpx async • GET/POST • JSON • headers</text>
+
+  <!-- Python Job -->
+  <rect x="360" y="396" width="400" height="36" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="372" y="418" class="node-sub" font-weight="600" fill="#1c1917">PYTHON EXECUTOR</text>
+  <text x="510" y="418" class="node-body">In-process lambda / code execution</text>
+
+  <!-- ACP Worker Job -->
+  <rect x="360" y="436" width="400" height="36" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="372" y="458" class="node-sub" font-weight="600" fill="#eb6c36">ACP SUBAGENTS</text>
+  <text x="496" y="458" class="node-body">Delegates to external Oh-My-Pi worker pool</text>
+
+  <!-- OMP Job -->
+  <rect x="360" y="476" width="400" height="32" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="372" y="496" class="node-sub" font-weight="600" fill="#4f5d75">OMP RPC JOB</text>
+  <text x="480" y="496" class="node-body">Direct enqueue into TurnQueue (Single Ingress)</text>
+
+  <!-- Macro Variable Substitutor -->
+  <rect x="348" y="532" width="424" height="208" rx="6" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="1"/>
+  <text x="360" y="552" class="node-name">Macro Variable Substitution Engine</text>
+  <text x="360" y="572" class="node-sub">substitute_vars() &amp; build_internal_vars()</text>
+  <text x="360" y="592" class="node-body">Replaces dynamic output tokens in result_prompt / result_error_prompt:</text>
+  <text x="360" y="612" class="node-sub" fill="#eb6c36">#[_RESULT] → Task output string / JSON</text>
+  <text x="360" y="630" class="node-sub" fill="#eb6c36">#[_ERROR] → Error message / exception traceback</text>
+  <text x="360" y="648" class="node-sub">#[_RETURNCODE] → Exitcode / HTTP status code</text>
+  <text x="360" y="666" class="node-sub">#[_DURATION] → Execution time in seconds</text>
+  <text x="360" y="686" class="node-body">Constructs evaluated prompt string ready for agent ingestion.</text>
+  <text x="360" y="706" class="node-sub" fill="#4f5d75">Enforces loop-safety: prevents cascading cron loops.</text>
+
+  <!-- ZONE 3 NODES: Lineage & Queue Ingestion -->
+  <!-- Result Evaluator -->
+  <rect x="844" y="128" width="292" height="136" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1.2"/>
+  <text x="990" y="152" class="node-name" text-anchor="middle">evaluate_and_dispatch_result_prompt()</text>
+  <text x="990" y="172" class="node-sub" text-anchor="middle">Action Routing Logic</text>
+  <text x="990" y="192" class="node-body" text-anchor="middle">IF action == 'log': Output logged only</text>
+  <text x="990" y="210" class="node-body" text-anchor="middle">IF action == 'prompt': Enqueue P4 prompt</text>
+  <text x="990" y="228" class="node-body" text-anchor="middle">IF action == 'steer': Enqueue P1 interrupt</text>
+  <text x="990" y="246" class="node-sub" text-anchor="middle">IF action == 'followup': Enqueue P3 context</text>
+
+  <!-- TurnQueue Ingestion Node -->
+  <rect x="844" y="280" width="292" height="116" rx="6" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+  <text x="990" y="304" class="node-name-focal" text-anchor="middle">TurnQueue Ingestion</text>
+  <text x="990" y="324" class="node-sub" text-anchor="middle">await daemon_queue.enqueue()</text>
+  <text x="990" y="342" class="node-body" text-anchor="middle">is_result_call = True</text>
+  <text x="990" y="358" class="node-body" text-anchor="middle">origin_job_id = job.id (Lineage Tracking)</text>
+  <text x="990" y="376" class="node-sub" fill="#eb6c36" text-anchor="middle">Ensures main agent resolves background result</text>
+
+  <!-- WebSocket & Broadcast -->
+  <rect x="844" y="432" width="292" height="104" rx="6" fill="#ffffff" stroke="#2e5aa8" stroke-width="1"/>
+  <text x="990" y="456" class="node-name" text-anchor="middle">WebSocket Broadcast Stream</text>
+  <text x="990" y="476" class="node-sub" fill="#2e5aa8" text-anchor="middle">cron_job_started • cron_job_executed</text>
+  <text x="990" y="494" class="node-body" text-anchor="middle">job_id, return_code, duration_sec, output</text>
+  <text x="990" y="512" class="node-sub" text-anchor="middle">WebUI Cron Tab cards update live</text>
+
+  <!-- DB Telemetry Updates -->
+  <rect x="844" y="568" width="292" height="172" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <text x="990" y="592" class="node-name" text-anchor="middle">SQLite Job Telemetry Record</text>
+  <text x="990" y="612" class="node-sub" text-anchor="middle">Updates CronJobModel columns:</text>
+  <text x="990" y="632" class="node-body" text-anchor="middle">last_run: ISO-8601 Timestamp</text>
+  <text x="990" y="650" class="node-body" text-anchor="middle">last_status: 'success' | 'error'</text>
+  <text x="990" y="668" class="node-body" text-anchor="middle">call_count: Incremented counter</text>
+  <text x="990" y="686" class="node-body" text-anchor="middle">last_duration_sec: Execution latency</text>
+  <text x="990" y="704" class="node-sub" text-anchor="middle">last_output / last_error snippets</text>
+
+  <!-- ==================== LEGEND STRIP ==================== -->
+  <line x1="40" y1="784" x2="1160" y2="784" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="40" y="804" class="zone-eyebrow">LEGEND</text>
+  
+  <rect x="120" y="796" width="16" height="10" rx="2" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1"/>
+  <text x="144" y="805" class="legend-text">Concurrency Guard &amp; Queue Ingestion</text>
+
+  <rect x="420" y="796" width="16" height="10" rx="2" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+  <text x="444" y="805" class="legend-text">Core Scheduler &amp; Executors</text>
+
+  <line x1="720" y1="801" x2="744" y2="801" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <text x="752" y="805" class="legend-text">Trigger / Task Dispatch</text>
+
+  <line x1="940" y1="801" x2="964" y2="801" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <text x="972" y="805" class="legend-text">DB Telemetry Update</text>
+</svg>

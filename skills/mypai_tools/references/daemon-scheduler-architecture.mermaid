@@ -1,0 +1,54 @@
+flowchart TD
+    %% Storage & Scheduler Core
+    subgraph CoreEngine ["CronScheduler Core & SQLite Synchronization"]
+        DB[(SQLite Database<br/>cron_jobs & settings)]
+        SCHED["CronScheduler Engine<br/>(APScheduler BackgroundScheduler)"]
+        SYNC["sync_jobs_from_db()<br/>(Dynamic Trigger Registration)"]
+    end
+
+    %% Concurrency Registry & Overlap Prevention
+    subgraph ConcurrencyPlane ["Concurrency Plane & Overlap Prevention"]
+        REGISTRY["running_jobs Registry<br/>(dict[job_id -> asyncio.Task])"]
+        GUARD{"Job ID already in<br/>running_jobs?"}
+        SKIP["Skip Trigger & Log Warning<br/>(Prevent Duplicate Concurrent Runs)"]
+    end
+
+    %% Parallel Executors
+    subgraph ParallelExecutors ["Tier 1: Parallel Job Executors (Non-Blocking)"]
+        EX_SHELL["Shell Executor<br/>(bash, env vars, timeout)"]
+        EX_HTTP["HTTP Executor<br/>(GET/POST/PUT/DELETE, JSON payload)"]
+        EX_PY["Python Executor<br/>(in-process code / lambda execution)"]
+        EX_ACP["ACP Executor<br/>(Async Worker Task Delegation)"]
+        EX_OMP["OMP RPC Job<br/>(Direct Enqueue to TurnQueue)"]
+    end
+
+    %% Result & Macro Evaluation
+    subgraph EvaluationLayer ["Result Evaluation & Lineage Tagging"]
+        MACRO["Macro Variable Substitution<br/>(#[_RESULT], #[_ERROR], #[_RETURNCODE], #[_DURATION])"]
+        EVAL{"Result Action<br/>Evaluation"}
+        LOG["Log Only<br/>(Terminal / Access Log)"]
+        ENQUEUE["Enqueue into TurnQueue<br/>(is_result_call=True, origin_job_id=job_id)"]
+    end
+
+    %% Database Sync & Triggering
+    DB <-->|"Read & Update Cron Definitions"| SYNC
+    SYNC -->|"Schedule Jobs"| SCHED
+    SCHED -->|"Trigger Fire"| GUARD
+    GUARD -->|"Yes (Busy)"| SKIP
+    GUARD -->|"No (Idle)"| REGISTRY
+
+    %% Execution Dispatch
+    REGISTRY -->|"Spawn kind=shell"| EX_SHELL
+    REGISTRY -->|"Spawn kind=http"| EX_HTTP
+    REGISTRY -->|"Spawn kind=python"| EX_PY
+    REGISTRY -->|"Spawn kind=acp"| EX_ACP
+    REGISTRY -->|"Spawn kind=omp"| EX_OMP
+
+    %% Evaluation & Lineage
+    EX_SHELL -->|"Raw Output & Exitcode"| MACRO
+    EX_HTTP -->|"Response Body & Status"| MACRO
+    EX_PY -->|"Return Object / Traceback"| MACRO
+    MACRO --> EVAL
+    EVAL -->|"action == log"| LOG
+    EVAL -->|"action in prompt, steer, followup"| ENQUEUE
+    EX_OMP -->|"Queued Task ID"| ENQUEUE

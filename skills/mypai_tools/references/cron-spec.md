@@ -10,6 +10,8 @@ Cron capabilities are exposed directly to the persistent agent via **Host Tools*
 
 ## 1. 2-Tier Architecture & Concurrency Model
 
+![myPAI CronScheduler & Parallel Concurrency Architecture](daemon-scheduler-architecture.svg)
+
 1. **Background Execution Plane (Parallel & Non-Blocking)**:
    - Executors (`http`, `python`, `shell`, `acp`) run concurrently as background asyncio tasks.
    - Guarded by an active execution registry (`running_jobs: dict[str, asyncio.Task]`).

@@ -1,0 +1,58 @@
+flowchart TD
+    %% Ingress Producers
+    subgraph Producers ["Turn Ingress Producers"]
+        P_USER["WebUI Prompt<br/>(/api/v1/session/prompt)"]
+        P_STEER["WebUI Steer<br/>(/api/v1/session/steer)"]
+        P_FOLLOW["WebUI Followup<br/>(/api/v1/session/followup)"]
+        P_ABORT_PROMPT["Abort & Prompt<br/>(/api/v1/session/abort_and_prompt)"]
+        P_SIGNAL["Signal Webhook<br/>(Allowed Sender)"]
+        P_ACP_CB["ACP Worker Callback<br/>(Task Completed / Failed)"]
+        P_CRON["CronScheduler Job<br/>(OMP Prompt Action)"]
+        P_RESULT["Executor Result<br/>(Action != Log)"]
+        P_ABORT_CTRL["Instant Abort<br/>(/api/v1/session/abort)"]
+    end
+
+    %% TurnQueue Arbiter & Priority Array
+    subgraph QueueEngine ["TurnQueue Arbiter & Priority State Machine"]
+        direction TB
+        L0["Priority 0: Abort / Abort & Prompt<br/>(Flush Pending Queue Immediately)"]
+        L1["Priority 1: Steer Interrupt<br/>(FIFO Injection into Running Turn)"]
+        L2["Priority 2: ACP / System Events<br/>(FIFO External Subagent Callbacks)"]
+        L3["Priority 3: Followup Messages<br/>(FIFO Turn Appending)"]
+        L4["Priority 4: User & Scheduled Prompts<br/>(FIFO Dispatched only when Agent is IDLE)"]
+    end
+
+    %% Worker Loop & Dispatch
+    subgraph ExecutionPlane ["Execution Plane"]
+        WORKER["queue_worker_loop<br/>(item = await queue.get_next)"]
+        SESS_MGR["OMPSessionManager.execute_turn()<br/>(Private Worker Execution)"]
+        RPC["omp --mode rpc (RpcClient)<br/>(Persistent Profile Process)"]
+    end
+
+    %% Telemetry & History
+    subgraph TelemetryStore ["Telemetry & Events"]
+        WS["WebSocket Stream<br/>(turn_queued, turn_started, message_update, turn_completed, turn_aborted)"]
+        HIST["Queue History & DB<br/>(Task ID, Latency, Output, Token Usage)"]
+    end
+
+    %% Ingress Routing
+    P_ABORT_PROMPT -->|"Priority 0"| L0
+    P_STEER -->|"Priority 1"| L1
+    P_ACP_CB -->|"Priority 2"| L2
+    P_FOLLOW -->|"Priority 3"| L3
+    P_USER -->|"Priority 4"| L4
+    P_SIGNAL -->|"Priority 4"| L4
+    P_CRON -->|"Priority 4"| L4
+    P_RESULT -->|"Priority 4"| L4
+    P_ABORT_CTRL -.->|"Instant Purge"| QueueEngine
+    P_ABORT_CTRL -->|"Direct Signal"| SESS_MGR
+
+    %% Dispatch Flow
+    QueueEngine -->|"get_next(is_session_busy)"| WORKER
+    WORKER -->|"execute_turn()"| SESS_MGR
+    SESS_MGR -->|"RPC Call"| RPC
+    
+    %% Output Flow
+    RPC -->|"Stream Tokens"| SESS_MGR
+    SESS_MGR -->|"Broadcast Events"| WS
+    WORKER -->|"Mark Completed"| HIST
