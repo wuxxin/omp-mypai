@@ -28,7 +28,7 @@
       background: linear-gradient(135deg, #090d16 0%, #0f172a 50%, #1e1b4b 100%);
       color: var(--text-main);
       min-height: 100vh;
-      padding: 1.25rem;
+      padding: 1rem;
       transition: all 0.3s ease;
     }
 
@@ -36,40 +36,40 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1rem 1.5rem;
+      padding: 0.75rem 1.25rem;
       background: var(--card-bg);
       backdrop-filter: blur(16px);
       border: 1px solid var(--card-border);
       border-radius: 12px;
-      margin-bottom: 1.25rem;
+      margin-bottom: 1rem;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
     }
 
-    .brand { display: flex; align-items: center; gap: 0.75rem; font-size: 1.25rem; font-weight: 700; }
-    .brand-badge {
-      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-      padding: 0.25rem 0.6rem;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
     }
 
-    .status-badge {
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .connection-status {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.4rem 0.88rem;
-      border-radius: 20px;
       font-size: 0.85rem;
       font-weight: 600;
+      padding: 0.3rem 0.75rem;
+      border-radius: 20px;
       background: rgba(16, 185, 129, 0.15);
       color: var(--status-green);
       border: 1px solid rgba(16, 185, 129, 0.3);
-      transition: all 0.3s ease;
     }
-    .status-badge.disconnected {
+    .connection-status.disconnected {
       background: rgba(239, 68, 68, 0.15);
       color: var(--status-red);
       border-color: rgba(239, 68, 68, 0.3);
@@ -79,26 +79,70 @@
       height: 8px;
       border-radius: 50%;
       background: var(--status-green);
-      animation: pulse 2s infinite;
     }
-    .status-badge.disconnected .status-dot {
+    .connection-status.disconnected .status-dot {
       background: var(--status-red);
-      animation: none;
     }
 
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    .streaming-badge {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
+      letter-spacing: 0.5px;
+    }
+    .streaming-badge.active {
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--accent-cyan);
+      border-color: var(--accent-blue);
+      animation: pulse-streaming 1.5s infinite;
+    }
+
+    @keyframes pulse-streaming {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.98); }
+    }
+
+    .tab-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .tab-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      padding: 0.4rem 0.85rem;
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--text-main);
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      color: white;
+      border-color: transparent;
+    }
 
     .grid-container {
       display: grid;
       grid-template-columns: 1fr 380px;
-      gap: 1.25rem;
+      gap: 1rem;
       transition: grid-template-columns 0.3s ease;
     }
-
     .grid-container.collapsed {
       grid-template-columns: 1fr 0px;
     }
-
     .grid-container.collapsed aside {
       display: none;
     }
@@ -113,41 +157,33 @@
     }
 
     .card-title {
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 600;
-      margin-bottom: 1rem;
+      margin-bottom: 0.9rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .toggle-btn {
+    .btn-action {
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid var(--card-border);
-      padding: 0.4rem 0.8rem;
+      padding: 0.35rem 0.7rem;
       border-radius: 6px;
       color: var(--text-main);
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 500;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
       transition: all 0.2s ease;
     }
-    .toggle-btn:hover { background: rgba(255, 255, 255, 0.18); border-color: rgba(255, 255, 255, 0.25); }
-
-    aside {
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-      max-height: calc(100vh - 120px);
-      overflow-y: auto;
-      padding-right: 0.3rem;
+    .btn-action:hover {
+      background: rgba(255, 255, 255, 0.18);
     }
-    aside::-webkit-scrollbar { width: 6px; }
-    aside::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.4); border-radius: 4px; }
-    aside::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      border: none;
+    }
 
     .log-console {
       font-family: 'Fira Code', monospace;
@@ -155,16 +191,16 @@
       background: rgba(10, 15, 26, 0.92);
       border: 1px solid var(--card-border);
       border-radius: 8px;
-      padding: 1.1rem;
-      height: calc(100vh - 280px);
-      min-height: 440px;
+      padding: 1rem;
+      height: calc(100vh - 320px);
+      min-height: 420px;
       overflow-y: auto;
       margin-bottom: 1rem;
       box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.4);
     }
 
     .log-entry {
-      margin-bottom: 0.6rem;
+      margin-bottom: 0.5rem;
       line-height: 1.5;
       color: var(--text-muted);
       word-break: break-word;
@@ -181,272 +217,454 @@
     .log-entry.success { color: var(--status-green); }
     .log-entry.error { color: var(--status-red); background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--status-red); padding-left: 0.6rem; }
 
-    .control-form { display: flex; flex-direction: column; gap: 0.75rem; }
-    .input-row { display: flex; gap: 0.75rem; }
-    input[type="text"], select {
-      flex: 1;
-      padding: 0.75rem 1rem;
+    .composer-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
       background: rgba(15, 23, 42, 0.75);
       border: 1px solid var(--card-border);
-      border-radius: 8px;
+      border-radius: 10px;
+      padding: 0.75rem;
+    }
+
+    .composer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    textarea.prompt-textarea {
+      width: 100%;
+      min-height: 60px;
+      max-height: 220px;
+      background: transparent;
+      border: none;
       color: var(--text-main);
       font-family: inherit;
-      font-size: 0.9rem;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    input[type="text"]:focus, select:focus {
+      font-size: 0.92rem;
+      line-height: 1.4;
+      resize: vertical;
       outline: none;
-      border-color: var(--accent-blue);
-      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
     }
 
-    button {
-      padding: 0.75rem 1.25rem;
-      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-      border: none;
-      border-radius: 8px;
-      color: white;
-      font-weight: 600;
-      font-size: 0.88rem;
-      cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
+    .composer-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
     }
-    button:hover { opacity: 0.92; transform: translateY(-1px); }
-    button:active { transform: translateY(0); }
 
-    .cron-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.75rem; }
-    .cron-table th, .cron-table td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--card-border); }
-    .cron-table th { color: var(--text-muted); font-weight: 500; }
-
-    .checkbox-label {
+    .composer-right {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      cursor: pointer;
-      user-select: none;
     }
-    .checkbox-label input { cursor: pointer; }
+
+    button.btn-submit {
+      padding: 0.5rem 1.25rem;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    button.btn-submit:hover { opacity: 0.92; transform: translateY(-1px); }
+
+    select.mode-dropdown {
+      padding: 0.5rem 0.8rem;
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-size: 0.82rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    aside {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-height: calc(100vh - 100px);
+      overflow-y: auto;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.84rem;
+      padding: 0.2rem 0;
+    }
+    .stat-label { color: var(--text-muted); }
+    .stat-val { font-weight: 600; }
+    .stat-mono { font-family: 'Fira Code', monospace; }
+
+    .cron-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin-top: 0.5rem;
+    }
+    .cron-table th, .cron-table td {
+      padding: 0.5rem 0.6rem;
+      text-align: left;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .cron-table th { color: var(--text-muted); font-weight: 500; }
+
+    .badge-pill {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--accent-cyan);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: flex; flex-direction: column; gap: 1rem; }
+
+    /* Keyboard Shortcuts Modal Overlay */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.15s ease-out;
+    }
+    .modal-backdrop.active { display: flex; }
+
+    .modal-content {
+      width: 90%;
+      max-width: 640px;
+      max-height: 85vh;
+      overflow-y: auto;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 0.75rem;
+    }
+
+    .shortcuts-section {
+      margin-bottom: 1.25rem;
+    }
+    .shortcuts-section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent-cyan);
+      margin-bottom: 0.6rem;
+    }
+    .shortcut-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.35rem 0;
+      font-size: 0.84rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .shortcut-row:last-child { border-bottom: none; }
+    .shortcut-desc { color: var(--text-muted); }
+    .shortcut-keys { display: flex; gap: 0.25rem; align-items: center; }
+
+    kbd {
+      display: inline-block;
+      padding: 0.2rem 0.45rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-bottom-width: 2px;
+      border-radius: 4px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-main);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
   </style>
 </head>
 <body>
 
   <header>
-    <div style="display: flex; gap: 0.75rem; align-items: center;">
-      <div class="brand">
-        <span>myPAI Console</span>
-      </div>
-      <div id="status-badge" class="status-badge">
+    <div class="brand-section">
+      <span class="brand-title">myPAI Console</span>
+      <div id="status-badge" class="connection-status">
         <div class="status-dot"></div>
-        <span id="status-text">Connecting...</span>
+        <span id="status-text">Connected</span>
       </div>
+      <div id="streaming-badge" class="streaming-badge">[-STREAMING-]</div>
     </div>
-    <div style="display: flex; gap: 0.75rem; align-items: center;">
-      <button class="toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()">
-        <span id="toggle-icon">▶</span> Sidebar
-      </button>
-      <button class="toggle-btn" id="refresh-all-btn" onclick="reloadStatsAndSidecars()" title="Refresh all stats and sidecars">
-        Refresh
-      </button>
+
+    <div class="tab-nav">
+      <button class="tab-btn active" id="tab-btn-session" onclick="switchTab('session')">&lt;Session&gt;</button>
+      <button class="tab-btn" id="tab-btn-cron" onclick="switchTab('cron')">&lt;Cron&gt;</button>
+      <button class="tab-btn" id="tab-btn-team" onclick="switchTab('team')">&lt;Team&gt;</button>
+      <button class="btn-action" onclick="reloadAll()" title="Refresh Telemetry">&lt;Refresh&gt;</button>
+      <button class="btn-action" id="shortcuts-info-btn" onclick="toggleShortcutsOverlay()" title="Keyboard Shortcuts (?)">ℹ️</button>
+      <button class="btn-action" id="sidebar-toggle-btn" onclick="toggleSidebar()">▶ Sidebar</button>
     </div>
   </header>
 
   <div id="main-grid" class="grid-container">
-    <main style="display: flex; flex-direction: column; gap: 1.25rem;">
+    <main style="display: flex; flex-direction: column; gap: 1rem;">
       <div class="card" style="flex: 1; display: flex; flex-direction: column;">
         <div class="card-title">
           <span>RPC Session Live Console</span>
-          <div style="display: flex; align-items: center; gap: 1rem;">
-            <button onclick="loadSessionHistory(true)" class="toggle-btn" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">Reload History</button>
-            <button onclick="clearConsole()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">Clear Console</button>
-            <label class="checkbox-label">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <button onclick="loadSessionHistory(true)" class="btn-action">&lt;Reload History&gt;</button>
+            <button onclick="clearConsole()" class="btn-action">&lt;Clear Console&gt;</button>
+            <label style="font-size: 0.78rem; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
               <input type="checkbox" id="stream-chunks-checkbox" onchange="toggleStreamChunksFilter()" />
-              Show Stream Chunks
+              &lt;[]Show Stream Chunks&gt;
             </label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="events-checkbox" onchange="toggleEventsFilter()" />
-              Show Events
+            <label style="font-size: 0.78rem; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+              <input type="checkbox" id="events-checkbox" onchange="toggleEventsFilter()" checked />
+              &lt;[x]Show Events&gt;
             </label>
-            <span style="font-size: 0.75rem; color: var(--text-muted); font-family: 'Fira Code', monospace;">Port 52080</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-family: 'Fira Code', monospace;">Port: 52080</span>
           </div>
         </div>
+
         <div id="log-console" class="log-console">
           <div class="log-entry info">[System] Connecting to myPAI Console WebSocket Stream...</div>
         </div>
 
-        <form id="prompt-form" class="control-form">
-          <div class="input-row">
-            <input type="text" id="prompt-input" placeholder="Type a prompt turn for OMP session..." required />
-            <select id="mode-select" style="max-width: 190px;">
-              <option value="prompt">Prompt (Normal)</option>
-              <option value="steer">Steer (Interrupt)</option>
-              <option value="followup">Followup (Append)</option>
-              <option value="abort_and_prompt">Abort & Prompt</option>
-            </select>
-            <button type="submit">Submit Turn</button>
+        <form id="prompt-form" class="composer-box">
+          <div class="composer-header">
+            <span>Turn Input (Enter: newline | Ctrl+Enter: submit | Alt+Enter: quick steer)</span>
+            <button type="button" onclick="abortTurn()" class="btn-action btn-danger" style="padding: 0.25rem 0.6rem;">&lt;Turn Abort&gt;</button>
+          </div>
+          <textarea id="prompt-input" class="prompt-textarea" placeholder="Type a prompt for OMP session..." rows="2"></textarea>
+          <div class="composer-controls">
+            <span style="font-size: 0.72rem; color: var(--text-muted);">Shortcuts: / to focus | Ctrl+B toggle sidebar | Alt+1/2/3 tabs</span>
+            <div class="composer-right">
+              <button type="submit" class="btn-submit">&lt;Submit&gt;</button>
+              <select id="mode-select" class="mode-dropdown">
+                <option value="prompt">&lt;Create (Prompt)&gt;</option>
+                <option value="steer">&lt;Inject into (Steer)&gt;</option>
+                <option value="followup">&lt;Append to (Followup)&gt;</option>
+                <option value="abort_and_prompt">&lt;Abort and Create&gt;</option>
+              </select>
+            </div>
           </div>
         </form>
       </div>
     </main>
 
     <aside id="sidebar">
-      <!-- Daemon RPC Telemetry Card -->
-      <div class="card">
-        <div class="card-title">
-          <span>Daemon RPC</span>
-          <div style="display: flex; gap: 0.4rem;">
-            <button onclick="reconnectRpc()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Reconnect</button>
-            <button onclick="abortRpcTurn()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: linear-gradient(135deg, #ef4444, #dc2626);">Abort</button>
+      <!-- TAB 1: SESSION -->
+      <div id="tab-content-session" class="tab-content active">
+        <!-- Harness Card -->
+        <div class="card">
+          <div class="card-title">
+            <span>Harness:</span>
+            <span id="harness-status-badge" class="badge-pill" style="background: rgba(16, 185, 129, 0.2); color: var(--status-green);">[connected]</span>
           </div>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--text-muted);">RPC Status:</span>
-            <span id="rpc-status-badge" style="font-weight: 600; color: var(--status-green);">Connected</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Daemon Profile:</span>
-            <span id="tel-profile" style="font-weight: 700; color: var(--accent-purple); font-family: 'Fira Code', monospace;">mypai</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Process PID:</span>
-            <span id="tel-pid" style="font-family: 'Fira Code', monospace;">--</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Uptime:</span>
-            <span id="tel-uptime">0s</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Events Waiting (Queue):</span>
-            <span id="tel-queue" style="font-weight: 700; color: var(--accent-cyan);">0</span>
-          </div>
-          <div style="margin-top: 0.4rem; padding: 0.6rem; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--card-border); border-radius: 8px;">
-            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.3rem;">CURRENTLY RUNNING RPC CALL</div>
-            <div id="rpc-active-call-content" style="font-size: 0.8rem; color: var(--text-main);">No active call</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Session Telemetry Card (Merged State, Stats, Cost, & Dedicated UUID Block) -->
-      <div class="card">
-        <div class="card-title">Session</div>
-        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Session Name:</span>
-            <span id="tel-session" style="font-weight: 600;">mypai_daemon - running</span>
-          </div>
-          <div style="padding: 0.5rem 0.6rem; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--card-border); border-radius: 6px;">
-            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 0.2rem;">Session UUID</div>
-            <div id="tel-uuid" style="font-family: 'Fira Code', monospace; font-size: 0.78rem; color: var(--accent-cyan); word-break: break-all; user-select: all;" title="--">--</div>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Steering / Streaming:</span>
-            <span><span id="state-steering">one-at-a-time</span> / <span id="state-streaming">no</span></span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Messages (User / Asst):</span>
-            <span><span id="stats-user-msgs">0</span> / <span id="stats-asst-msgs">0</span></span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Tool Calls / Results:</span>
-            <span><span id="stats-tool-calls">0</span> / <span id="stats-tool-results">0</span></span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Tokens (In / Out):</span>
-            <span><span id="stats-tokens-in">0</span> / <span id="stats-tokens-out">0</span></span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Total Tokens:</span>
-            <span id="stats-tokens-total" style="font-weight: 600;">0</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Estimated Cost:</span>
-            <span id="stats-cost" style="color: var(--status-green); font-weight: 600;">$0.0000</span>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.2rem;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
-              <span style="color: var(--text-muted);">Context Window:</span>
-              <span id="state-context-text">0 / 128,000 (0.0%)</span>
+          <div style="display: flex; flex-direction: column; gap: 0.45rem;">
+            <div class="stat-row">
+              <span class="stat-label">Profile:</span>
+              <span id="tel-profile" class="stat-val stat-mono" style="color: var(--accent-purple);">mypai</span>
             </div>
-            <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden;">
-              <div id="state-context-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple)); transition: width 0.3s ease;"></div>
+            <div class="stat-row">
+              <span class="stat-label">PID:</span>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span id="tel-pid" class="stat-val stat-mono">--</span>
+                <button onclick="reconnectRpc()" class="btn-action" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">&lt;Reconnect&gt;</button>
+              </div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Runtime:</span>
+              <span id="tel-runtime" class="stat-val">0s</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Tasks (Queued/Running/Done):</span>
+              <span class="stat-val stat-mono">[<span id="stat-queued">0</span>] , [<span id="stat-running">0</span>] , [<span id="stat-done">0</span>]</span>
             </div>
           </div>
         </div>
+
+        <!-- Session Card -->
+        <div class="card">
+          <div class="card-title">
+            <span>Session:</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 0.45rem;">
+            <div class="stat-row">
+              <span class="stat-label">Name:</span>
+              <span id="tel-session" class="stat-val">mypai_daemon - running</span>
+            </div>
+            <div style="padding: 0.4rem 0.5rem; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--card-border); border-radius: 6px;">
+              <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">UUID</div>
+              <div id="tel-uuid" class="stat-mono" style="font-size: 0.76rem; color: var(--accent-cyan); word-break: break-all; user-select: all;">--</div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Steering:</span>
+              <span id="state-steering" class="stat-val">one-at-a-time</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Runtime:</span>
+              <span id="session-runtime" class="stat-val">0s</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Messages (U/A):</span>
+              <span><span id="stats-user-msgs">0</span> / <span id="stats-asst-msgs">0</span></span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Tool Calls:</span>
+              <span id="stats-tool-calls" class="stat-val">0</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Token Total/In/Out:</span>
+              <span class="stat-mono"><span id="stats-tokens-total">0</span> / <span id="stats-tokens-in">0</span> / <span id="stats-tokens-out">0</span></span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.3rem;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+                <span class="stat-label">Context Window:</span>
+                <span id="state-context-text">0 / 128,000 (0.0%)</span>
+              </div>
+              <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden;">
+                <div id="state-context-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple)); transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Turn Card -->
+        <div class="card">
+          <div class="card-title">
+            <span>Turn:</span>
+            <span id="turn-status-badge" class="badge-pill">[Inactive]</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 0.45rem;">
+            <div class="stat-row">
+              <span class="stat-label">Queued:</span>
+              <span><span id="turn-queued-count" style="font-weight: 700; color: var(--accent-cyan);">0</span> entries</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Status:</span>
+              <span id="turn-status-text" class="stat-val">Inactive</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Last/Current:</span>
+              <span id="turn-current-id" class="stat-mono stat-val" style="color: var(--accent-purple);">--</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Runtime:</span>
+              <span id="turn-runtime" class="stat-val">0s</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Messages (U/A), ToolCalls:</span>
+              <span id="turn-msgs-calls" class="stat-val">0 / 0, 0 calls</span>
+            </div>
+            <div id="turn-snippet-box" style="margin-top: 0.2rem; padding: 0.4rem 0.5rem; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--card-border); border-radius: 6px; font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              No active turn
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Tasks & Scheduled Jobs Card -->
-      <div class="card">
-        <div class="card-title">
-          <span>Tasks</span>
-          <div style="display: flex; gap: 0.4rem;">
-            <button onclick="exportCronJobs()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Export</button>
-            <button onclick="document.getElementById('cron-file-input').click()" class="toggle-btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">Import</button>
-            <input type="file" id="cron-file-input" accept=".json" style="display: none;" onchange="importCronJobs(event)" />
+      <!-- TAB 2: CRON -->
+      <div id="tab-content-cron" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <span>Cron Jobs:</span>
+            <span id="cron-global-badge" class="badge-pill">[Enabled]</span>
           </div>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem; margin-bottom: 0.75rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--text-muted);">Global Execution:</span>
-            <span id="cron-exec-status" style="font-weight: 600; color: var(--status-green);">Enabled</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--text-muted);">Total / Active Jobs:</span>
-            <span><span id="cron-total-jobs" style="font-weight: 600;">0</span> total (<span id="cron-enabled-jobs" style="color: var(--status-green);">0</span> active / <span id="cron-disabled-jobs" style="color: var(--status-amber);">0</span> off)</span>
-          </div>
-          <div style="display: flex; gap: 0.5rem; margin-top: 0.3rem;">
-            <button id="toggle-cron-btn" onclick="toggleGlobalCron()" style="width: 100%; padding: 0.4rem; font-size: 0.75rem;">Disable all Tasks</button>
-          </div>
-        </div>
+          <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+            <div class="stat-row">
+              <span class="stat-label">Total / Active Jobs:</span>
+              <span id="cron-summary-text" class="stat-val">0 Total (0 enabled, 0 disabled)</span>
+            </div>
 
-        <div style="overflow-x: auto; max-height: 240px; overflow-y: auto;">
-          <table class="cron-table">
-            <thead>
-              <tr>
-                <th>Task Name</th>
-                <th>Cron</th>
-                <th>Kind</th>
-                <th>Calls</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="cron-tbody">
-              <tr><td colspan="5" style="color: var(--text-muted); text-align: center;">Loading tasks...</td></tr>
-            </tbody>
-          </table>
+            <div style="overflow-x: auto; max-height: 300px; overflow-y: auto;">
+              <table class="cron-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Cron</th>
+                    <th>Kind</th>
+                    <th>Calls</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="cron-tbody">
+                  <tr><td colspan="5" style="color: var(--text-muted); text-align: center;">Loading tasks...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <button id="toggle-cron-btn" onclick="toggleGlobalCron()" class="btn-action" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem; font-weight: 600;">
+              &lt; Disable / Enable Cron &gt;
+            </button>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+              <button onclick="exportCronJobs()" class="btn-action" style="flex: 1;">Export</button>
+              <button onclick="document.getElementById('cron-file-input').click()" class="btn-action" style="flex: 1;">Import</button>
+              <input type="file" id="cron-file-input" accept=".json,.yaml" style="display: none;" onchange="importCronJobs(event)" />
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- External Agents Process Control Card -->
-      <div class="card">
-        <div class="card-title">
-          <span>External Agents</span>
-          <span id="acp-state-badge" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 6px; background: rgba(16, 185, 129, 0.2); color: var(--status-green); font-weight: 600;">Running</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem;">
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Process PID:</span>
-            <span id="acp-pid" style="font-family: 'Fira Code', monospace;">--</span>
+      <!-- TAB 3: TEAM -->
+      <div id="tab-content-team" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <span>Team (External Agents):</span>
+            <span id="acp-global-badge" class="badge-pill">[Connected]</span>
           </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Uptime:</span>
-            <span id="acp-uptime">0s</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Active Workers:</span>
-            <span id="acp-active-workers" style="font-weight: 600;">0</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="color: var(--text-muted);">Total Tasks:</span>
-            <span id="acp-total-tasks">0</span>
-          </div>
-          <div id="acp-workers-list" style="max-height: 100px; overflow-y: auto; font-size: 0.75rem; font-family: 'Fira Code', monospace; color: var(--text-muted); background: rgba(15, 23, 42, 0.5); padding: 0.4rem; border-radius: 6px; border: 1px solid var(--card-border);">
-            No worker processes
-          </div>
-          <div style="display: flex; gap: 0.5rem; margin-top: 0.3rem;">
-            <button onclick="shutdownAcp()" style="flex: 1; padding: 0.4rem; font-size: 0.75rem; background: linear-gradient(135deg, #ef4444, #dc2626);">Shutdown / Disable</button>
-            <button onclick="restartAcp()" style="flex: 1; padding: 0.4rem; font-size: 0.75rem; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));">Restart / Enable</button>
+          <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+            <div class="stat-row">
+              <span class="stat-label">Workers:</span>
+              <span id="team-workers-count" class="stat-val">0</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Total / Active Tasks:</span>
+              <span class="stat-val"><span id="team-total-tasks">0</span> / <span id="team-active-tasks">0</span></span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Runtime:</span>
+              <span id="team-runtime" class="stat-val">0s</span>
+            </div>
+
+            <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-top: 0.3rem;">Workers:</div>
+            <div id="team-workers-list" style="max-height: 120px; overflow-y: auto; font-size: 0.75rem; font-family: 'Fira Code', monospace; color: var(--text-muted); background: rgba(15, 23, 42, 0.6); padding: 0.4rem; border-radius: 6px; border: 1px solid var(--card-border);">
+              No active worker processes
+            </div>
+
+            <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-top: 0.3rem;">Tasks:</div>
+            <div id="team-tasks-list" style="max-height: 140px; overflow-y: auto; font-size: 0.75rem; font-family: 'Fira Code', monospace; color: var(--text-muted); background: rgba(15, 23, 42, 0.6); padding: 0.4rem; border-radius: 6px; border: 1px solid var(--card-border);">
+              No tasks dispatched
+            </div>
+
+            <button id="toggle-acp-btn" onclick="toggleAcpState()" class="btn-action" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem; font-weight: 600;">
+              &lt; Disable / Enable External Agents &gt;
+            </button>
           </div>
         </div>
       </div>
@@ -457,12 +675,16 @@
     const logConsole = document.getElementById('log-console');
     const statusBadge = document.getElementById('status-badge');
     const statusText = document.getElementById('status-text');
+    const streamingBadge = document.getElementById('streaming-badge');
+    const promptInput = document.getElementById('prompt-input');
+    const modeSelect = document.getElementById('mode-select');
     const cronTbody = document.getElementById('cron-tbody');
     const eventsCheckbox = document.getElementById('events-checkbox');
     const streamChunksCheckbox = document.getElementById('stream-chunks-checkbox');
 
-    // Persistence with localStorage
-    let includeEvents = localStorage.getItem('mypai_include_events') === 'true';
+    // Persistence & settings
+    let currentTab = localStorage.getItem('mypai_active_tab') || 'session';
+    let includeEvents = localStorage.getItem('mypai_include_events') !== 'false';
     eventsCheckbox.checked = includeEvents;
 
     let showStreamChunks = localStorage.getItem('mypai_show_stream_chunks') === 'true';
@@ -471,7 +693,7 @@
     let sidebarCollapsed = localStorage.getItem('mypai_sidebar_collapsed') === 'true';
     if (sidebarCollapsed) {
       document.getElementById('main-grid').classList.add('collapsed');
-      document.getElementById('toggle-icon').textContent = '◀';
+      document.getElementById('sidebar-toggle-btn').textContent = '◀ Sidebar';
     }
 
     function toggleSidebar() {
@@ -480,12 +702,24 @@
       localStorage.setItem('mypai_sidebar_collapsed', sidebarCollapsed);
       if (sidebarCollapsed) {
         grid.classList.add('collapsed');
-        document.getElementById('toggle-icon').textContent = '◀';
+        document.getElementById('sidebar-toggle-btn').textContent = '◀ Sidebar';
       } else {
         grid.classList.remove('collapsed');
-        document.getElementById('toggle-icon').textContent = '▶';
+        document.getElementById('sidebar-toggle-btn').textContent = '▶ Sidebar';
       }
     }
+
+    function switchTab(tabName) {
+      currentTab = tabName;
+      localStorage.setItem('mypai_active_tab', tabName);
+      ['session', 'cron', 'team'].forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const content = document.getElementById(`tab-content-${t}`);
+        if (btn) btn.classList.toggle('active', t === tabName);
+        if (content) content.classList.toggle('active', t === tabName);
+      });
+    }
+    switchTab(currentTab);
 
     function toggleEventsFilter() {
       includeEvents = eventsCheckbox.checked;
@@ -519,39 +753,115 @@
       logConsole.scrollTop = logConsole.scrollHeight;
     }
 
-    // Load Turn History from Daemon API
-    let loadedHistoryIds = new Set();
+    function toggleShortcutsOverlay(force) {
+      const modal = document.getElementById('shortcuts-modal');
+      if (!modal) return;
+      const shouldOpen = force !== undefined ? force : !modal.classList.contains('active');
+      modal.classList.toggle('active', shouldOpen);
+    }
 
-    async function loadSessionHistory(force = false) {
-      try {
-        if (force) {
-          logConsole.innerHTML = '<div class="log-entry info">[Console History Reloaded]</div>';
-          loadedHistoryIds.clear();
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      // Toggle shortcuts overlay: ? or Shift+/ or F1 (when not focused in promptInput)
+      if (((e.key === '?' || (e.shiftKey && e.key === '/')) && document.activeElement !== promptInput) || e.key === 'F1') {
+        e.preventDefault();
+        toggleShortcutsOverlay();
+        return;
+      }
+
+      // Close shortcuts modal on Escape if open
+      const shortcutsModal = document.getElementById('shortcuts-modal');
+      if (e.key === 'Escape' && shortcutsModal && shortcutsModal.classList.contains('active')) {
+        e.preventDefault();
+        toggleShortcutsOverlay(false);
+        return;
+      }
+
+      // Focus prompt: / or Ctrl+K / Cmd+K (when not typing in an input)
+      if ((e.key === '/' && document.activeElement !== promptInput) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) {
+        e.preventDefault();
+        promptInput.focus();
+        return;
+      }
+      // Toggle sidebar: Ctrl+B or Alt+S
+      if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') || (e.altKey && e.key.toLowerCase() === 's')) {
+        e.preventDefault();
+        toggleSidebar();
+        return;
+      }
+      // Switch tabs: Alt+1, Alt+2, Alt+3
+      if (e.altKey && e.key === '1') { e.preventDefault(); switchTab('session'); return; }
+      if (e.altKey && e.key === '2') { e.preventDefault(); switchTab('cron'); return; }
+      if (e.altKey && e.key === '3') { e.preventDefault(); switchTab('team'); return; }
+
+      // Abort Turn: Ctrl+Escape or Cmd+Escape
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Escape') {
+        e.preventDefault();
+        abortTurn();
+        return;
+      }
+    });
+
+    // Prompt Textarea Handling (Enter: newline, Ctrl+Enter: submit, Alt+Enter: steer)
+    promptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        if (e.altKey) {
+          // Alt+Enter: Quick Steer
+          e.preventDefault();
+          submitPromptTurn('steer');
+        } else if (e.ctrlKey || e.metaKey) {
+          // Ctrl+Enter or Cmd+Enter: Submit with current mode
+          e.preventDefault();
+          if (e.shiftKey) {
+            submitPromptTurn('followup');
+          } else {
+            submitPromptTurn(modeSelect.value);
+          }
         }
-        const res = await fetch('/api/v1/session/history');
-        const history = await res.json();
-        if (!Array.isArray(history) || !history.length) return;
-        
-        history.forEach(item => {
-          if (loadedHistoryIds.has(item.task_id)) return;
-          loadedHistoryIds.add(item.task_id);
+        // Plain Enter: default newline insertion
+      }
+    });
 
-          const modeStr = item.mode ? item.mode.toUpperCase() : 'PROMPT';
-          const promptText = item.prompt || `Task ${item.task_id}`;
-          appendLog(`[Turn (${modeStr})] ${promptText}`, 'prompt');
-          if (item.output) {
-            appendLog(`[Output] ${item.output}`, 'output');
-          }
-          if (item.error) {
-            appendLog(`[Error] ${item.error}`, 'error');
-          }
+    document.getElementById('prompt-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      submitPromptTurn(modeSelect.value);
+    });
+
+    async function submitPromptTurn(mode) {
+      const text = promptInput.value.trim();
+      if (!text) return;
+
+      try {
+        appendLog(`[Prompt Sent (${mode.toUpperCase()})] ${text}`, 'prompt');
+        const endpoint = mode === 'prompt' ? '/api/v1/session/prompt' : `/api/v1/session/${mode}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: text, mode: mode, source: 'webui' })
         });
-      } catch (e) {
-        appendLog(`Failed to fetch session history: ${e}`, 'error');
+        const data = await res.json();
+        appendLog(`Task queued: ${data.task_id}`, 'info');
+        promptInput.value = '';
+      } catch (err) {
+        appendLog(`Failed to submit turn: ${err}`, 'error');
       }
     }
 
-    // WebSocket Stream Connection
+    async function abortTurn() {
+      try {
+        appendLog('Aborting active turn & purging Turn Queue...', 'info');
+        await fetch('/api/v1/session/abort', { method: 'POST' });
+        appendLog('Turn Aborted and Turn Queue flushed.', 'success');
+        reloadAll();
+      } catch (err) {
+        appendLog(`Failed to abort turn: ${err}`, 'error');
+      }
+    }
+
+    // WebSocket Stream
+    let activeStreamEntry = null;
+    let activeStreamBuffer = '';
+
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${wsProtocol}//${window.location.host}/api/v1/ws`;
     const ws = new WebSocket(wsUrl);
@@ -563,234 +873,114 @@
       loadSessionHistory();
     };
 
-    function reloadStatsAndSidecars() {
-      updateStatus();
-      updateStats();
-      updateAcpStatus();
-      updateCronStatus();
-      loadCronJobs();
-    }
-
-    let activeStreamEntry = null;
-    let activeStreamBuffer = '';
-
-    function updateStreamActivity(chunk) {
-      if (!showStreamChunks) return;
-      activeStreamBuffer += chunk;
-      if (!activeStreamEntry) {
-        activeStreamEntry = document.createElement('div');
-        activeStreamEntry.className = 'log-entry stream';
-        logConsole.appendChild(activeStreamEntry);
-      }
-      const preview = activeStreamBuffer.slice(-160);
-      const timeStr = new Date().toLocaleTimeString();
-      activeStreamEntry.textContent = `[${timeStr}] [Stream Active (${activeStreamBuffer.length} chars)] ... ${preview}`;
-      logConsole.scrollTop = logConsole.scrollHeight;
-    }
-
-    // 30-Second Periodic Sidebar Refresh
-    setInterval(reloadStatsAndSidecars, 30000);
-
-    const SIDEBAR_REFRESH_EVENTS = new Set([
-      'queue_updated',
-      'turn_started',
-      'turn_completed',
-      'cron_task_completed',
-      'rpc_agent_start',
-      'rpc_agent_end',
-      'rpc_turn_start',
-      'rpc_turn_end',
-      'rpc_message_start',
-      'rpc_message_end',
-      'rpc_tool_execution_start',
-      'rpc_tool_execution_end',
-      'rpc_auto_compaction_start',
-      'rpc_auto_compaction_end',
-      'rpc_auto_retry_start',
-      'rpc_auto_retry_end'
-    ]);
-
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.event === 'turn_started') {
-          appendLog(`[Turn Start] Task ${data.task_id} (mode: ${data.mode}, source: ${data.source})`, 'info');
-          if (data.prompt) {
-            appendLog(`[Task Input] ${data.prompt}`, 'input');
-          }
+          streamingBadge.classList.add('active');
+          appendLog(`[Turn Start] Task ${data.task_id} (mode: ${data.mode})`, 'info');
+          if (data.prompt) appendLog(`[Task Input] ${data.prompt}`, 'input');
           activeStreamBuffer = '';
           activeStreamEntry = null;
         } else if (data.event === 'turn_completed') {
+          streamingBadge.classList.remove('active');
           const res = data.result || {};
           const out = res.output || res.error || '';
           activeStreamBuffer = '';
           activeStreamEntry = null;
           appendLog(`[Turn Completed] Task ${data.task_id} (${res.duration_sec || 0}s)`, res.status === 'success' ? 'success' : 'error');
-          if (out) {
-            appendLog(`[Output] ${out}`, res.status === 'success' ? 'output' : 'error');
+          if (out) appendLog(`[Output] ${out}`, res.status === 'success' ? 'output' : 'error');
+        } else if (data.event === 'message_update') {
+          streamingBadge.classList.add('active');
+          if (showStreamChunks && data.text) {
+            activeStreamBuffer += data.text;
+            if (!activeStreamEntry) {
+              activeStreamEntry = document.createElement('div');
+              activeStreamEntry.className = 'log-entry stream';
+              logConsole.appendChild(activeStreamEntry);
+            }
+            activeStreamEntry.textContent = `[Stream (${activeStreamBuffer.length} chars)] ... ${activeStreamBuffer.slice(-140)}`;
+            logConsole.scrollTop = logConsole.scrollHeight;
           }
         } else if (data.event === 'cron_task_completed') {
-          const st = data.status === 'success' ? 'success' : 'error';
-          appendLog(`[Cron Executed] '${data.name}' (${data.kind}) - ${data.status.toUpperCase()} (${data.duration_sec}s)`, st);
-          if (data.output_snippet) {
-            appendLog(`[Cron Output] ${data.output_snippet}`, 'event');
-          }
-        } else if (data.event === 'message_update') {
-          if (data.text) {
-            updateStreamActivity(data.text);
-          }
+          appendLog(`[Cron Executed] '${data.name}' (${data.kind}) - ${data.status.toUpperCase()} (${data.duration_sec}s)`, data.status === 'success' ? 'success' : 'error');
         } else if (data.event && (data.event.startsWith('rpc_') || data.event.startsWith('cron_'))) {
           appendLog(`[Event] ${data.event}`, 'event');
         }
 
-        if (SIDEBAR_REFRESH_EVENTS.has(data.event)) {
-          reloadStatsAndSidecars();
-        }
+        reloadAll();
       } catch (e) {}
     };
 
     ws.onclose = () => {
       statusText.textContent = 'Disconnected';
       statusBadge.classList.add('disconnected');
+      streamingBadge.classList.remove('active');
       appendLog('[WebSocket] Disconnected from daemon server.', 'error');
     };
 
-    // Prompt Form Submit
-    document.getElementById('prompt-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const promptInput = document.getElementById('prompt-input');
-      const modeSelect = document.getElementById('mode-select');
-      const promptText = promptInput.value.trim();
-      const mode = modeSelect.value;
-      if (!promptText) return;
-
+    // History & Stats
+    let loadedHistoryIds = new Set();
+    async function loadSessionHistory(force = false) {
       try {
-        appendLog(`[Prompt Sent] (${mode}): ${promptText}`, 'prompt');
-        const res = await fetch(`/api/v1/session/${mode === 'prompt' ? 'prompt' : mode}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: promptText, mode: mode, source: 'webui' })
+        if (force) {
+          logConsole.innerHTML = '<div class="log-entry info">[Console History Reloaded]</div>';
+          loadedHistoryIds.clear();
+        }
+        const res = await fetch('/api/v1/session/history');
+        const history = await res.json();
+        if (!Array.isArray(history)) return;
+
+        history.forEach(item => {
+          if (loadedHistoryIds.has(item.task_id)) return;
+          loadedHistoryIds.add(item.task_id);
+          appendLog(`[Turn (${(item.mode || 'prompt').toUpperCase()})] ${item.prompt || item.task_id}`, 'prompt');
+          if (item.output) appendLog(`[Output] ${item.output}`, 'output');
+          if (item.error) appendLog(`[Error] ${item.error}`, 'error');
         });
-        const data = await res.json();
-        appendLog(`Task queued successfully: ${data.task_id}`, 'info');
-        promptInput.value = '';
-      } catch (err) {
-        appendLog(`Failed to submit turn: ${err}`, 'error');
-      }
-    });
-
-    // Telemetry & Stats polling
-    async function updateStatus() {
-      try {
-        const res = await fetch('/api/v1/session/status');
-        const data = await res.json();
-        const uuidStr = data.session_id || '--';
-
-        const elSess = document.getElementById('tel-session');
-        if (elSess) elSess.textContent = data.session_name || 'mypai_daemon - running';
-        const elUuid = document.getElementById('tel-uuid');
-        if (elUuid) {
-          elUuid.textContent = uuidStr;
-          elUuid.title = uuidStr;
-        }
-        const profileStr = data.profile || 'mypai';
-        const elProf = document.getElementById('tel-profile');
-        if (elProf) elProf.textContent = profileStr;
-
-        const elPid = document.getElementById('tel-pid');
-        if (elPid) elPid.textContent = data.pid || 'N/A';
-        const elQueue = document.getElementById('tel-queue');
-        if (elQueue) elQueue.textContent = data.queue_depth;
-        const elUptime = document.getElementById('tel-uptime');
-        if (elUptime) elUptime.textContent = data.human_uptime || `${data.uptime_sec}s`;
-        const elVer = document.getElementById('app-version');
-        if (elVer && data.version) elVer.textContent = `v${data.version}`;
-
-        // RPC Status Badge
-        const rpcBadge = document.getElementById('rpc-status-badge');
-        if (rpcBadge) {
-          const st = (data.status || 'disconnected').toLowerCase();
-          rpcBadge.textContent = st.toUpperCase();
-          if (st === 'connected') {
-            rpcBadge.style.color = 'var(--status-green)';
-          } else if (st === 'reconnecting' || st === 'connecting') {
-            rpcBadge.style.color = 'var(--status-amber)';
-          } else {
-            rpcBadge.style.color = 'var(--status-red)';
-          }
-        }
-
-        // Currently Running RPC Call
-        const callEl = document.getElementById('rpc-active-call-content');
-        if (callEl) {
-          if (data.active_call) {
-            const ac = data.active_call;
-            callEl.innerHTML = `
-              <div style="font-weight: 600; color: var(--accent-purple);">Turn: ${ac.task_id} (${ac.mode})</div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Profile: <span style="font-weight: 600; color: var(--accent-blue); font-family: 'Fira Code', monospace;">${profileStr}</span> | Running: ${ac.duration_sec}s</div>
-              ${ac.prompt_snippet ? `<div style="font-size: 0.75rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.2rem;">"${ac.prompt_snippet}"</div>` : ''}
-            `;
-          } else {
-            callEl.textContent = 'No active call';
-          }
-        }
-
-        // SessionState Card Telemetry
-        const sState = data.session_state || {};
-        const elModel = document.getElementById('state-model');
-        if (elModel) elModel.textContent = sState.model || 'default';
-        const elThinking = document.getElementById('state-thinking');
-        if (elThinking) elThinking.textContent = sState.thinking_level || 'auto';
-        const elSteering = document.getElementById('state-steering');
-        if (elSteering) elSteering.textContent = sState.steering_mode || 'one-at-a-time';
-        const elStreaming = document.getElementById('state-streaming');
-        if (elStreaming) elStreaming.textContent = sState.is_streaming ? 'Yes' : 'No';
-        const elMsgCount = document.getElementById('state-message-count');
-        if (elMsgCount) elMsgCount.textContent = sState.message_count || 0;
-
-        const ctx = sState.context_usage || { tokens: 0, max_tokens: 128000, percentage: 0 };
-        const elCtxText = document.getElementById('state-context-text');
-        if (elCtxText) elCtxText.textContent = `${(ctx.tokens || 0).toLocaleString()} / ${(ctx.max_tokens || 128000).toLocaleString()} (${ctx.percentage || 0}%)`;
-        const elCtxBar = document.getElementById('state-context-bar');
-        if (elCtxBar) elCtxBar.style.width = `${Math.min(100, ctx.percentage || 0)}%`;
-
       } catch (e) {}
     }
 
-    async function updateAcpStatus() {
+    async function updateSessionTelemetry() {
       try {
-        const res = await fetch('/api/v1/acp/status');
+        const res = await fetch('/api/v1/session/status');
         const data = await res.json();
-        const acpBadge = document.getElementById('acp-state-badge');
-        const stateStr = (data.state || 'running').toLowerCase();
-        acpBadge.textContent = stateStr.toUpperCase();
 
-        if (stateStr === 'running') {
-          acpBadge.style.background = 'rgba(16, 185, 129, 0.2)';
-          acpBadge.style.color = 'var(--status-green)';
+        document.getElementById('tel-profile').textContent = data.profile || 'mypai';
+        document.getElementById('tel-pid').textContent = data.pid || '--';
+        document.getElementById('tel-runtime').textContent = data.human_uptime || `${data.uptime_sec}s`;
+        document.getElementById('session-runtime').textContent = data.human_uptime || `${data.uptime_sec}s`;
+        document.getElementById('tel-uuid').textContent = data.session_id || '--';
+
+        const qDepth = data.queue_depth || 0;
+        document.getElementById('stat-queued').textContent = qDepth;
+        document.getElementById('turn-queued-count').textContent = qDepth;
+
+        const isBusy = !!data.is_busy;
+        if (isBusy) streamingBadge.classList.add('active'); else streamingBadge.classList.remove('active');
+
+        const turnBadge = document.getElementById('turn-status-badge');
+        const turnStatusText = document.getElementById('turn-status-text');
+        if (data.active_call) {
+          turnBadge.textContent = '[Running]';
+          turnBadge.style.color = 'var(--status-green)';
+          turnStatusText.textContent = 'Running';
+          document.getElementById('turn-current-id').textContent = `${data.active_call.task_id}@${data.active_call.mode}`;
+          document.getElementById('turn-runtime').textContent = `${data.active_call.duration_sec}s`;
+          document.getElementById('turn-snippet-box').textContent = `"${data.active_call.prompt_snippet || ''}"`;
         } else {
-          acpBadge.style.background = 'rgba(239, 68, 68, 0.2)';
-          acpBadge.style.color = 'var(--status-red)';
+          turnBadge.textContent = '[Inactive]';
+          turnBadge.style.color = 'var(--text-muted)';
+          turnStatusText.textContent = 'Inactive';
+          document.getElementById('turn-snippet-box').textContent = 'No active turn';
         }
 
-        const workers = data.workers || [];
-        const firstWorker = workers[0] || {};
-        const elPid = document.getElementById('acp-pid');
-        if (elPid) elPid.textContent = data.pid || firstWorker.pid || 'N/A';
-        const elUptime = document.getElementById('acp-uptime');
-        if (elUptime) elUptime.textContent = data.human_uptime || (firstWorker.uptime_sec !== undefined ? `${firstWorker.uptime_sec}s` : '0s');
+        const sState = data.session_state || {};
+        document.getElementById('state-steering').textContent = sState.steering_mode || 'one-at-a-time';
+        const ctx = sState.context_usage || { tokens: 0, max_tokens: 128000, percentage: 0 };
+        document.getElementById('state-context-text').textContent = `${(ctx.tokens || 0).toLocaleString()} / ${(ctx.max_tokens || 128000).toLocaleString()} (${ctx.percentage || 0}%)`;
+        document.getElementById('state-context-bar').style.width = `${Math.min(100, ctx.percentage || 0)}%`;
 
-        document.getElementById('acp-active-workers').textContent = data.active_workers || 0;
-        document.getElementById('acp-total-tasks').textContent = data.total_tasks || 0;
-
-        const workersList = document.getElementById('acp-workers-list');
-        if (!workers.length) {
-          workersList.textContent = 'No worker processes';
-        } else {
-          workersList.innerHTML = workers.map(w => `
-            <div>[PID ${w.pid || 'N/A'}] ${w.cwd} (${w.uptime_sec}s)</div>
-          `).join('');
-        }
       } catch (e) {}
     }
 
@@ -801,99 +991,12 @@
         document.getElementById('stats-user-msgs').textContent = data.user_messages || 0;
         document.getElementById('stats-asst-msgs').textContent = data.assistant_messages || 0;
         document.getElementById('stats-tool-calls').textContent = data.tool_calls || 0;
-        document.getElementById('stats-tool-results').textContent = data.tool_results || 0;
         const tk = data.tokens || {};
-        document.getElementById('stats-tokens-in').textContent = tk.input || 0;
-        document.getElementById('stats-tokens-out').textContent = tk.output || 0;
-        document.getElementById('stats-tokens-total').textContent = tk.total || 0;
-        document.getElementById('stats-cost').textContent = `$${(data.cost || 0).toFixed(4)}`;
+        document.getElementById('stats-tokens-in').textContent = (tk.input || 0).toLocaleString();
+        document.getElementById('stats-tokens-out').textContent = (tk.output || 0).toLocaleString();
+        document.getElementById('stats-tokens-total').textContent = (tk.total || 0).toLocaleString();
+        document.getElementById('stat-done').textContent = data.total_messages || 0;
       } catch (e) {}
-    }
-
-    async function reconnectRpc() {
-      try {
-        appendLog('Initiating RPC connection triage & reconnect...', 'info');
-        const res = await fetch('/api/v1/session/reconnect', { method: 'POST' });
-        const data = await res.json();
-        appendLog(`RPC Connection Triage result: ${data.status} (PID: ${data.pid || 'N/A'})`, data.connected ? 'success' : 'error');
-        updateStatus();
-      } catch (e) {
-        appendLog(`Failed to reconnect RPC: ${e}`, 'error');
-      }
-    }
-
-    async function abortRpcTurn() {
-      try {
-        appendLog('Aborting active RPC turn...', 'info');
-        await fetch('/api/v1/session/abort', { method: 'POST' });
-        appendLog('RPC Turn abort request sent.', 'success');
-        reloadStatsAndSidecars();
-      } catch (e) {
-        appendLog(`Failed to abort RPC turn: ${e}`, 'error');
-      }
-    }
-
-    async function exportCronJobs() {
-      try {
-        const res = await fetch('/api/v1/cron/export');
-        const jobs = await res.json();
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jobs, null, 2));
-        const dlAnchor = document.createElement('a');
-        dlAnchor.setAttribute("href", dataStr);
-        dlAnchor.setAttribute("download", "mypai_cron_jobs.json");
-        document.body.appendChild(dlAnchor);
-        dlAnchor.click();
-        dlAnchor.remove();
-        appendLog(`Exported ${jobs.length || 0} cron jobs to JSON file.`, 'info');
-      } catch (e) {
-        appendLog(`Failed to export cron jobs: ${e}`, 'error');
-      }
-    }
-
-    async function importCronJobs(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const jobs = JSON.parse(e.target.result);
-          const res = await fetch('/api/v1/cron/import', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(jobs)
-          });
-          const data = await res.json();
-          appendLog(`Imported ${data.imported || 0} new jobs, updated ${data.updated || 0} existing jobs.`, 'success');
-          loadCronJobs();
-          updateCronStatus();
-        } catch (err) {
-          appendLog(`Failed to import cron jobs: ${err}`, 'error');
-        }
-      };
-      reader.readAsText(file);
-      event.target.value = '';
-    }
-
-    async function shutdownAcp() {
-      try {
-        appendLog('Sending ACP shutdown signal...', 'info');
-        await fetch('/api/v1/acp/shutdown', { method: 'POST' });
-        appendLog('ACP worker processes shutdown and state disabled.', 'success');
-        updateAcpStatus();
-      } catch (e) {
-        appendLog(`Failed to shutdown ACP: ${e}`, 'error');
-      }
-    }
-
-    async function restartAcp() {
-      try {
-        appendLog('Sending ACP restart signal...', 'info');
-        await fetch('/api/v1/acp/restart', { method: 'POST' });
-        appendLog('ACP worker processes restarted and state enabled.', 'success');
-        updateAcpStatus();
-      } catch (e) {
-        appendLog(`Failed to restart ACP: ${e}`, 'error');
-      }
     }
 
     async function loadCronJobs() {
@@ -907,21 +1010,42 @@
         cronTbody.innerHTML = jobs.map(j => `
           <tr>
             <td>
-              <div style="font-weight: 600; font-size: 0.85rem;">${j.name}</div>
-              ${j.description ? `<div style="font-size: 0.75rem; color: var(--text-muted);">${j.description}</div>` : ''}
+              <div style="font-weight: 600;">${j.name}</div>
+              ${j.description ? `<div style="font-size: 0.72rem; color: var(--text-muted);">${j.description}</div>` : ''}
             </td>
             <td><code>${j.cron}</code></td>
-            <td><span style="font-size: 0.75rem; padding: 0.1rem 0.4rem; background: rgba(59, 130, 246, 0.2); border-radius: 4px;">${j.kind}</span></td>
-            <td>${j.total_calls || 0}</td>
+            <td><span class="badge-pill">${j.kind}</span></td>
+            <td>${j.total_runs || 0}</td>
             <td>
-              <button onclick="runOnce('${j.name}', '${j.kind}', '${j.action}')" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Run</button>
+              <button onclick="runCronOnce('${j.name}', '${j.kind}', '${j.action}')" class="btn-action" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Run</button>
             </td>
           </tr>
         `).join('');
       } catch (e) {}
     }
 
-    async function runOnce(name, kind, action) {
+    async function updateCronStatus() {
+      try {
+        const res = await fetch('/api/v1/cron/status');
+        const data = await res.json();
+        const enabled = !!data.cron_execution_enabled;
+        document.getElementById('cron-global-badge').textContent = enabled ? '[Enabled]' : '[Disabled]';
+        document.getElementById('cron-global-badge').style.color = enabled ? 'var(--status-green)' : 'var(--status-amber)';
+        document.getElementById('cron-summary-text').textContent = `${data.total_jobs || 0} Total (${data.enabled_jobs || 0} enabled, ${data.disabled_jobs || 0} disabled)`;
+        document.getElementById('toggle-cron-btn').textContent = enabled ? '< Disable Cron >' : '< Enable Cron >';
+      } catch (e) {}
+    }
+
+    async function toggleGlobalCron() {
+      try {
+        const currentText = document.getElementById('toggle-cron-btn').textContent;
+        const endpoint = currentText.includes('Disable') ? '/api/v1/cron/disable' : '/api/v1/cron/enable';
+        await fetch(endpoint, { method: 'POST' });
+        updateCronStatus();
+      } catch (e) {}
+    }
+
+    async function runCronOnce(name, kind, action) {
       try {
         await fetch('/api/v1/cron/jobs/run_once', {
           method: 'POST',
@@ -933,57 +1057,174 @@
       } catch (e) {}
     }
 
-    let globalCronEnabled = true;
-
-    async function updateCronStatus() {
+    async function exportCronJobs() {
       try {
-        const res = await fetch('/api/v1/cron/status');
-        const data = await res.json();
-        globalCronEnabled = !!data.cron_execution_enabled;
-        const execStatusEl = document.getElementById('cron-exec-status');
-        const toggleBtn = document.getElementById('toggle-cron-btn');
-
-        if (globalCronEnabled) {
-          execStatusEl.textContent = 'Enabled';
-          execStatusEl.style.color = 'var(--status-green)';
-          toggleBtn.textContent = 'Disable all Tasks';
-          toggleBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
-        } else {
-          execStatusEl.textContent = 'Disabled';
-          execStatusEl.style.color = 'var(--status-amber)';
-          toggleBtn.textContent = 'Enable all Tasks';
-          toggleBtn.style.background = 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))';
-        }
-
-        document.getElementById('cron-total-jobs').textContent = data.total_jobs || 0;
-        document.getElementById('cron-enabled-jobs').textContent = data.enabled_jobs || 0;
-        document.getElementById('cron-disabled-jobs').textContent = data.disabled_jobs || 0;
+        const res = await fetch('/api/v1/cron/export');
+        const jobs = await res.json();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jobs, null, 2));
+        const dlAnchor = document.createElement('a');
+        dlAnchor.setAttribute("href", dataStr);
+        dlAnchor.setAttribute("download", "mypai_cron_jobs.json");
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+        dlAnchor.remove();
       } catch (e) {}
     }
 
-    async function toggleGlobalCron() {
-      const endpoint = globalCronEnabled ? '/api/v1/cron/disable' : '/api/v1/cron/enable';
-      try {
-        await fetch(endpoint, { method: 'POST' });
-        appendLog(`Global cron execution ${globalCronEnabled ? 'disabled' : 'enabled'}`, 'info');
-        updateCronStatus();
-      } catch (e) {
-        appendLog(`Failed to toggle cron execution: ${e}`, 'error');
-      }
+    async function importCronJobs(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const jobs = JSON.parse(e.target.result);
+          await fetch('/api/v1/cron/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(jobs)
+          });
+          loadCronJobs();
+          updateCronStatus();
+        } catch (err) {}
+      };
+      reader.readAsText(file);
+      event.target.value = '';
     }
 
-    setInterval(() => {
-      updateStatus();
-      updateAcpStatus();
+    async function updateTeamStatus() {
+      try {
+        const res = await fetch('/api/v1/acp/status');
+        const data = await res.json();
+        const stateStr = data.state || 'running';
+        document.getElementById('acp-global-badge').textContent = stateStr === 'running' ? '[Connected]' : '[Suspended]';
+        document.getElementById('acp-global-badge').style.color = stateStr === 'running' ? 'var(--status-green)' : 'var(--status-red)';
+
+        const workers = data.workers || [];
+        document.getElementById('team-workers-count').textContent = workers.length;
+        document.getElementById('team-active-tasks').textContent = data.active_workers || 0;
+        document.getElementById('team-total-tasks').textContent = data.total_tasks || 0;
+
+        const workersList = document.getElementById('team-workers-list');
+        if (!workers.length) {
+          workersList.textContent = 'No active worker processes';
+        } else {
+          workersList.innerHTML = workers.map(w => `
+            <div>- [PID ${w.pid || 'N/A'}] ${w.cwd} (Runtime: ${w.uptime_sec}s)</div>
+          `).join('');
+        }
+
+        const tasksList = document.getElementById('team-tasks-list');
+        const tasks = data.tasks || [];
+        if (!tasks.length) {
+          tasksList.textContent = 'No tasks dispatched';
+        } else {
+          tasksList.innerHTML = tasks.map(t => `
+            <div>- [${t.task_id}] [*] ${t.prompt.slice(0, 30)} (Runtime: ${t.duration_sec}s)</div>
+          `).join('');
+        }
+      } catch (e) {}
+    }
+
+    async function toggleAcpState() {
+      try {
+        const isConnected = document.getElementById('acp-global-badge').textContent.includes('Connected');
+        const endpoint = isConnected ? '/api/v1/acp/disable' : '/api/v1/acp/enable';
+        await fetch(endpoint, { method: 'POST' });
+        updateTeamStatus();
+      } catch (e) {}
+    }
+
+    async function reconnectRpc() {
+      try {
+        appendLog('Reconnecting RPC harness session...', 'info');
+        await fetch('/api/v1/session/reconnect', { method: 'POST' });
+        reloadAll();
+      } catch (e) {}
+    }
+
+    function reloadAll() {
+      updateSessionTelemetry();
       updateStats();
       updateCronStatus();
-    }, 30000);
+      loadCronJobs();
+      updateTeamStatus();
+    }
 
-    updateStatus();
-    updateAcpStatus();
-    updateStats();
-    updateCronStatus();
-    loadCronJobs();
+    setInterval(reloadAll, 30000);
+    reloadAll();
   </script>
+
+  <!-- Keyboard Shortcuts Overlay Modal -->
+  <div id="shortcuts-modal" class="modal-backdrop" onclick="if(event.target === this) toggleShortcutsOverlay(false)">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div style="font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.2rem;">ℹ️</span>
+          <span>Keyboard Shortcuts &amp; Ergonomics</span>
+        </div>
+        <button class="btn-action" onclick="toggleShortcutsOverlay(false)" style="padding: 0.2rem 0.5rem; font-size: 0.9rem;">✕</button>
+      </div>
+
+      <div class="shortcuts-section">
+        <div class="shortcuts-section-title">Turn Input &amp; Dispatch</div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">New line in prompt</span>
+          <div class="shortcut-keys"><kbd>Enter</kbd></div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Submit Turn (Selected Mode)</span>
+          <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> <span style="color:var(--text-muted); font-size:0.75rem;">or</span> <kbd>⌘</kbd> + <kbd>Enter</kbd></div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Quick Steer / Inject into active turn</span>
+          <div class="shortcut-keys"><kbd>Alt</kbd> + <kbd>Enter</kbd></div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Quick Followup / Append to turn</span>
+          <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Enter</kbd></div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Focus Prompt Input</span>
+          <div class="shortcut-keys"><kbd>/</kbd> <span style="color:var(--text-muted); font-size:0.75rem;">or</span> <kbd>Ctrl</kbd> + <kbd>K</kbd></div>
+        </div>
+      </div>
+
+      <div class="shortcuts-section">
+        <div class="shortcuts-section-title">Emergency &amp; Interrupts</div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Turn Abort &amp; Flush Turn Queue</span>
+          <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Esc</kbd> <span style="color:var(--text-muted); font-size:0.75rem;">or</span> <kbd>⌘</kbd> + <kbd>Esc</kbd></div>
+        </div>
+      </div>
+
+      <div class="shortcuts-section">
+        <div class="shortcuts-section-title">Navigation &amp; UI Controls</div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Toggle Sidebar Collapse</span>
+          <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>B</kbd> <span style="color:var(--text-muted); font-size:0.75rem;">or</span> <kbd>Alt</kbd> + <kbd>S</kbd></div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Switch to Session Tab</span>
+          <div class="shortcut-keys"><kbd>Alt</kbd> + <kbd>1</kbd></div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Switch to Cron Tab</span>
+          <div class="shortcut-keys"><kbd>Alt</kbd> + <kbd>2</kbd></div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Switch to Team Tab</span>
+          <div class="shortcut-keys"><kbd>Alt</kbd> + <kbd>3</kbd></div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Toggle Shortcuts Cheat Sheet</span>
+          <div class="shortcut-keys"><kbd>?</kbd> <span style="color:var(--text-muted); font-size:0.75rem;">or</span> <kbd>Shift</kbd> + <kbd>/</kbd> <span style="color:var(--text-muted); font-size:0.75rem;">or</span> <kbd>F1</kbd></div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Close Shortcuts Modal</span>
+          <div class="shortcut-keys"><kbd>Esc</kbd></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
