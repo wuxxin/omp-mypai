@@ -334,7 +334,11 @@ class OMPSessionManager:
         source: str = "",
         timeout: float = 120.0,
     ) -> dict[str, Any]:
-        """Execute a prompt turn asynchronously through the persistent RPC client."""
+        """Execute a prompt turn asynchronously through the persistent RPC client.
+
+        Note: In accordance with the Single Ingress Rule, this method is strictly
+        invoked by the daemon's `queue_worker_loop`. External callers enqueue into `TurnQueue`.
+        """
         from mypai_tools.tools import format_system_trigger_prompt
 
         source_val = source or (context.get("source") if isinstance(context, dict) else "")

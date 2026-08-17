@@ -30,8 +30,6 @@ async def async_dispatch_result_to_omp(
             is_result_call=True,
             origin_job_id=job_id,
         )
-    elif session_mgr is not None:
-        await session_mgr.execute_turn(prompt=final_output, mode=act)
     else:
         logger.warning(
             "Cannot dispatch result action '%s' to OMP: daemon_queue unavailable.",
@@ -105,64 +103,28 @@ async def execute_omp_rpc_job(
 
     logger.info("Executing OMP RPC job '%s' (action: %s)...", name, action)
 
+    if daemon_queue is None:
+        raise RuntimeError(f"Cannot execute OMP RPC job '{name}': daemon_queue is not configured.")
+
     try:
-        if daemon_queue is not None:
-            item = await daemon_queue.enqueue(
-                prompt=prompt,
-                mode=action,
-                source="cron",
-                context=job,
-                origin_job_id=job.get("id", ""),
-            )
-            duration = round(time.time() - start_time, 3)
-            return {
-                "status": "queued",
-                "kind": "omp",
-                "action": action,
-                "return_code": 0,
-                "output": f"Queued task {item['task_id']}",
-                "error": "",
-                "object": item,
-                "duration_sec": duration,
-            }
-
-        if session_mgr is not None:
-            res = await session_mgr.execute_turn(prompt=prompt, mode=action)
-            duration = round(time.time() - start_time, 3)
-            return {
-                "status": res.get("status", "success"),
-                "kind": "omp",
-                "action": action,
-                "return_code": res.get("return_code", 0),
-                "output": res.get("output", ""),
-                "error": res.get("error", ""),
-                "object": res,
-                "duration_sec": duration,
-            }
-
-        if client is not None:
-            if action == "steer":
-                client.steer(prompt)
-            elif action in ("followup", "follow_up"):
-                client.follow_up(prompt)
-            elif action == "abort_and_prompt":
-                client.abort_and_prompt(prompt)
-            else:
-                client.prompt(prompt)
-
-            duration = round(time.time() - start_time, 3)
-            return {
-                "status": "success",
-                "kind": "omp",
-                "action": action,
-                "return_code": 0,
-                "output": f"RPC command '{action}' dispatched.",
-                "error": "",
-                "object": {"prompt": prompt},
-                "duration_sec": duration,
-            }
-
-        raise RuntimeError("No daemon_queue or session_mgr available to execute OMP RPC job.")
+        item = await daemon_queue.enqueue(
+            prompt=prompt,
+            mode=action,
+            source="cron",
+            context=job,
+            origin_job_id=job.get("id", ""),
+        )
+        duration = round(time.time() - start_time, 3)
+        return {
+            "status": "queued",
+            "kind": "omp",
+            "action": action,
+            "return_code": 0,
+            "output": f"Queued task {item['task_id']}",
+            "error": "",
+            "object": item,
+            "duration_sec": duration,
+        }
 
     except Exception as exc:  # noqa: BLE001
         logger.error("RPC execution error for job '%s': %s", name, exc)

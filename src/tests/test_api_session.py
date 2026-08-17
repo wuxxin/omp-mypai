@@ -68,3 +68,27 @@ def test_session_reconnect_endpoint(test_client) -> None:
     data = res.json()
     assert "status" in data
     assert "connected" in data
+
+
+def test_session_abort_control_plane_interrupt(test_client) -> None:
+    # First queue a couple of turns
+    test_client.post(
+        "/api/v1/session/prompt",
+        json={"prompt": "Turn 1 to be purged", "mode": "prompt", "source": "webui"},
+    )
+    test_client.post(
+        "/api/v1/session/prompt",
+        json={"prompt": "Turn 2 to be purged", "mode": "prompt", "source": "webui"},
+    )
+
+    # Trigger control-plane instant abort
+    abort_res = test_client.post("/api/v1/session/abort")
+    assert abort_res.status_code == 200
+    abort_data = abort_res.json()
+    assert abort_data["status"] == "aborted"
+    assert "last_turn" in abort_data
+
+    # Check status to verify queue depth was purged to 0
+    status_res = test_client.get("/api/v1/session/status")
+    status_data = status_res.json()
+    assert status_data["queue_depth"] == 0

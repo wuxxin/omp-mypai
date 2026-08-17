@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from conftest import FakeRpcClient
 
 from mypai_tools.executors.http_executor import execute_http_job
 from mypai_tools.executors.omp_rpc_executor import execute_omp_rpc_job
@@ -68,28 +67,36 @@ async def test_http_executor_error_handling() -> None:
 # 2. OMP RPC Executor Tests
 @pytest.mark.asyncio
 async def test_omp_rpc_executor_verbs() -> None:
-    fake_client = FakeRpcClient()
+    from mypai_tools.daemon.queue import TurnQueue
+
+    queue = TurnQueue()
 
     # Prompt action
     res_prompt = await execute_omp_rpc_job(
         {"name": "RPC Prompt", "action": "prompt", "kwargs": {"prompt": "Hello RPC"}},
-        client=fake_client,
+        daemon_queue=queue,
     )
     assert res_prompt["return_code"] == 0
+    assert res_prompt["status"] == "queued"
+    assert queue.depth() == 1
 
     # Steer action
     res_steer = await execute_omp_rpc_job(
         {"name": "RPC Steer", "action": "steer", "kwargs": {"prompt": "Steer Prompt"}},
-        client=fake_client,
+        daemon_queue=queue,
     )
     assert res_steer["return_code"] == 0
+    assert res_steer["status"] == "queued"
+    assert queue.depth() == 2
 
     # Followup action
     res_followup = await execute_omp_rpc_job(
         {"name": "RPC Followup", "action": "followup", "args": ["Followup Prompt"]},
-        client=fake_client,
+        daemon_queue=queue,
     )
     assert res_followup["return_code"] == 0
+    assert res_followup["status"] == "queued"
+    assert queue.depth() == 3
 
 
 # 3. Python Executor Tests

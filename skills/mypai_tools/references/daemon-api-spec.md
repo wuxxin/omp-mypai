@@ -37,8 +37,23 @@ The `/api/v1/session` routes support the complete 4-action OMP RPC feature set m
 * **Response (HTTP 200)**: `{"status": "queued", "task_id": "evt_9b8c7d"}`
 
 ### `POST /api/v1/session/abort`
-* **Description**: Interrupt and abort the currently running OMP RPC turn immediately and flush the pending turn queue.
-* **Response (HTTP 200)**: `{"status": "aborted"}`
+* **Description**: Instant Control-Plane Interrupt. Purges all pending turns from `TurnQueue` immediately and triggers `session_mgr.abort()`, stopping execution without waiting for queue worker loop ticks.
+* **Response (HTTP 200)**:
+  ```json
+  {
+    "status": "aborted",
+    "last_turn": {
+      "task_id": "evt_9b8c7d",
+      "mode": "prompt",
+      "model": "qwen3-32b",
+      "source": "webui",
+      "duration_sec": 4.2,
+      "prompt_snippet": "Run migration script...",
+      "status": "aborted",
+      "completed_at": "2026-08-18T00:15:00Z"
+    }
+  }
+  ```
 
 ### `GET /api/v1/session/status`
 * **Description**: Return current RPC connection state, process PID, daemon profile, session UUID, active call details, queue depth, and uptime.

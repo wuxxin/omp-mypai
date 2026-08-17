@@ -106,27 +106,11 @@ class CronScheduler:
                         "kind": kind,
                     }
 
-                res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
-                mode = res_dict.get("action") or job.get("result_action") or "prompt"
-                if mode not in ("prompt", "steer", "followup", "abort_and_prompt"):
-                    mode = "prompt"
-
-                if self.daemon_queue:
-                    queued_item = await self.daemon_queue.enqueue(
-                        prompt=prompt,
-                        mode=mode,
-                        source="cron",
-                        context=job,
-                        origin_job_id=job_id,
-                    )
-                    res.update({"status": "queued", "task_id": queued_item["task_id"]})
-                    output_summary = f"Queued task {queued_item['task_id']}"
-                else:
-                    res_exec = await execute_omp_rpc_job(job, daemon_queue=self.daemon_queue)
-                    res.update(res_exec)
-                    returncode = res_exec.get("return_code", 0)
-                    output_summary = res_exec.get("output") or ""
-                    error_summary = res_exec.get("error") or ""
+                res_exec = await execute_omp_rpc_job(job, daemon_queue=self.daemon_queue)
+                res.update(res_exec)
+                returncode = res_exec.get("return_code", 0)
+                output_summary = res_exec.get("output") or ""
+                error_summary = res_exec.get("error") or ""
 
             elif kind == "http":
                 res_exec = await execute_http_job(job, daemon_queue=self.daemon_queue)

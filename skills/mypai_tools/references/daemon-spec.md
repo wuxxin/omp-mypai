@@ -8,7 +8,7 @@ It coordinates incoming requests from WebUI, Signal webhooks, Input Spooler side
 
 ---
 
-## 1. 2-Tier Execution Architecture
+### 1. 2-Tier Execution Architecture & Single Ingress Rule
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -26,9 +26,16 @@ It coordinates incoming requests from WebUI, Signal webhooks, Input Spooler side
 │    • Scheduled OMP cron turns                                                   │
 │    • Signal webhook notifications                                               │
 │    • Background Executor Results (`is_result_call=True`)                        │
+│    • ACP Subagent Completion Callbacks (`source="acp_callback"`, priority=2)    │
 │    • Resolved by strict priority-flush state machine before OMP dispatch        │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### The Single Ingress Rule: Always Enqueue, Never Direct Call
+- **100% of all turn inputs** (WebUI, Signal, Cron, ACP callbacks, Spooler, Result dispatchers) **must** enqueue into `TurnQueue`.
+- No background task, executor, or API endpoint is permitted to call `OMPSessionManager.execute_turn()` directly.
+- `OMPSessionManager.execute_turn()` is **strictly private to `queue_worker_loop`**, eliminating race conditions and ensuring deterministic priority handling.
+- **Control-Plane Exception**: `POST /api/v1/session/abort` acts as an **Instant Control-Plane Interrupt**. It instantly purges all pending turns from `TurnQueue` and signals `session_mgr.abort()`, stopping execution without waiting for queue ticks.
 
 ---
 
@@ -43,10 +50,13 @@ When resolving the next action to execute on the persistent `omp_rpc` session:
 2. **Rule 2 (Steer Priority)**:
    - If any `steer` items are in the queue:
    - Pop the oldest (FIFO) `steer` item and dispatch immediately to `omp_rpc.steer()`.
-3. **Rule 3 (Followup Priority)**:
+3. **Rule 3 (System & ACP Callback Priority)**:
+   - If any `system_event` or `acp_callback` items are in the queue:
+   - Pop the oldest (FIFO) item (priority 2) to inform the main agent of subagent task completions.
+4. **Rule 4 (Followup Priority)**:
    - If any `followup` items are in the queue:
    - Pop the oldest (FIFO) `followup` item and dispatch to `omp_rpc.follow_up()`.
-4. **Rule 4 (Prompt Idle Priority)**:
+5. **Rule 5 (Prompt Idle Priority)**:
    - Check if the OMP RPC turn is currently running / busy.
    - If **idle**: Pop the oldest (FIFO) `prompt` (or result prompt) and dispatch to `omp_rpc.prompt()`.
    - If **busy**: Wait until the active turn concludes.
@@ -68,12 +78,13 @@ When resolving the next action to execute on the persistent `omp_rpc` session:
 
 ## 4. OMP Session Manager (`mypai_daemon.session_manager`)
 
-* **RPC SDK**: Wraps `omp_rpc.RpcClient`.
+* **Role**: Dedicated low-level driver for the `omp --mode rpc` child process and host tool provider.
+* **Process Isolation**: Spawns and supervises the child process, recovers on connection loss (`triage_connection`).
 * **Profile Property**: Read-only property returning `os.getenv("OMP_PROFILE", "mypai")`.
 * **Session UUID Persistence**: Reattaches to existing session via `--profile <profile> --resume <session_uuid>` or initializes a new session, persisting `session_uuid` in DB.
 * **Session Title**: Automatically set to `"mypai_daemon - running"`.
 * **Native Host Tools**: Directly registers Cron Host Tools and ACP Host Tools via `rpc_client.set_custom_tools()`.
-* **Zero Synchronous RPC / ACP Calls**: All RPC interactions and worker tasks are purely asynchronous.
+* **Execution Privacy**: `execute_turn()` is only ever called by `queue_worker_loop`. All external callers interact exclusively via `TurnQueue.enqueue()`.
 
 ---
 
@@ -81,4 +92,4 @@ When resolving the next action to execute on the persistent `omp_rpc` session:
 
 - **`SIGNAL_ACCOUNT`**: Local account phone number.
 - **`SIGNAL_ALLOWED_SENDER`**: Whitelisted sender phone number. Messages from other senders are dropped immediately.
-- Enqueues notification turn: `"📬 NEW Signal message received from {sender}. Use 'chat_mcp.get_next_unread_message' to read."`
+- Enqueues notification turn into `TurnQueue`: `"📬 NEW Signal message received from {sender}. Use 'chat_mcp.get_next_unread_message' to read."`

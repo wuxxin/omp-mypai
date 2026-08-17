@@ -10,7 +10,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import yaml
-from conftest import FakeRpcClient
 
 from mypai_tools.executors.http_executor import execute_http_job
 from mypai_tools.executors.omp_rpc_executor import execute_omp_rpc_job
@@ -42,19 +41,22 @@ def test_example_jobs_yaml_parsing() -> None:
 @pytest.mark.asyncio
 async def test_example_job_1_omp_success_and_failure() -> None:
     """Test Job 1 (OMP RPC job): success and failure outcomes."""
+    from mypai_tools.daemon.queue import TurnQueue
+
     jobs = load_example_jobs()
     job = next(j for j in jobs if j["kind"] == "omp")
-    fake_client = FakeRpcClient()
+    queue = TurnQueue()
 
-    # Success outcome
-    res_success = await execute_omp_rpc_job(job, client=fake_client)
-    assert res_success["status"] == "success"
+    # Success outcome (enqueued into TurnQueue)
+    res_success = await execute_omp_rpc_job(job, daemon_queue=queue)
+    assert res_success["status"] == "queued"
     assert res_success["return_code"] == 0
+    assert queue.depth() == 1
 
     # Failure outcome: empty prompt triggers validation error
     failing_job = dict(job)
     failing_job["kwargs"] = {"prompt": ""}
-    res_fail = await execute_omp_rpc_job(failing_job, client=fake_client)
+    res_fail = await execute_omp_rpc_job(failing_job, daemon_queue=queue)
     assert res_fail["status"] == "error"
     assert res_fail["return_code"] == 1
     assert "Empty prompt" in res_fail["error"]
