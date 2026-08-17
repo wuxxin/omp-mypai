@@ -250,6 +250,7 @@ def main() -> None:
     acp_mgr = get_acp_manager(args.agent_dir)
     acp_mgr.set_daemon_queue(queue)
     acp_mgr.set_ws_manager(ws_manager)
+    acp_mgr.ensure_default_worker()
 
     app.state.agent_dir = args.agent_dir
     app.state.profile = session_mgr.profile
@@ -291,6 +292,7 @@ def main() -> None:
             logger.info("Cleaning up daemon resources...")
             worker_task.cancel()
             scheduler.shutdown()
+            acp_mgr.shutdown()
             if session_mgr.rpc_client:
                 try:
                     session_mgr.rpc_client.stop()

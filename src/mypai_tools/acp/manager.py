@@ -9,6 +9,7 @@ from typing import Any
 
 from mypai_tools.acp.session import AcpClientSession
 from mypai_tools.acp.state import get_acp_state
+from mypai_tools.persistence import resolve_agent_dir
 
 logger = logging.getLogger("mypai_daemon.acp.manager")
 
@@ -21,13 +22,19 @@ class AcpDelegationManager:
     """
 
     def __init__(self, agent_dir: str = "", profile: str = "") -> None:
-        self.agent_dir = agent_dir
+        self.agent_dir = resolve_agent_dir(agent_dir)
         self.profile = profile
         self.sessions: dict[str, AcpClientSession] = {}
         self.tasks: dict[str, dict[str, Any]] = {}
         self._lock = asyncio.Lock()
         self.daemon_queue: Any = None
         self.ws_manager: Any = None
+
+    def ensure_default_worker(self) -> None:
+        """Ensure initial ACP worker is attached to the target workspace directory on startup if enabled."""
+        state = get_acp_state(self.agent_dir)
+        if state.is_running() and self.agent_dir and os.path.isdir(self.agent_dir):
+            self.get_or_create_session(self.agent_dir)
 
     def set_daemon_queue(self, queue: Any) -> None:
         """Attach daemon TurnQueue for automatic completion callbacks."""
@@ -240,6 +247,7 @@ _acp_manager_instances: dict[str, AcpDelegationManager] = {}
 
 def get_acp_manager(agent_dir: str = "") -> AcpDelegationManager:
     """Get or create singleton AcpDelegationManager instance for agent_dir."""
-    if agent_dir not in _acp_manager_instances:
-        _acp_manager_instances[agent_dir] = AcpDelegationManager(agent_dir=agent_dir)
-    return _acp_manager_instances[agent_dir]
+    resolved = resolve_agent_dir(agent_dir)
+    if resolved not in _acp_manager_instances:
+        _acp_manager_instances[resolved] = AcpDelegationManager(agent_dir=resolved)
+    return _acp_manager_instances[resolved]

@@ -162,3 +162,29 @@ def test_acp_api_status_and_tasks_endpoints(
     # Test 404 for missing task
     missing_resp = client.get("/api/v1/acp/tasks/nonexistent-xyz")
     assert missing_resp.status_code == 404
+
+
+def test_acp_startup_attaches_default_worker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
+) -> None:
+    """Verify that ensure_default_worker provisions an active session for the workspace directory on startup."""
+    from mypai_tools.acp.manager import AcpDelegationManager
+
+    mgr = AcpDelegationManager(agent_dir=str(tmp_path))
+
+    def mock_get_or_create_session(cwd: str) -> MockAcpSession:
+        sess = MockAcpSession(cwd, will_fail=False)
+        mgr.sessions[cwd] = sess
+        return sess
+
+    monkeypatch.setattr(mgr, "get_or_create_session", mock_get_or_create_session)
+
+    # Initial state has 0 sessions
+    assert len(mgr.sessions) == 0
+
+    # Calling ensure_default_worker spawns session for tmp_path
+    mgr.ensure_default_worker()
+    assert str(tmp_path) in mgr.sessions
+    agents = mgr.list_agents()
+    assert len(agents["workers"]) == 1
+    assert agents["workers"][0]["cwd"] == str(tmp_path)
