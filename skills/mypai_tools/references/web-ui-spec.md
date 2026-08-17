@@ -9,7 +9,7 @@
 ## 1. Screen Wireframe Layout
 
 ```
-myPAI Console * Connected (steady green/red) STREAMING (red 'ON AIR' pulse if active, grey if idle) | Session | Cron | Team | [?] | [⟳ Refresh]
+myPAI Console * Connected (steady green/red) STREAMING (red 'ON AIR' pulse if active, grey if idle) | Session | Cron | Team | [⟳ Refresh]
 
 RPC Session Live Console             Reload History  Clear Console  [ ] Show Stream Chunks  [x] Show Events  Port: 52080
 +-----------------------------------------------------------------------------------------------+
@@ -22,7 +22,7 @@ Turn:                                                                           
 +-----------------------------------------------------------------------------------------------+
 | Type a prompt, CTRL-Enter to submit                                                           |
 +-----------------------------------------------------------------------------------------------+
-                                                                         Submit  [ Create (Prompt) [v] ]
+                                                                Submit  [ Create (Prompt) [v] ]  [?]
 
 Options:
   • Create (Prompt)      -> Normal prompt (dispatches when turn is idle)

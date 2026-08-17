@@ -498,7 +498,6 @@
       <button class="tab-btn active" id="tab-btn-session" onclick="switchTab('session')">Session</button>
       <button class="tab-btn" id="tab-btn-cron" onclick="switchTab('cron')">Cron</button>
       <button class="tab-btn" id="tab-btn-team" onclick="switchTab('team')">Team</button>
-      <button class="btn-help-icon" id="shortcuts-info-btn" onclick="toggleShortcutsOverlay()" title="Keyboard Shortcuts &amp; Help (F1 / ?)" aria-label="Help and Shortcuts">?</button>
       <button id="refresh-btn" class="btn-refresh" onclick="reloadAll()" title="Refresh Telemetry">⟳ Refresh</button>
     </div>
   </header>
@@ -541,6 +540,7 @@
                 <option value="followup">Append to (Followup)</option>
                 <option value="abort_and_prompt">Abort and Create</option>
               </select>
+              <button type="button" class="btn-help-icon" id="shortcuts-info-btn" onclick="toggleShortcutsOverlay()" title="Keyboard Shortcuts &amp; Help (F1 / ?)" aria-label="Help and Shortcuts">?</button>
             </div>
           </div>
         </form>
