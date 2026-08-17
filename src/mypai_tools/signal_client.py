@@ -42,9 +42,7 @@ class SignalClient:
                 return json.loads(body) if body else {}
         except urllib.error.HTTPError as e:
             error_body = e.fp.read().decode("utf-8") if e.fp else ""
-            logger.error(
-                "Signal API HTTPError %d on %s %s: %s", e.code, method, url, error_body
-            )
+            logger.error("Signal API HTTPError %d on %s %s: %s", e.code, method, url, error_body)
             return {"error": f"HTTP {e.code}: {e.reason}", "details": error_body}
         except urllib.error.URLError as e:
             logger.error("Signal API URLError on %s %s: %s", method, url, e.reason)
@@ -61,9 +59,7 @@ class SignalClient:
         clean_allowed = self.allowed_sender.strip().lstrip("+")
         return clean_sender == clean_allowed or sender == self.allowed_sender
 
-    def send_read_receipt(
-        self, recipient: str, timestamps: list[int]
-    ) -> dict[str, Any]:
+    def send_read_receipt(self, recipient: str, timestamps: list[int]) -> dict[str, Any]:
         """Send POST /v1/receipts/<account> to display two white checkmarks 🗸🗸."""
         if not recipient or not timestamps:
             return {"status": "skipped"}
@@ -81,9 +77,7 @@ class SignalClient:
         if not recipient:
             return {"status": "skipped"}
         account_path = (
-            f"v1/typing-indicator/{self.account}"
-            if self.account
-            else "v1/typing-indicator"
+            f"v1/typing-indicator/{self.account}" if self.account else "v1/typing-indicator"
         )
         payload = {"recipient": recipient}
         res = self._http_request(account_path, method="POST", data=payload)
@@ -125,9 +119,7 @@ class SignalClient:
                 or item.get("sender", "")
             )
             if target_sender and not self.is_sender_allowed(item_sender):
-                logger.info(
-                    "Ignoring Signal message from unauthorized sender '%s'", item_sender
-                )
+                logger.info("Ignoring Signal message from unauthorized sender '%s'", item_sender)
                 continue
 
             selected_msg = item
@@ -149,9 +141,7 @@ class SignalClient:
         data_msg = env.get("dataMessage", {}) if isinstance(env, dict) else {}
         text = data_msg.get("message", "") or selected_msg.get("message", "")
 
-        raw_attachments = data_msg.get("attachments", []) or selected_msg.get(
-            "attachments", []
-        )
+        raw_attachments = data_msg.get("attachments", []) or selected_msg.get("attachments", [])
         processed_attachments = []
 
         if raw_attachments:
@@ -179,9 +169,7 @@ class SignalClient:
                             ):
                                 wf.write(rf.read())
                         except Exception as exc:  # noqa: BLE001
-                            logger.warning(
-                                "Failed to copy attachment %s: %s", stored_path, exc
-                            )
+                            logger.warning("Failed to copy attachment %s: %s", stored_path, exc)
                             target_path = stored_path
 
                     processed_attachments.append(

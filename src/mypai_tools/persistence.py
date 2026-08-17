@@ -1,10 +1,12 @@
-"""SQLite database models, WAL session management, and PID file path helpers."""
+"""SQLite database models, WAL session management, and Pydantic schemas for MyPAI Daemon."""
 
 import hashlib
 import json
 import os
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Literal
 
+from pydantic import BaseModel, Field
 from sqlalchemy import (
     Boolean,
     Column,
@@ -20,8 +22,72 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 Base = declarative_base()
 
 
+class JobOpts(BaseModel):
+    """Configuration options for job execution engines."""
+
+    timeout_sec: int | None = None
+    timezone: str = "local"
+    env: dict[str, str] = Field(default_factory=dict)
+    headers: dict[str, str] = Field(default_factory=dict)
+    error_on: str | None = None
+    disable_on: str | None = None
+
+
+class JobResult(BaseModel):
+    """Result and error routing rules."""
+
+    action: Literal["log", "prompt", "steer", "followup", "abort_and_prompt"] = "log"
+    prompt: str = ""
+    error_action: Literal["log", "prompt", "steer", "followup", "abort_and_prompt"] = "log"
+    error_prompt: str = ""
+    channel: str = ""
+
+
+class CronJobSchema(BaseModel):
+    """Canonical Pydantic Schema for Cron Jobs."""
+
+    id: str | None = None
+    name: str
+    description: str = ""
+    cron: str = "now"
+    enabled: bool = True
+    kind: Literal["omp", "acp", "shell", "python", "http"] = "omp"
+    action: str = "prompt"
+    args: list[Any] | str = Field(default_factory=list)
+    kwargs: dict[str, Any] = Field(default_factory=dict)
+    opts: JobOpts = Field(default_factory=JobOpts)
+    result: JobResult = Field(default_factory=JobResult)
+
+    # Telemetry fields (Read-Only / State Updates)
+    total_runs: int = 0
+    total_failures: int = 0
+    next_run_at: str | None = None
+    last_run_at: str | None = None
+    last_runtime: float = 0.0
+    last_returncode: int = 0
+    last_httpcode: int = 0
+    last_output: str = ""
+    last_error: str = ""
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+def get_default_timeout_for_kind(kind: str) -> int:
+    """Return default timeout in seconds based on job execution kind."""
+    clean_kind = str(kind or "omp").lower()
+    if clean_kind in ("omp", "acp"):
+        return 10
+    if clean_kind == "python":
+        return 5
+    if clean_kind == "http":
+        return 30
+    if clean_kind == "shell":
+        return 120
+    return 30
+
+
 class CronJobModel(Base):
-    """SQLAlchemy model for scheduled cron tasks with inlined attributes & telemetry."""
+    """SQLAlchemy model for scheduled cron tasks with execution telemetry."""
 
     __tablename__ = "cron_jobs"
 
@@ -31,52 +97,67 @@ class CronJobModel(Base):
     cron = Column(String(255), nullable=False)
     kind = Column(String(32), nullable=False, default="omp")
     action = Column(Text, nullable=False, default="prompt")
-    result_action = Column(String(32), nullable=True, default="ignore")
-    result_prompt = Column(Text, nullable=True, default="")
-    result_error_prompt = Column(Text, nullable=True, default="")
-    result_channel = Column(String(64), nullable=True, default="")
     enabled = Column(Boolean, default=True)
 
-    # Inlined executor parameter columns
-    args = Column(Text, nullable=True, default="")
-    kwargs = Column(Text, nullable=True, default="")
-    opts = Column(Text, nullable=True, default="")
+    # Serialized parameters
+    args = Column(Text, nullable=True, default="[]")
+    kwargs = Column(Text, nullable=True, default="{}")
+    opts = Column(Text, nullable=True, default="{}")
+    result = Column(Text, nullable=True, default="{}")
 
     # Execution telemetry fields
-    last_start = Column(String(64), nullable=True, default="")
-    last_stop = Column(String(64), nullable=True, default="")
+    total_runs = Column(Integer, nullable=False, default=0)
+    total_failures = Column(Integer, nullable=False, default=0)
+    next_run_at = Column(String(64), nullable=True, default="")
+    last_run_at = Column(String(64), nullable=True, default="")
     last_runtime = Column(Float, nullable=True, default=0.0)
     last_returncode = Column(Integer, nullable=True, default=0)
+    last_httpcode = Column(Integer, nullable=True, default=0)
     last_output = Column(Text, nullable=True, default="")
-    total_calls = Column(Integer, nullable=False, default=0)
+    last_error = Column(Text, nullable=True, default="")
 
     created_at = Column(String(64), nullable=False)
     updated_at = Column(String(64), nullable=False)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert model instance to dictionary representation with parsed JSON args and kwargs."""
-        args_data = self.args
-        if isinstance(args_data, str) and args_data.strip().startswith(("{", "[")):
+        """Convert model instance to dictionary representation with parsed JSON fields."""
+        parsed_args = self.args
+        if isinstance(parsed_args, str) and parsed_args.strip():
             try:
-                args_data = json.loads(args_data)
-            except Exception:  # noqa: BLE001, S110
+                parsed_args = json.loads(parsed_args)
+            except Exception:  # noqa: BLE001
                 pass
 
-        kwargs_data = self.kwargs
-        if isinstance(kwargs_data, str) and kwargs_data.strip().startswith("{"):
+        parsed_kwargs = self.kwargs
+        if isinstance(parsed_kwargs, str) and parsed_kwargs.strip():
             try:
-                kwargs_data = json.loads(kwargs_data)
-            except Exception:  # noqa: BLE001, S110
-                pass
+                parsed_kwargs = json.loads(parsed_kwargs)
+            except Exception:  # noqa: BLE001
+                parsed_kwargs = {}
+        elif not parsed_kwargs:
+            parsed_kwargs = {}
 
-        opts_data = self.opts
-        if isinstance(opts_data, str) and opts_data.strip().startswith(("{", "[")):
+        parsed_opts = self.opts
+        if isinstance(parsed_opts, str) and parsed_opts.strip():
             try:
-                opts_data = json.loads(opts_data)
-            except Exception:  # noqa: BLE001, S110
-                pass
-        elif not opts_data:
-            opts_data = {}
+                parsed_opts = json.loads(parsed_opts)
+            except Exception:  # noqa: BLE001
+                parsed_opts = {}
+        elif not parsed_opts:
+            parsed_opts = {}
+
+        parsed_result = self.result
+        if isinstance(parsed_result, str) and parsed_result.strip():
+            try:
+                parsed_result = json.loads(parsed_result)
+            except Exception:  # noqa: BLE001
+                parsed_result = {}
+        elif not parsed_result:
+            parsed_result = {}
+
+        # Ensure default timeout is set in opts if absent
+        if isinstance(parsed_opts, dict) and parsed_opts.get("timeout_sec") is None:
+            parsed_opts["timeout_sec"] = get_default_timeout_for_kind(self.kind)
 
         return {
             "id": self.id,
@@ -85,29 +166,28 @@ class CronJobModel(Base):
             "cron": self.cron,
             "kind": self.kind,
             "action": self.action,
-            "result_prompt": self.result_prompt or "",
-            "result_error_prompt": self.result_error_prompt or "",
-            "result_channel": self.result_channel or "",
-            "result_action": self.result_action or "ignore",
-            "result": {
-                "action": self.result_action or "ignore",
-                "prompt": self.result_prompt or "",
-                "error_prompt": self.result_error_prompt or "",
-                "channel": self.result_channel or "",
-            },
             "enabled": bool(self.enabled),
-            "args": args_data or "",
-            "kwargs": kwargs_data or {},
-            "opts": opts_data or {},
-            "last_start": self.last_start or "",
-            "last_stop": self.last_stop or "",
+            "args": parsed_args if parsed_args is not None else [],
+            "kwargs": parsed_kwargs if isinstance(parsed_kwargs, dict) else {},
+            "opts": parsed_opts if isinstance(parsed_opts, dict) else {},
+            "result": parsed_result if isinstance(parsed_result, dict) else {},
+            "total_runs": int(self.total_runs or 0),
+            "total_failures": int(self.total_failures or 0),
+            "next_run_at": self.next_run_at or "",
+            "last_run_at": self.last_run_at or "",
             "last_runtime": float(self.last_runtime or 0.0),
             "last_returncode": int(self.last_returncode or 0),
+            "last_httpcode": int(self.last_httpcode or 0),
             "last_output": self.last_output or "",
-            "total_calls": int(self.total_calls or 0),
+            "last_error": self.last_error or "",
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
+
+    def to_schema(self) -> CronJobSchema:
+        """Convert model instance to validated Pydantic CronJobSchema."""
+        data = self.to_dict()
+        return CronJobSchema.model_validate(data)
 
 
 class SettingsModel(Base):
@@ -165,10 +245,7 @@ def get_project_dir_hash(agent_dir: str = "") -> str:
 
 
 def get_agent_db_path(agent_dir: str = "") -> str:
-    """Get absolute SQLite database path for given MYPAI_AGENT_DIR.
-
-    Database location format: mypai_plugin_data/daemon/agent-<basedir>-<shorthash>.db
-    """
+    """Get absolute SQLite database path for given MYPAI_AGENT_DIR."""
     basedir, shorthash = get_agent_dir_info(agent_dir)
     plugin_data = os.environ.get(
         "MYPAI_PLUGIN_DATA",
@@ -215,7 +292,6 @@ def get_db_session(agent_dir: str = ""):
     db_path = get_agent_db_path(agent_dir)
     engine = create_engine(f"sqlite:///{db_path}", echo=False)
 
-    # Enable WAL mode and 30s busy timeout for concurrent safety
     with engine.connect() as conn:
         conn.execute(text("PRAGMA journal_mode=WAL;"))
         conn.execute(text("PRAGMA busy_timeout=30000;"))
@@ -245,9 +321,8 @@ def set_setting(session: Any, key: str, value: str) -> None:
 
 
 def import_jobs_to_db(session: Any, jobs_list: list[dict[str, Any]]) -> tuple[int, int]:
-    """Bulk import or update cron jobs list in SQLite database session."""
+    """Bulk import or update cron jobs list in SQLite database session with validation."""
     import uuid
-    from datetime import datetime, timezone
 
     imported_count = 0
     updated_count = 0
@@ -255,104 +330,69 @@ def import_jobs_to_db(session: Any, jobs_list: list[dict[str, Any]]) -> tuple[in
     id_map = {j.id: j for j in existing_jobs}
     name_map = {j.name: j for j in existing_jobs}
 
-    for item in jobs_list:
-        if not (isinstance(item, dict) and item.get("name") and item.get("cron")):
+    for raw_item in jobs_list:
+        if not isinstance(raw_item, dict) or not raw_item.get("name"):
             continue
-        item_id = item.get("id")
-        item_name = item.get("name")
+
+        item_name = raw_item["name"].strip()
+        item_id = raw_item.get("id")
         existing = id_map.get(item_id) if item_id else name_map.get(item_name)
 
-        res_dict = item.get("result") if isinstance(item.get("result"), dict) else {}
-        res_action = (
-            res_dict.get("action")
-            if "action" in res_dict
-            else item.get("result_action", "ignore")
-        )
-        res_prompt = (
-            res_dict.get("prompt")
-            if "prompt" in res_dict
-            else item.get("result_prompt", "")
-        )
-        res_error_prompt = (
-            res_dict.get("error_prompt")
-            if "error_prompt" in res_dict
-            else item.get("result_error_prompt", "")
-        )
-        res_channel = (
-            res_dict.get("channel")
-            if "channel" in res_dict
-            else item.get("result_channel", "")
-        )
+        # Normalize nested opts and result structures
+        opts_dict = raw_item.get("opts") if isinstance(raw_item.get("opts"), dict) else {}
+        result_dict = raw_item.get("result") if isinstance(raw_item.get("result"), dict) else {}
+
+        kind_val = raw_item.get("kind", "omp")
+        if "timeout_sec" not in opts_dict or opts_dict["timeout_sec"] is None:
+            opts_dict["timeout_sec"] = get_default_timeout_for_kind(kind_val)
+
+        args_str = json.dumps(raw_item.get("args", []))
+        kwargs_str = json.dumps(raw_item.get("kwargs", {}))
+        opts_str = json.dumps(opts_dict)
+        result_str = json.dumps(result_dict)
+        now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         if existing:
-            for k in ("description", "cron", "kind", "action", "enabled"):
-                if k in item:
-                    setattr(existing, k, item[k])
-            existing.result_action = res_action
-            existing.result_prompt = res_prompt
-            existing.result_error_prompt = res_error_prompt
-            existing.result_channel = res_channel
-
-            if "args" in item:
-                existing.args = (
-                    json.dumps(item["args"])
-                    if isinstance(item["args"], (dict, list))
-                    else str(item["args"] or "")
-                )
-            if "kwargs" in item:
-                existing.kwargs = (
-                    json.dumps(item["kwargs"])
-                    if isinstance(item["kwargs"], (dict, list))
-                    else str(item["kwargs"] or "")
-                )
-            if "opts" in item:
-                existing.opts = (
-                    json.dumps(item["opts"])
-                    if isinstance(item["opts"], (dict, list))
-                    else str(item["opts"] or "")
-                )
-            existing.updated_at = datetime.now(timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            )
+            existing.description = raw_item.get("description", existing.description or "")
+            existing.cron = raw_item.get("cron", existing.cron)
+            existing.kind = kind_val
+            existing.action = raw_item.get("action", existing.action)
+            existing.enabled = raw_item.get("enabled", existing.enabled)
+            existing.args = args_str
+            existing.kwargs = kwargs_str
+            existing.opts = opts_str
+            existing.result = result_str
+            existing.updated_at = now_iso
             updated_count += 1
         else:
             new_id = item_id or str(uuid.uuid4())[:8]
-            now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            args_str = (
-                json.dumps(item.get("args"))
-                if isinstance(item.get("args"), (dict, list))
-                else str(item.get("args") or "")
-            )
-            kwargs_str = (
-                json.dumps(item.get("kwargs"))
-                if isinstance(item.get("kwargs"), (dict, list))
-                else str(item.get("kwargs") or "")
-            )
-            opts_str = (
-                json.dumps(item.get("opts"))
-                if isinstance(item.get("opts"), (dict, list))
-                else str(item.get("opts") or "")
-            )
             job_obj = CronJobModel(
                 id=new_id,
                 name=item_name,
-                description=item.get("description", ""),
-                cron=item["cron"],
-                kind=item.get("kind", "omp"),
-                action=item.get("action", "prompt"),
+                description=raw_item.get("description", ""),
+                cron=raw_item.get("cron", "now"),
+                kind=kind_val,
+                action=raw_item.get("action", "prompt"),
+                enabled=raw_item.get("enabled", True),
                 args=args_str,
                 kwargs=kwargs_str,
                 opts=opts_str,
-                result_prompt=res_prompt,
-                result_error_prompt=res_error_prompt,
-                result_action=res_action,
-                result_channel=res_channel,
-                enabled=item.get("enabled", True),
+                result=result_str,
+                total_runs=0,
+                total_failures=0,
+                next_run_at="",
+                last_run_at="",
+                last_runtime=0.0,
+                last_returncode=0,
+                last_httpcode=0,
+                last_output="",
+                last_error="",
                 created_at=now_iso,
                 updated_at=now_iso,
             )
             session.add(job_obj)
             imported_count += 1
+
     session.commit()
     return imported_count, updated_count
 

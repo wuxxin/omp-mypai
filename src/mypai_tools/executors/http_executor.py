@@ -1,4 +1,4 @@
-"""HTTP Job Executor supporting GET, POST, PUT, DELETE, PATCH with inlined job attributes."""
+"""HTTP Job Executor supporting case-insensitive methods, timeout opts, and custom headers."""
 
 import json
 import logging
@@ -22,20 +22,12 @@ async def execute_http_job(
     daemon_queue: Any | None = None,
     session_mgr: Any | None = None,
 ) -> dict[str, Any]:
-    """Execute HTTP requests using inlined attributes.
-
-    Inlined Attributes:
-    - kind: 'http'
-    - action: HTTP method verb ('GET', 'POST', 'PUT', 'DELETE', 'PATCH')
-    - args: target API endpoint URL (or list of [URL, optional_payload])
-    - kwargs: dictionary containing body parameters and optional 'headers' dictionary
-    - result_prompt: optional result context template
-    """
+    """Execute HTTP request with case-insensitive method handling and timeout protection."""
     start_time = time.time()
     job = substitute_vars(job)
     name = job.get("name", "Unnamed HTTP Job")
     action = job.get("action") or "GET"
-    method = str(action).upper()
+    method = str(action).upper().strip()
 
     args_raw = job.get("args") or []
     url = ""
@@ -73,13 +65,12 @@ async def execute_http_job(
             "duration_sec": duration,
         }
 
-    # Extract headers and body payload from kwargs
     kwargs_raw = job.get("kwargs") or {}
     kwargs: dict[str, Any] = {}
     if isinstance(kwargs_raw, str) and kwargs_raw.strip():
         try:
             kwargs = json.loads(kwargs_raw)
-        except Exception:  # noqa: BLE001, S110
+        except Exception:  # noqa: BLE001
             pass
     elif isinstance(kwargs_raw, dict):
         kwargs = dict(kwargs_raw)
@@ -89,10 +80,12 @@ async def execute_http_job(
     if isinstance(opts_raw, str) and opts_raw.strip():
         try:
             opts = json.loads(opts_raw)
-        except Exception:  # noqa: BLE001, S110
+        except Exception:  # noqa: BLE001
             pass
     elif isinstance(opts_raw, dict):
         opts = dict(opts_raw)
+
+    timeout_sec = float(opts.get("timeout_sec") or 30.0)
 
     headers = {"Content-Type": "application/json"}
     if "headers" in opts and isinstance(opts["headers"], dict):
@@ -105,10 +98,10 @@ async def execute_http_job(
     if not payload and kwargs:
         payload = kwargs
 
-    logger.info("Executing HTTP %s request to %s...", method, url)
+    logger.info("Executing HTTP %s request to %s (timeout: %.1fs)...", method, url, timeout_sec)
 
     try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=timeout_sec, follow_redirects=True) as client:
             resp = await client.request(
                 method, url, json=payload if payload else None, headers=headers
             )
@@ -125,9 +118,7 @@ async def execute_http_job(
             status_str = "success" if is_success else "error"
             error_str = "" if is_success else f"HTTP {resp.status_code}: {output_str}"
 
-            logger.info(
-                "HTTP %s '%s' returned status %d", method, name, resp.status_code
-            )
+            logger.info("HTTP %s '%s' returned status %d", method, name, resp.status_code)
 
             internal_vars = build_internal_vars(
                 job,

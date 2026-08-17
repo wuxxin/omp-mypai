@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Main Entrypoint for MyPAI Daemon."""
 
 import argparse
@@ -11,7 +10,7 @@ import uvicorn
 
 from mypai_tools.daemon.api.app import app
 from mypai_tools.daemon.api.ws import ws_manager
-from mypai_tools.daemon.queue import EventQueue
+from mypai_tools.daemon.queue import TurnQueue
 from mypai_tools.daemon.scheduler import CronScheduler
 from mypai_tools.daemon.session_manager import OMPSessionManager
 from mypai_tools.signal_client import SignalClient
@@ -23,18 +22,17 @@ logging.basicConfig(
 logger = logging.getLogger("mypai_daemon")
 
 
-async def queue_worker_loop(queue: EventQueue, session_mgr: OMPSessionManager) -> None:
-    """Background task pulling items from EventQueue and executing turns in OMP."""
-    logger.info("Started Queue Worker Loop.")
+async def queue_worker_loop(queue: TurnQueue, session_mgr: OMPSessionManager) -> None:
+    """Background task pulling items from TurnQueue according to priority rules and executing turns in OMP."""
+    logger.info("Started Turn Queue Worker Loop.")
     while True:
         try:
-            item = await queue.get_next()
+            item = await queue.get_next(is_session_busy=session_mgr.is_busy)
             task_id = item["task_id"]
             prompt = item["prompt"]
             mode = item["mode"]
             source = item["source"]
 
-            # Connection triage & session reconciliation prior to turn handoff
             session_mgr.triage_connection()
 
             logger.info(
@@ -72,11 +70,11 @@ async def queue_worker_loop(queue: EventQueue, session_mgr: OMPSessionManager) -
                 }
             )
         except asyncio.CancelledError:
-            logger.info("Queue Worker Loop cancelled.")
+            logger.info("Turn Queue Worker Loop cancelled.")
             break
         except Exception as exc:  # noqa: BLE001
-            logger.error("Queue Worker Loop error: %s", exc)
-            await asyncio.sleep(1.0)
+            logger.error("Turn Queue Worker Loop error: %s", exc)
+            await asyncio.sleep(0.5)
 
 
 class AccessLogFilter(logging.Filter):
@@ -124,7 +122,7 @@ def main() -> None:
         "--verbose",
         "-v",
         action="store_true",
-        help="Enable verbose DEBUG logging (includes /api/v1/session/status polling logs)",
+        help="Enable verbose DEBUG logging",
     )
 
     parser = argparse.ArgumentParser(
@@ -137,7 +135,6 @@ def main() -> None:
         help="Mandatory CLI subcommand: serve, once, import, or export",
     )
 
-    # Subcommand: serve
     serve_parser = subparsers.add_parser(
         "serve",
         parents=[parent_parser],
@@ -150,14 +147,12 @@ def main() -> None:
         help="REST API server port (default: 52080)",
     )
 
-    # Subcommand: once
     subparsers.add_parser(
         "once",
         parents=[parent_parser],
         help="Execute pending scheduled tasks once and exit",
     )
 
-    # Subcommand: import
     import_parser = subparsers.add_parser(
         "import",
         parents=[parent_parser],
@@ -167,7 +162,6 @@ def main() -> None:
         "file_path", type=str, help="Path to input YAML or JSON file containing jobs"
     )
 
-    # Subcommand: export
     export_parser = subparsers.add_parser(
         "export",
         parents=[parent_parser],
@@ -200,7 +194,6 @@ def main() -> None:
         logging.getLogger().setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
 
-    # Attach filter to uvicorn.access logger to silence status polling unless verbose
     logging.getLogger("uvicorn.access").addFilter(AccessLogFilter(verbose=args.verbose))
 
     if args.command == "import":
@@ -233,9 +226,7 @@ def main() -> None:
         try:
             jobs = export_jobs_from_db(db)
             output_file = dump_jobs_file(args.file_path, jobs, fmt=args.format)
-            logger.info(
-                "Successfully exported %d cron jobs to '%s'.", len(jobs), output_file
-            )
+            logger.info("Successfully exported %d cron jobs to '%s'.", len(jobs), output_file)
             sys.exit(0)
         except Exception as exc:  # noqa: BLE001
             logger.error("Error exporting cron jobs: %s", exc)
@@ -243,7 +234,7 @@ def main() -> None:
         finally:
             db.close()
 
-    queue = EventQueue()
+    queue = TurnQueue()
     scheduler = CronScheduler(agent_dir=args.agent_dir, daemon_queue=queue)
 
     if args.command == "once":
@@ -251,11 +242,9 @@ def main() -> None:
         scheduler.sync_jobs_from_db()
         sys.exit(0)
 
-    # Subcommand: serve
     session_mgr = OMPSessionManager(agent_dir=args.agent_dir)
     signal_client = SignalClient()
 
-    # Attach components to FastAPI app state
     app.state.agent_dir = args.agent_dir
     app.state.profile = session_mgr.profile
     app.state.daemon_queue = queue
@@ -263,7 +252,6 @@ def main() -> None:
     app.state.scheduler = scheduler
     app.state.signal_client = signal_client
 
-    # Start Queue Worker Loop & Uvicorn Server
     async def run_server() -> None:
         scheduler.start()
         scheduler.sync_jobs_from_db()
@@ -300,7 +288,7 @@ def main() -> None:
             if session_mgr.rpc_client:
                 try:
                     session_mgr.rpc_client.stop()
-                except Exception:  # noqa: BLE001, S110
+                except Exception:  # noqa: BLE001
                     pass
 
     try:

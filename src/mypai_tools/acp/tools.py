@@ -1,4 +1,4 @@
-"""The 8 subagent-parity host tools for ACP intra-agent delegation."""
+"""Host tools for ACP intra-agent asynchronous task delegation."""
 
 import logging
 from typing import Any
@@ -14,38 +14,17 @@ except ImportError:
 logger = logging.getLogger("mypai_daemon.acp.tools")
 
 
-async def acp_task_fn(
-    cwd: str,
-    prompt: str,
-    agent_profile: str = "",
-    mode: str = "default",
-    agent_dir: str = "",
-) -> dict[str, Any]:
-    """Delegate task synchronously to an ACP worker process."""
-    if not get_acp_state(agent_dir).is_running():
-        return {
-            "status": "error",
-            "error": "ACP delegation is currently suspended in daemon configuration.",
-        }
-    mgr = get_acp_manager(agent_dir)
-    return await mgr.execute_task(
-        cwd=cwd, prompt=prompt, agent_profile=agent_profile, mode=mode
-    )
-
-
 async def acp_task_async_fn(
     cwd: str, prompt: str, agent_profile: str = "", agent_dir: str = ""
 ) -> dict[str, Any]:
-    """Dispatch background task to an ACP worker process."""
+    """Dispatch asynchronous background task to an ACP worker process."""
     if not get_acp_state(agent_dir).is_running():
         return {
             "status": "error",
             "error": "ACP delegation is currently suspended in daemon configuration.",
         }
     mgr = get_acp_manager(agent_dir)
-    return await mgr.execute_task_async(
-        cwd=cwd, prompt=prompt, agent_profile=agent_profile
-    )
+    return await mgr.execute_task_async(cwd=cwd, prompt=prompt, agent_profile=agent_profile)
 
 
 async def acp_task_status_fn(task_id: str = "", agent_dir: str = "") -> dict[str, Any]:
@@ -70,9 +49,7 @@ async def acp_task_result_fn(task_id: str, agent_dir: str = "") -> dict[str, Any
     return mgr.get_task_result(task_id=task_id)
 
 
-async def acp_task_steer_fn(
-    task_id: str, guidance: str, agent_dir: str = ""
-) -> dict[str, Any]:
+async def acp_task_steer_fn(task_id: str, guidance: str, agent_dir: str = "") -> dict[str, Any]:
     """Steer a running ACP subagent turn."""
     if not get_acp_state(agent_dir).is_running():
         return {
@@ -84,7 +61,7 @@ async def acp_task_steer_fn(
     if task.get("status") == "not_found":
         return task
     cwd = task.get("cwd", "")
-    return await mgr.execute_task(cwd=cwd, prompt=f"[STEER]: {guidance}")
+    return await mgr.execute_task_async(cwd=cwd, prompt=f"[STEER]: {guidance}")
 
 
 async def acp_task_cancel_fn(task_id: str, agent_dir: str = "") -> dict[str, Any]:
@@ -109,9 +86,7 @@ async def acp_list_agents_fn(agent_dir: str = "") -> dict[str, Any]:
     return mgr.list_agents()
 
 
-async def acp_inspect_session_fn(
-    session_id: str, agent_dir: str = ""
-) -> dict[str, Any]:
+async def acp_inspect_session_fn(session_id: str, agent_dir: str = "") -> dict[str, Any]:
     """Inspect transcript history from an ACP session."""
     if not get_acp_state(agent_dir).is_running():
         return {
@@ -126,10 +101,9 @@ async def acp_inspect_session_fn(
 
 
 def get_acp_host_tools() -> list[Any]:
-    """Return tuple/list of all 8 ACP subagent host tools for RpcClient registration."""
+    """Return list of all ACP subagent host tools for RpcClient registration."""
     if host_tool is None:
         return [
-            acp_task_fn,
             acp_task_async_fn,
             acp_task_status_fn,
             acp_task_result_fn,
@@ -149,36 +123,8 @@ def get_acp_host_tools() -> list[Any]:
 
     return [
         host_tool(
-            name="acp_task",
-            description="Delegate a subtask synchronously to an ACP worker agent in a workspace directory.",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "cwd": {
-                        "type": "string",
-                        "description": "Target workspace directory path",
-                    },
-                    "prompt": {
-                        "type": "string",
-                        "description": "Subtask instruction for the worker agent",
-                    },
-                    "agent_profile": {
-                        "type": "string",
-                        "description": "Optional agent role (e.g. '@fixer', '@oracle')",
-                    },
-                    "mode": {
-                        "type": "string",
-                        "enum": ["default", "plan"],
-                        "default": "default",
-                    },
-                },
-                "required": ["cwd", "prompt"],
-            },
-            execute=_wrap_exec(acp_task_fn),
-        ),
-        host_tool(
             name="acp_task_async",
-            description="Dispatch an asynchronous background subtask to an ACP worker agent. Returns task_id.",
+            description="Dispatch an asynchronous background subtask to an ACP worker agent. Returns task_id immediately.",
             parameters={
                 "type": "object",
                 "properties": {
@@ -215,9 +161,7 @@ def get_acp_host_tools() -> list[Any]:
             description="Fetch final text output and token statistics for a completed ACP task.",
             parameters={
                 "type": "object",
-                "properties": {
-                    "task_id": {"type": "string", "description": "Target task_id"}
-                },
+                "properties": {"task_id": {"type": "string", "description": "Target task_id"}},
                 "required": ["task_id"],
             },
             execute=_wrap_exec(acp_task_result_fn),
@@ -243,9 +187,7 @@ def get_acp_host_tools() -> list[Any]:
             description="Cancel or abort an active ACP worker task.",
             parameters={
                 "type": "object",
-                "properties": {
-                    "task_id": {"type": "string", "description": "Target task_id"}
-                },
+                "properties": {"task_id": {"type": "string", "description": "Target task_id"}},
                 "required": ["task_id"],
             },
             execute=_wrap_exec(acp_task_cancel_fn),
@@ -274,8 +216,6 @@ def get_acp_host_tools() -> list[Any]:
     ]
 
 
-# Alias top-level function references for unit testing
-acp_task = acp_task_fn
 acp_task_async = acp_task_async_fn
 acp_task_status = acp_task_status_fn
 acp_task_result = acp_task_result_fn

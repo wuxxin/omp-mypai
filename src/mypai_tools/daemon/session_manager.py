@@ -1,4 +1,4 @@
-"""OMP RPC Session Manager for mypai_daemon."""
+"""OMP RPC Session Manager for mypai_daemon with Host Tool registration."""
 
 import asyncio
 import logging
@@ -34,7 +34,7 @@ def format_human_uptime(seconds: float) -> str:
 
 
 class OMPSessionManager:
-    """Manages persistent omp --mode rpc session connected to a workspace directory."""
+    """Manages persistent omp --mode rpc session and registers native Host Tools."""
 
     def __init__(self, agent_dir: str = "", session_name: str | None = None) -> None:
         self.agent_dir = resolve_agent_dir(agent_dir)
@@ -78,9 +78,7 @@ class OMPSessionManager:
                     if isinstance(msg_evt, dict):
                         return msg_evt.get("delta") or msg_evt.get("content") or ""
                     return (
-                        getattr(msg_evt, "delta", None)
-                        or getattr(msg_evt, "content", None)
-                        or ""
+                        getattr(msg_evt, "delta", None) or getattr(msg_evt, "content", None) or ""
                     )
                 return str(evt) if isinstance(evt, str) else ""
 
@@ -130,7 +128,7 @@ class OMPSessionManager:
             logger.debug("Failed to set up event listeners on RpcClient: %s", exc)
 
     def triage_connection(self) -> Any | None:
-        """Check RPC connection state and reconcile/reconnect if needed before dispatching events."""
+        """Check RPC connection state and reconcile/reconnect if needed."""
         if self.rpc_client is not None:
             if not getattr(self.rpc_client, "_listeners_installed", False):
                 self._setup_event_listeners(self.rpc_client)
@@ -143,9 +141,7 @@ class OMPSessionManager:
             if is_alive:
                 self.connection_state = "connected"
                 return self.rpc_client
-            logger.warning(
-                "RpcClient process has died. Initiating connection triage & reconnect..."
-            )
+            logger.warning("RpcClient process died. Reconnecting...")
 
         if RpcClient is None:
             self.connection_state = "failed"
@@ -153,14 +149,11 @@ class OMPSessionManager:
 
         self.connection_state = "connecting"
         client = self.ensure_connected()
-        if client is not None:
-            self.connection_state = "connected"
-        else:
-            self.connection_state = "failed"
+        self.connection_state = "connected" if client is not None else "failed"
         return client
 
     def ensure_connected(self) -> Any | None:
-        """Ensure persistent RpcClient is running; re-instantiate or reattach using DB session_uuid."""
+        """Ensure persistent RpcClient is running and register all Host Tools."""
         if RpcClient is None:
             logger.warning("omp_rpc.RpcClient module unavailable.")
             self.connection_state = "failed"
@@ -170,16 +163,14 @@ class OMPSessionManager:
         if self.rpc_client is not None:
             proc = getattr(self.rpc_client, "_process", None)
             if proc is None or proc.poll() is not None:
-                logger.warning(
-                    "Persistent RpcClient process has died. Re-connecting..."
-                )
+                logger.warning("Persistent RpcClient process has died. Re-connecting...")
                 is_dead = True
 
         if self.rpc_client is None or is_dead:
             if self.rpc_client is not None:
                 try:
                     self.rpc_client.stop()
-                except Exception:  # noqa: BLE001, S110
+                except Exception:  # noqa: BLE001
                     pass
                 self.rpc_client = None
 
@@ -188,11 +179,10 @@ class OMPSessionManager:
                 saved_uuid = get_setting(db, "session_uuid")
                 client = None
 
-                # Attempt 1: Reattach to existing session_uuid if saved in DB
                 if saved_uuid:
                     try:
                         logger.info(
-                            "Attempting to reattach to saved session UUID '%s' in '%s'...",
+                            "Attempting to reattach to session UUID '%s' in '%s'...",
                             saved_uuid,
                             self.agent_dir,
                         )
@@ -211,18 +201,13 @@ class OMPSessionManager:
                         if hasattr(client, "set_session_name"):
                             client.set_session_name("mypai_daemon - running")
                         self.session_uuid = saved_uuid
-                        logger.info(
-                            "Successfully reattached to session UUID '%s'.", saved_uuid
-                        )
+                        logger.info("Successfully reattached to session UUID '%s'.", saved_uuid)
                     except Exception as exc:  # noqa: BLE001
                         logger.warning(
-                            "Failed to reattach to session UUID '%s': %s. Creating new session...",
-                            saved_uuid,
-                            exc,
+                            "Failed to reattach to session UUID '%s': %s", saved_uuid, exc
                         )
                         client = None
 
-                # Attempt 2: Create new session if no saved_uuid or reattach failed
                 if client is None:
                     kwargs = {
                         "extra_args": ["--auto-approve", "--profile", self.profile],
@@ -230,14 +215,12 @@ class OMPSessionManager:
                     if os.path.isdir(self.agent_dir):
                         kwargs["cwd"] = self.agent_dir
 
-                    logger.info(
-                        "Spawning new persistent RpcClient in '%s'...", self.agent_dir
-                    )
+                    logger.info("Spawning new persistent RpcClient in '%s'...", self.agent_dir)
                     client = RpcClient(**kwargs).start()
                     if hasattr(client, "new_session"):
                         try:
                             client.new_session()
-                        except Exception:  # noqa: BLE001, S110
+                        except Exception:  # noqa: BLE001
                             pass
 
                     new_uuid = ""
@@ -245,7 +228,7 @@ class OMPSessionManager:
                         try:
                             st = client.get_state()
                             new_uuid = getattr(st, "session_id", "") or ""
-                        except Exception:  # noqa: BLE001, S110
+                        except Exception:  # noqa: BLE001
                             pass
 
                     if not new_uuid:
@@ -265,29 +248,29 @@ class OMPSessionManager:
 
                 self._setup_event_listeners(client)
 
+                # Register both Cron and ACP Host Tools
                 if hasattr(client, "set_custom_tools"):
                     try:
                         from mypai_tools.acp.tools import get_acp_host_tools
+                        from mypai_tools.host_tools.cron_tools import (
+                            get_cron_host_tools,
+                        )
 
-                        client.set_custom_tools(get_acp_host_tools())
+                        combined_tools = get_cron_host_tools() + get_acp_host_tools()
+                        client.set_custom_tools(combined_tools)
                         logger.info(
-                            "Registered 8 ACP host tools into persistent RpcClient."
+                            "Registered %d Host Tools into persistent RpcClient.",
+                            len(combined_tools),
                         )
                     except Exception as exc:  # noqa: BLE001
-                        logger.debug(
-                            "Failed to register ACP host tools into RpcClient: %s", exc
-                        )
+                        logger.debug("Failed to register host tools into RpcClient: %s", exc)
 
                 self.rpc_client = client
                 self.session_name = "mypai_daemon - running"
                 self.connection_state = "connected"
 
             except Exception as exc:  # noqa: BLE001
-                logger.error(
-                    "Failed to initialize persistent RpcClient in '%s': %s",
-                    self.agent_dir,
-                    exc,
-                )
+                logger.error("Failed to initialize persistent RpcClient: %s", exc)
                 self.rpc_client = None
                 self.connection_state = "failed"
             finally:
@@ -304,23 +287,15 @@ class OMPSessionManager:
         source: str = "",
         timeout: float = 120.0,
     ) -> dict[str, Any]:
-        """Execute a prompt turn asynchronously through the persistent RPC client.
-
-        Supports turn modes: 'prompt', 'steer', 'followup'/'follow_up', 'abort_and_prompt', 'abort', 'abort_retry'.
-        High-priority interrupts ('steer', 'abort', 'abort_retry') bypass turn lock to execute mid-turn.
-        """
+        """Execute a prompt turn asynchronously through the persistent RPC client."""
         from mypai_tools.tools import format_system_trigger_prompt
 
-        source_val = source or (
-            context.get("source") if isinstance(context, dict) else ""
-        )
-        prompt = format_system_trigger_prompt(
-            prompt, source=source_val, context=context
-        )
-        clean_mode = str(mode or "prompt").lower()
+        source_val = source or (context.get("source") if isinstance(context, dict) else "")
+        prompt = format_system_trigger_prompt(prompt, source=source_val, context=context)
+        clean_mode = str(mode or "prompt").lower().strip()
         start_time = time.time()
 
-        # Immediate dispatch for high-priority interrupts mid-turn
+        # Immediate dispatch for interrupts (steer, abort, abort_retry)
         if clean_mode in ("steer", "abort", "abort_retry"):
             client = self.triage_connection()
             if client is None:
@@ -328,27 +303,22 @@ class OMPSessionManager:
                     f"RPC Client offline (state: {self.connection_state}). Session '{self.session_name}' failed in '{self.agent_dir}'."
                 )
 
-            logger.info(
-                "Executing immediate interrupt '%s': %s", clean_mode, prompt[:60]
-            )
-            rpc_res: Any = None
+            logger.info("Executing immediate interrupt '%s': %s", clean_mode, prompt[:60])
             if clean_mode == "steer":
-                rpc_res = client.steer(prompt)
+                client.steer(prompt)
             elif clean_mode == "abort":
                 if hasattr(client, "abort"):
                     try:
                         client.abort()
-                    except Exception:  # noqa: BLE001, S110
+                    except Exception:  # noqa: BLE001
                         pass
                 self._turn_done_event.set()
-                rpc_res = {"status": "aborted"}
             elif clean_mode == "abort_retry":
                 if hasattr(client, "abort_retry"):
                     try:
                         client.abort_retry()
-                    except Exception:  # noqa: BLE001, S110
+                    except Exception:  # noqa: BLE001
                         pass
-                rpc_res = {"status": "abort_retry"}
 
             duration = round(time.time() - start_time, 3)
             return {
@@ -402,15 +372,12 @@ class OMPSessionManager:
                     rpc_res = client.follow_up(prompt)
                 elif clean_mode == "abort_and_prompt":
                     rpc_res = client.abort_and_prompt(prompt)
-                else:  # 'prompt'
+                else:
                     rpc_res = client.prompt(prompt)
 
-                # Await turn completion event asynchronously if turn is ongoing
                 if not self._turn_done_event.is_set():
                     try:
-                        await asyncio.wait_for(
-                            self._turn_done_event.wait(), timeout=timeout
-                        )
+                        await asyncio.wait_for(self._turn_done_event.wait(), timeout=timeout)
                     except asyncio.TimeoutError:
                         logger.warning(
                             "Turn execution timed out after %.1fs (task: %s)",
@@ -418,7 +385,6 @@ class OMPSessionManager:
                             task_id,
                         )
 
-                # Fetch assistant response output
                 if hasattr(client, "get_last_assistant_text"):
                     res_output = client.get_last_assistant_text() or ""
                 if not res_output and hasattr(rpc_res, "assistant_text"):
@@ -480,38 +446,20 @@ class OMPSessionManager:
             try:
                 st = client.get_state()
                 if st is not None:
-                    state_dict["session_id"] = getattr(
-                        st, "session_id", self.session_uuid
-                    )
-                    state_dict["session_name"] = getattr(
-                        st, "session_name", self.session_name
-                    )
+                    state_dict["session_id"] = getattr(st, "session_id", self.session_uuid)
+                    state_dict["session_name"] = getattr(st, "session_name", self.session_name)
                     state_dict["session_file"] = getattr(st, "session_file", None)
                     state_dict["model"] = str(getattr(st, "model", "default"))
-                    state_dict["thinking_level"] = str(
-                        getattr(st, "thinking_level", "auto")
-                    )
-                    state_dict["is_streaming"] = bool(
-                        getattr(st, "is_streaming", self.is_busy)
-                    )
-                    state_dict["steering_mode"] = str(
-                        getattr(st, "steering_mode", "one-at-a-time")
-                    )
+                    state_dict["thinking_level"] = str(getattr(st, "thinking_level", "auto"))
+                    state_dict["is_streaming"] = bool(getattr(st, "is_streaming", self.is_busy))
+                    state_dict["steering_mode"] = str(getattr(st, "steering_mode", "one-at-a-time"))
                     state_dict["message_count"] = int(getattr(st, "message_count", 0))
 
                     ctx = getattr(st, "context_usage", None)
                     if ctx is not None:
-                        tokens = int(
-                            getattr(ctx, "tokens", getattr(ctx, "used_tokens", 0))
-                        )
-                        max_tokens = int(
-                            getattr(ctx, "max_tokens", getattr(ctx, "limit", 128000))
-                        )
-                        pct = (
-                            round((tokens / max_tokens * 100.0), 1)
-                            if max_tokens > 0
-                            else 0.0
-                        )
+                        tokens = int(getattr(ctx, "tokens", getattr(ctx, "used_tokens", 0)))
+                        max_tokens = int(getattr(ctx, "max_tokens", getattr(ctx, "limit", 128000)))
+                        pct = round((tokens / max_tokens * 100.0), 1) if max_tokens > 0 else 0.0
                         state_dict["context_usage"] = {
                             "tokens": tokens,
                             "max_tokens": max_tokens,

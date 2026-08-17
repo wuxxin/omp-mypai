@@ -37,9 +37,7 @@ def send_message(
         message: Text message body.
         attachments: Optional list of local file paths (e.g. ['scratch/chart.png']).
     """
-    return client.send_message(
-        recipient=recipient, text=message, attachments=attachments
-    )
+    return client.send_message(recipient=recipient, text=message, attachments=attachments)
 
 
 @mcp.tool()

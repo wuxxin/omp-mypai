@@ -1,4 +1,4 @@
-"""AcpDelegationManager for process pool management, task tracking, auto-restart & crash recovery."""
+"""AcpDelegationManager for async process pool management, task tracking, auto-restart & crash recovery."""
 
 import asyncio
 import logging
@@ -30,7 +30,6 @@ class AcpDelegationManager:
         if session and session.is_alive():
             return session
 
-        # Process died or never existed: spawn new worker
         logger.info("Initializing ACP worker session in '%s'...", abs_cwd)
         new_session = AcpClientSession(cwd=abs_cwd)
         try:
@@ -40,53 +39,6 @@ class AcpDelegationManager:
 
         self.sessions[abs_cwd] = new_session
         return new_session
-
-    async def execute_task(
-        self,
-        cwd: str,
-        prompt: str,
-        agent_profile: str = "",
-        mode: str = "default",
-        task_id: str = "",
-    ) -> dict[str, Any]:
-        """Execute a task turn against an ACP worker process."""
-        state = get_acp_state(self.agent_dir)
-        if not state.is_running():
-            return {
-                "status": "error",
-                "error": "ACP delegation is currently suspended in daemon configuration.",
-            }
-
-        task_id = task_id or f"acp-task-{uuid.uuid4().hex[:8]}"
-        start_t = time.time()
-
-        async with self._lock:
-            session = self.get_or_create_session(cwd)
-
-        full_prompt = f"Role: {agent_profile}\n\n{prompt}" if agent_profile else prompt
-
-        # Execute turn (in executor pool if blocking)
-        loop = asyncio.get_running_loop()
-        res = await loop.run_in_executor(
-            None, lambda: session.prompt(full_prompt, mode=mode)
-        )
-
-        duration = round(time.time() - start_t, 3)
-        task_record = {
-            "task_id": task_id,
-            "cwd": cwd,
-            "prompt": prompt,
-            "agent_profile": agent_profile,
-            "status": res.get("status", "completed"),
-            "output": res.get("output", ""),
-            "error": res.get("error", ""),
-            "session_id": session.session_id,
-            "duration_sec": duration,
-            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(start_t)),
-        }
-
-        self.tasks[task_id] = task_record
-        return task_record
 
     async def execute_task_async(
         self, cwd: str, prompt: str, agent_profile: str = ""
@@ -100,7 +52,7 @@ class AcpDelegationManager:
             }
 
         task_id = f"acp-task-{uuid.uuid4().hex[:8]}"
-        task_record = {
+        task_record: dict[str, Any] = {
             "task_id": task_id,
             "cwd": cwd,
             "prompt": prompt,
@@ -115,9 +67,34 @@ class AcpDelegationManager:
         self.tasks[task_id] = task_record
 
         async def _background_run() -> None:
-            await self.execute_task(
-                cwd=cwd, prompt=prompt, agent_profile=agent_profile, task_id=task_id
-            )
+            start_t = time.time()
+            try:
+                async with self._lock:
+                    session = self.get_or_create_session(cwd)
+
+                full_prompt = f"Role: {agent_profile}\n\n{prompt}" if agent_profile else prompt
+                loop = asyncio.get_running_loop()
+                res = await loop.run_in_executor(None, lambda: session.prompt(full_prompt))
+
+                duration = round(time.time() - start_t, 3)
+                task_record.update(
+                    {
+                        "status": res.get("status", "completed"),
+                        "output": res.get("output", ""),
+                        "error": res.get("error", ""),
+                        "session_id": session.session_id,
+                        "duration_sec": duration,
+                    }
+                )
+            except Exception as exc:  # noqa: BLE001
+                duration = round(time.time() - start_t, 3)
+                task_record.update(
+                    {
+                        "status": "error",
+                        "error": str(exc),
+                        "duration_sec": duration,
+                    }
+                )
 
         asyncio.create_task(_background_run())
         return {"status": "queued", "task_id": task_id}

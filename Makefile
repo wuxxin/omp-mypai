@@ -53,7 +53,7 @@ installenv:
 	@echo "Installing plugin package from src..."
 	uv pip install --python $(INSTALL_PYTHON) ./src
 	@echo "Verifying runtime env import..."
-	$(INSTALL_PYTHON) -c "import mypai_tools, mypai_tools.chat_mcp, mypai_tools.cron_mcp; print('runtime env OK')"
+	$(INSTALL_PYTHON) -c "import mypai_tools, mypai_tools.chat_mcp, mypai_tools.host_tools.cron_tools; print('runtime env OK')"
 
 cleaninstallenv:
 	@echo "Cleaning and rebuilding plugin runtime environment $(INSTALL_VENV)..."

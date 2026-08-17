@@ -20,9 +20,7 @@ from typing import Any
 import httpx
 
 # Default configurations overridable via environment variables
-DEFAULT_INBOX_DIR = os.getenv(
-    "SPOOLER_INBOX", str(Path.home() / "Recordings" / "Inbox")
-)
+DEFAULT_INBOX_DIR = os.getenv("SPOOLER_INBOX", str(Path.home() / "Recordings" / "Inbox"))
 DEFAULT_STT_URL = os.getenv("STT_URL", "http://localhost:50090/v1/audio/transcriptions")
 DEFAULT_HINDSIGHT_URL = os.getenv("HINDSIGHT_URL", "http://localhost:8888")
 DEFAULT_BANK_ID = os.getenv("HINDSIGHT_BANK_ID", os.getenv("OMP_PROFILE", "mypai"))
@@ -99,9 +97,7 @@ def parse_sidecar(file_path: Path) -> tuple[dict[str, str], Path | None]:
                 if key_clean and val_clean:
                     metadata[key_clean] = val_clean
     except Exception as exc:  # noqa: BLE001
-        logger.warning(
-            "Failed to parse sidecar metadata from %s: %s", sidecar_path, exc
-        )
+        logger.warning("Failed to parse sidecar metadata from %s: %s", sidecar_path, exc)
 
     return metadata, sidecar_path
 
@@ -219,15 +215,11 @@ class InputSpooler:
         Returns:
             str: Transcribed text output or empty string on error.
         """
-        logger.info(
-            "Transcribing media file '%s' via STT (%s)...", file_path.name, self.stt_url
-        )
+        logger.info("Transcribing media file '%s' via STT (%s)...", file_path.name, self.stt_url)
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 with open(file_path, "rb") as audio_file:  # noqa: ASYNC230
-                    files = {
-                        "file": (file_path.name, audio_file, "application/octet-stream")
-                    }
+                    files = {"file": (file_path.name, audio_file, "application/octet-stream")}
                     data = {"model": "whisper-1"}
                     response = await client.post(self.stt_url, files=files, data=data)
 
@@ -252,9 +244,7 @@ class InputSpooler:
                     )
                     return ""
         except Exception as exc:  # noqa: BLE001
-            logger.error(
-                "STT transcription exception for '%s': %s", file_path.name, exc
-            )
+            logger.error("STT transcription exception for '%s': %s", file_path.name, exc)
             return ""
 
     async def retain_hindsight(
@@ -291,12 +281,8 @@ class InputSpooler:
             "type": item_type,
         }
 
-        primary_url = (
-            f"{self.hindsight_url.rstrip('/')}/v1/default/banks/{self.bank_id}/retain"
-        )
-        fallback_url = (
-            f"{self.hindsight_url.rstrip('/')}/v1/default/banks/{self.bank_id}/memories"
-        )
+        primary_url = f"{self.hindsight_url.rstrip('/')}/v1/default/banks/{self.bank_id}/retain"
+        fallback_url = f"{self.hindsight_url.rstrip('/')}/v1/default/banks/{self.bank_id}/memories"
 
         logger.info(
             "Retaining ingested item '%s' (hash: %s) to Hindsight bank '%s'...",
@@ -385,9 +371,7 @@ class InputSpooler:
             file_path=file_path, quiescence_sec=self.quiescence_sec
         )
         if not quiescent:
-            logger.warning(
-                "File '%s' failed quiescence check or was removed.", file_path.name
-            )
+            logger.warning("File '%s' failed quiescence check or was removed.", file_path.name)
             return False
 
         item_hash = compute_content_hash(file_path)
@@ -404,9 +388,7 @@ class InputSpooler:
         # Parse sidecar metadata if available
         sidecar_meta, sidecar_path = parse_sidecar(file_path)
         title = sidecar_meta.get("title", file_path.stem)
-        default_type = (
-            "audio" if file_path.suffix.lower() in MEDIA_EXTENSIONS else "document"
-        )
+        default_type = "audio" if file_path.suffix.lower() in MEDIA_EXTENSIONS else "document"
         item_type = sidecar_meta.get("type", default_type)
 
         if sidecar_path:
@@ -453,9 +435,7 @@ class InputSpooler:
         daemon_url = os.getenv("MYPAI_AGENT_URL", "http://127.0.0.1:52080")
         endpoint = f"{daemon_url.rstrip('/')}/api/v1/session/prompt"
         snippet = transcript[:200] if transcript else "File drop registered."
-        prompt_text = (
-            f"🎙️ New inbox item processed ({filename}): '{title}'. Content: {snippet}"
-        )
+        prompt_text = f"🎙️ New inbox item processed ({filename}): '{title}'. Content: {snippet}"
 
         payload = {
             "prompt": prompt_text,
@@ -468,13 +448,9 @@ class InputSpooler:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.post(endpoint, json=payload)
                 if res.status_code == 200:
-                    logger.info(
-                        "Notified mypai_daemon of spooler ingestion for '%s'.", filename
-                    )
+                    logger.info("Notified mypai_daemon of spooler ingestion for '%s'.", filename)
                 else:
-                    logger.warning(
-                        "mypai_daemon notification returned HTTP %d", res.status_code
-                    )
+                    logger.warning("mypai_daemon notification returned HTTP %d", res.status_code)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to notify mypai_daemon: %s", exc)
 
@@ -509,9 +485,7 @@ class InputSpooler:
         logger.info("Single pass complete. Ingested %d item(s).", count)
         return count
 
-    async def run_watch(
-        self, poll_interval: float = DEFAULT_POLL_INTERVAL_SECONDS
-    ) -> None:
+    async def run_watch(self, poll_interval: float = DEFAULT_POLL_INTERVAL_SECONDS) -> None:
         """Execute continuous monitoring loop over the inbox folder.
 
         Args:

@@ -1,4 +1,4 @@
-"""Multi-Producer Single-Consumer (MPSC) Prioritized Event Queue for mypai_daemon."""
+"""Prioritized Turn Queue with Priority-Flush State Machine for OMP RPC turns."""
 
 import asyncio
 import logging
@@ -8,52 +8,32 @@ from typing import Any
 logger = logging.getLogger("mypai_daemon.queue")
 
 
-class EventQueue:
-    """Prioritized asyncio Queue serializing prompt turns from multiple producers.
+class TurnQueue:
+    """Prioritized Turn Queue for OMP RPC sessions.
 
-    Priority ordering (lowest number = highest priority):
-      Priority 0: 'steer', 'abort', 'abort_retry', 'abort_and_prompt', 'ui_interaction' (High-priority interrupts)
-      Priority 1: 'webui', 'signal' (Interactive human turns)
-      Priority 2: 'cron', 'spooler', 'executor_result' (Background automated triggers)
+    Resolution State Machine:
+    1. Rule 1 (Abort Priority & Flush): If any `abort` or `abort_and_prompt` is queued,
+       purges/clears the entire pending queue and executes the abort action immediately.
+    2. Rule 2 (Steer Priority): Dequeues the next FIFO `steer` turn.
+    3. Rule 3 (Followup Priority): Dequeues the next FIFO `followup` turn.
+    4. Rule 4 (Prompt / Idle): Dequeues the next FIFO `prompt` turn only when the OMP session is idle.
     """
 
     def __init__(self) -> None:
-        self._queue: asyncio.PriorityQueue[tuple[int, int, dict[str, Any]]] = (
-            asyncio.PriorityQueue()
-        )
-        self._counter = 0
+        self._items: list[dict[str, Any]] = []
         self._lock = asyncio.Lock()
+        self._new_item_event = asyncio.Event()
         self.active_task_id: str | None = None
         self.history: list[dict[str, Any]] = []
 
-    def _get_priority(self, mode: str, source: str) -> int:
-        clean_mode = str(mode or "").lower()
-        clean_source = str(source or "").lower()
-
-        if clean_mode in (
-            "steer",
-            "abort",
-            "abort_retry",
-            "abort_and_prompt",
-            "ui_interaction",
-            "ui_confirmation",
-            "ui_value",
-        ):
-            return 0
-        if clean_source in ("webui", "signal"):
-            return 1
-        return 2
-
     def _broadcast_queue_update(self) -> None:
-        """Helper to broadcast queue depth update via WebSocket if event loop is running."""
+        """Broadcast queue depth update via WebSocket if event loop is active."""
         try:
             from mypai_tools.daemon.api.ws import ws_manager
 
             cur_loop = asyncio.get_running_loop()
             cur_loop.create_task(
-                ws_manager.broadcast(
-                    {"event": "queue_updated", "queue_depth": self.depth()}
-                )
+                ws_manager.broadcast({"event": "queue_updated", "queue_depth": self.depth()})
             )
         except RuntimeError:
             pass
@@ -65,41 +45,113 @@ class EventQueue:
         source: str = "webui",
         context: dict[str, Any] | None = None,
         sender: str | None = None,
+        is_result_call: bool = False,
+        origin_job_id: str = "",
     ) -> dict[str, Any]:
-        """Enqueue a prompt turn for serialized execution."""
+        """Enqueue a turn into the Turn Queue."""
         async with self._lock:
-            self._counter += 1
             task_id = f"evt_{uuid.uuid4().hex[:8]}"
-            priority = self._get_priority(mode, source)
+            clean_mode = str(mode or "prompt").lower().strip()
+            if clean_mode in ("follow_up",):
+                clean_mode = "followup"
 
-            item = {
+            item: dict[str, Any] = {
                 "task_id": task_id,
                 "prompt": prompt,
-                "mode": mode,
+                "mode": clean_mode,
                 "source": source,
                 "sender": sender,
                 "context": context or {},
-                "priority": priority,
+                "is_result_call": is_result_call,
+                "origin_job_id": origin_job_id,
                 "status": "queued",
             }
 
-            await self._queue.put((priority, self._counter, item))
+            self._items.append(item)
             logger.info(
-                "Enqueued event '%s' (mode: %s, source: %s, priority: %d, depth: %d)",
+                "Enqueued turn '%s' (mode: %s, source: %s, is_result: %s, depth: %d)",
                 task_id,
-                mode,
+                clean_mode,
                 source,
-                priority,
-                self._queue.qsize(),
+                is_result_call,
+                len(self._items),
             )
+            self._new_item_event.set()
             self._broadcast_queue_update()
             return item
 
-    async def get_next(self) -> dict[str, Any]:
-        """Get the next prioritized turn item from queue."""
-        _prio, _cnt, item = await self._queue.get()
-        self.active_task_id = item["task_id"]
-        return item
+    def purge_all(self) -> int:
+        """Purge and drop all pending items in the queue."""
+        count = len(self._items)
+        self._items.clear()
+        self._new_item_event.clear()
+        logger.info("Purged all %d pending items from Turn Queue.", count)
+        self._broadcast_queue_update()
+        return count
+
+    async def get_next(self, is_session_busy: bool = False) -> dict[str, Any]:
+        """Get the next dispatchable turn according to the 4-rule priority state machine.
+
+        Blocks asynchronously until a dispatchable item is available.
+        """
+        while True:
+            async with self._lock:
+                # Rule 1: Check for abort / abort_and_prompt
+                for i, item in enumerate(self._items):
+                    if item["mode"] in ("abort", "abort_and_prompt"):
+                        target_item = self._items.pop(i)
+                        # Purge the rest of the queue
+                        purged_count = len(self._items)
+                        self._items.clear()
+                        if purged_count > 0:
+                            logger.info(
+                                "Purged %d items due to abort command '%s'.",
+                                purged_count,
+                                target_item["task_id"],
+                            )
+                        self.active_task_id = target_item["task_id"]
+                        if not self._items:
+                            self._new_item_event.clear()
+                        self._broadcast_queue_update()
+                        return target_item
+
+                # Rule 2: Check for steer items (FIFO)
+                for i, item in enumerate(self._items):
+                    if item["mode"] == "steer":
+                        target_item = self._items.pop(i)
+                        self.active_task_id = target_item["task_id"]
+                        if not self._items:
+                            self._new_item_event.clear()
+                        self._broadcast_queue_update()
+                        return target_item
+
+                # Rule 3: Check for followup items (FIFO)
+                for i, item in enumerate(self._items):
+                    if item["mode"] == "followup":
+                        target_item = self._items.pop(i)
+                        self.active_task_id = target_item["task_id"]
+                        if not self._items:
+                            self._new_item_event.clear()
+                        self._broadcast_queue_update()
+                        return target_item
+
+                # Rule 4: If session is idle, check for prompts (FIFO)
+                if not is_session_busy:
+                    for i, item in enumerate(self._items):
+                        if item["mode"] in ("prompt", "create"):
+                            target_item = self._items.pop(i)
+                            self.active_task_id = target_item["task_id"]
+                            if not self._items:
+                                self._new_item_event.clear()
+                            self._broadcast_queue_update()
+                            return target_item
+
+                if not self._items:
+                    self._new_item_event.clear()
+
+            # Wait for new items or state changes
+            await self._new_item_event.wait()
+            await asyncio.sleep(0.05)
 
     def mark_completed(self, task_id: str, result: dict[str, Any]) -> None:
         """Mark task execution as completed and record in history."""
@@ -110,8 +162,15 @@ class EventQueue:
         self.history.append(result)
         if len(self.history) > 100:
             self.history = self.history[-100:]
-        self._queue.task_done()
 
     def depth(self) -> int:
         """Return current pending queue depth."""
-        return self._queue.qsize()
+        return len(self._items)
+
+    def peek_items(self) -> list[dict[str, Any]]:
+        """Return a copy of pending items."""
+        return list(self._items)
+
+
+# Alias for backward compatibility in imports
+EventQueue = TurnQueue

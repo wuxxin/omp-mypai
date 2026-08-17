@@ -11,12 +11,7 @@ IS_APSCHEDULER_V4 = APSCHEDULER_VERSION.startswith("4")
 
 
 def substitute_vars(val: Any, extra_vars: dict[str, Any] | None = None) -> Any:
-    """Recursively expand #{VARNAME} and #[VARNAME] environment and internal variables.
-
-    Supports #{VARNAME} and #[VARNAME] syntax for:
-    1. System & Process Environment Variables (e.g. #{HINDSIGHT_API_URL}, #[HOME])
-    2. Internal Execution Variables (e.g. #[_RETURN_CODE], #[_OUTPUT], #[_ERROR], #[_OBJECT], #[_HTTP_CODE], #[_DURATION], #[_JOB_ID], #[_JOB_NAME])
-    """
+    """Recursively expand #{VARNAME} and #[VARNAME] environment and internal variables."""
     combined_vars: dict[str, Any] = dict(os.environ)
     if extra_vars:
         combined_vars.update(extra_vars)
@@ -32,8 +27,7 @@ def substitute_vars(val: Any, extra_vars: dict[str, Any] | None = None) -> Any:
         return expanded
     elif isinstance(val, dict):
         return {
-            substitute_vars(k, extra_vars): substitute_vars(v, extra_vars)
-            for k, v in val.items()
+            substitute_vars(k, extra_vars): substitute_vars(v, extra_vars) for k, v in val.items()
         }
     elif isinstance(val, list):
         return [substitute_vars(item, extra_vars) for item in val]
@@ -84,28 +78,31 @@ def evaluate_and_dispatch_result_prompt(
     session_mgr: Any | None = None,
     dispatch_fn: Any | None = None,
 ) -> str:
-    """Evaluate result/error prompt template macros and dispatch to OMP session via queue.
-
-    Returns the evaluated final prompt string.
-    """
+    """Evaluate result/error prompt template macros and dispatch to OMP session via TurnQueue."""
     if dispatch_fn is None:
         from mypai_tools.executors.omp_rpc_executor import dispatch_result_to_omp
 
         dispatch_fn = dispatch_result_to_omp
 
     res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
-    result_action = job.get("result_action") or res_dict.get("action") or "ignore"
-
     if not is_success:
+        result_action = (
+            res_dict.get("error_action")
+            or res_dict.get("action")
+            or job.get("result_error_action")
+            or job.get("result_action")
+            or "log"
+        )
         template = (
-            job.get("result_error_prompt")
-            or res_dict.get("error_prompt")
-            or job.get("result_prompt")
+            res_dict.get("error_prompt")
             or res_dict.get("prompt")
+            or job.get("result_error_prompt")
+            or job.get("result_prompt")
             or ""
         )
     else:
-        template = job.get("result_prompt") or res_dict.get("prompt") or ""
+        result_action = res_dict.get("action") or job.get("result_action") or "log"
+        template = res_dict.get("prompt") or job.get("result_prompt") or ""
 
     if isinstance(template, str):
         template = template.strip()
@@ -118,26 +115,23 @@ def evaluate_and_dispatch_result_prompt(
     else:
         final_output = default_output
 
-    dispatch_fn(
-        result_action,
-        final_output,
-        daemon_queue=daemon_queue,
-        session_mgr=session_mgr,
-    )
+    clean_action = str(result_action or "log").lower().strip()
+    if clean_action not in ("log", "ignore", "none", ""):
+        dispatch_fn(
+            clean_action,
+            final_output,
+            daemon_queue=daemon_queue,
+            session_mgr=session_mgr,
+            job_id=job.get("id", ""),
+        )
+
     return final_output
 
 
 def format_system_trigger_prompt(
     prompt: str, source: str = "", context: dict[str, Any] | None = None
 ) -> str:
-    """Format non-human automated prompts with a standardized system trigger header.
-
-    Standard Pattern:
-    - Human sources ("webui", "signal", "interactive", "human") and empty sources ("") are passed as-is.
-    - Prompts already containing "[SYSTEM TRIGGER" are passed as-is.
-    - Automated background sources ("cron", "spooler", "executor_result") are prepended
-      with [SYSTEM TRIGGER: TAG].
-    """
+    """Format automated non-human prompts with a standardized system trigger header."""
     if (
         not prompt
         or not source
@@ -153,40 +147,26 @@ def format_system_trigger_prompt(
         tag = f"EXECUTOR_RESULT ({job_name})" if job_name else "EXECUTOR_RESULT"
     elif source == "spooler":
         tag = "INPUT_SPOOLER"
+    elif source == "acp":
+        tag = f"ACP_SUBAGENT ({job_name})" if job_name else "ACP_SUBAGENT"
     else:
         tag = str(source).upper()
 
     return f"[SYSTEM TRIGGER: {tag}]\n{prompt}"
 
 
-substitute_env_vars = substitute_vars
-
-
 def extract_omp_prompt(job: dict[str, Any]) -> str:
-    """Extract OMP prompt text strictly from canonical job attributes.
-
-    Priority:
-    1. kwargs["prompt"]
-    2. args[0] (if string or list containing a prompt)
-    3. job["prompt"]
-    4. job["result_prompt"]
-    5. job["action"] (if not a standard RPC mode verb)
-
-    Leading and trailing whitespace is stripped (.strip()).
-    A whitespace-only string (e.g. "   \n\t  ") is evaluated as empty ("").
-    No non-standard naming aliases or workflow cross-overs are used.
-    """
+    """Extract OMP prompt text strictly from canonical job attributes."""
     if not isinstance(job, dict):
         return ""
 
-    # 1. Parse kwargs["prompt"]
     kwargs_raw = job.get("kwargs") or {}
     rpc_kwargs: dict[str, Any] = {}
     if isinstance(kwargs_raw, str) and kwargs_raw.strip():
         if kwargs_raw.strip().startswith("{"):
             try:
                 rpc_kwargs = json.loads(kwargs_raw)
-            except Exception:  # noqa: BLE001, S110
+            except Exception:  # noqa: BLE001
                 pass
         else:
             rpc_kwargs = {"prompt": kwargs_raw}
@@ -197,7 +177,6 @@ def extract_omp_prompt(job: dict[str, Any]) -> str:
     if prompt_val and isinstance(prompt_val, str) and prompt_val.strip():
         return prompt_val.strip()
 
-    # 2. Parse args[0]
     args_raw = job.get("args") or []
     rpc_args: list[Any] = []
     if isinstance(args_raw, str) and args_raw.strip():
@@ -214,28 +193,15 @@ def extract_omp_prompt(job: dict[str, Any]) -> str:
     if rpc_args and isinstance(rpc_args[0], str) and rpc_args[0].strip():
         return rpc_args[0].strip()
 
-    # 3. Top-level 'prompt'
     if job.get("prompt") and isinstance(job["prompt"], str) and job["prompt"].strip():
         return job["prompt"].strip()
 
-    # 4. 'result_prompt'
-    if (
-        job.get("result_prompt")
-        and isinstance(job["result_prompt"], str)
-        and job["result_prompt"].strip()
-    ):
-        return job["result_prompt"].strip()
-
-    # 5. Non-verb 'action'
     action = str(job.get("action", "") or "").strip()
     if action and action.lower() not in (
         "prompt",
-        "prompt_and_wait",
         "steer",
         "followup",
         "abort_and_prompt",
-        "switch_session",
-        "branch",
     ):
         return action
 
@@ -243,17 +209,7 @@ def extract_omp_prompt(job: dict[str, Any]) -> str:
 
 
 def normalize_cron_expression(expr: str) -> str:
-    """Normalize 5-field cron expression for APScheduler version compatibility.
-
-    Standard cron convention:
-    0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat, 7 = Sun.
-
-    APScheduler < 4.0 convention:
-    0 = Mon, 1 = Tue, 2 = Wed, 3 = Thu, 4 = Fri, 5 = Sat, 6 = Sun.
-
-    On APScheduler < 4.0, transparently remaps day-of-week (0->6, 1->0, 2->1, 3->2, 4->3, 5->4, 6->5, 7->6)
-    so users can always supply standard cron syntax (0 = Sunday).
-    """
+    """Normalize 5-field cron expression for APScheduler version compatibility."""
     if IS_APSCHEDULER_V4 or not expr or not isinstance(expr, str):
         return expr
 
@@ -315,19 +271,12 @@ def load_jobs_file(file_path: str) -> list[dict[str, Any]]:
 
     jobs_list = data.get("jobs", data) if isinstance(data, dict) else data
     if not isinstance(jobs_list, list):
-        raise ValueError(  # noqa: TRY004
-            f"Expected list of jobs in '{abs_path}', got {type(jobs_list).__name__}"
-        )
+        raise ValueError(f"Expected list of jobs in '{abs_path}', got {type(jobs_list).__name__}")
     return jobs_list
 
 
-def dump_jobs_file(
-    file_path: str, jobs: list[dict[str, Any]], fmt: str | None = None
-) -> str:
-    """Dump cron jobs list to a YAML or JSON file.
-
-    Defaults to YAML format unless fmt is 'json' or file_path ends with '.json'.
-    """
+def dump_jobs_file(file_path: str, jobs: list[dict[str, Any]], fmt: str | None = None) -> str:
+    """Dump cron jobs list to a YAML or JSON file."""
     import yaml
 
     abs_path = os.path.abspath(os.path.expanduser(file_path))

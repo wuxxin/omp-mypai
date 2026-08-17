@@ -1,4 +1,4 @@
-"""OMP RPC Job Executor using mandatory daemon EventQueue and OMPSessionManager."""
+"""OMP RPC Job Executor using daemon TurnQueue and OMPSessionManager."""
 
 import asyncio
 import logging
@@ -15,10 +15,11 @@ async def async_dispatch_result_to_omp(
     final_output: str,
     daemon_queue: Any | None = None,
     session_mgr: Any | None = None,
+    job_id: str = "",
 ) -> None:
-    """Helper to route job output to active OMP session via daemon_queue or OMPSessionManager."""
-    act = (result_action or "ignore").lower()
-    if act in ("ignore", "none", "") or not final_output:
+    """Route job output to active OMP session via TurnQueue with lineage tagging."""
+    act = str(result_action or "log").lower().strip()
+    if act in ("log", "ignore", "none", "") or not final_output:
         return
 
     if daemon_queue is not None:
@@ -26,12 +27,14 @@ async def async_dispatch_result_to_omp(
             prompt=final_output,
             mode=act,
             source="executor_result",
+            is_result_call=True,
+            origin_job_id=job_id,
         )
     elif session_mgr is not None:
         await session_mgr.execute_turn(prompt=final_output, mode=act)
     else:
         logger.warning(
-            "Cannot dispatch result action '%s' to OMP: daemon_queue / session_mgr unavailable.",
+            "Cannot dispatch result action '%s' to OMP: daemon_queue unavailable.",
             act,
         )
 
@@ -41,10 +44,11 @@ def dispatch_result_to_omp(
     final_output: str,
     daemon_queue: Any | None = None,
     session_mgr: Any | None = None,
+    job_id: str = "",
 ) -> None:
-    """Sync wrapper to dispatch job output to active OMP session via EventQueue."""
-    act = (result_action or "ignore").lower()
-    if act in ("ignore", "none", "") or not final_output:
+    """Sync wrapper to dispatch job output to active OMP session via TurnQueue."""
+    act = str(result_action or "log").lower().strip()
+    if act in ("log", "ignore", "none", "") or not final_output:
         return
 
     try:
@@ -52,13 +56,21 @@ def dispatch_result_to_omp(
             loop = asyncio.get_running_loop()
             loop.create_task(
                 async_dispatch_result_to_omp(
-                    result_action, final_output, daemon_queue, session_mgr
+                    result_action,
+                    final_output,
+                    daemon_queue,
+                    session_mgr,
+                    job_id=job_id,
                 )
             )
         except RuntimeError:
             asyncio.run(
                 async_dispatch_result_to_omp(
-                    result_action, final_output, daemon_queue, session_mgr
+                    result_action,
+                    final_output,
+                    daemon_queue,
+                    session_mgr,
+                    job_id=job_id,
                 )
             )
     except Exception as exc:  # noqa: BLE001
@@ -67,19 +79,11 @@ def dispatch_result_to_omp(
 
 async def execute_omp_rpc_job(
     job: dict[str, Any],
-    default_rpc_url: str = "",
-    client: Any | None = None,
     daemon_queue: Any | None = None,
     session_mgr: Any | None = None,
+    client: Any | None = None,
 ) -> dict[str, Any]:
-    """Execute an RPC job via OMPSessionManager or EventQueue.
-
-    Inlined Job Attributes:
-    - action: RPC operation verb ('prompt', 'steer', 'followup', 'abort_and_prompt')
-    - kwargs: keyword arguments dictionary containing 'prompt' string
-    - args: positional argument list/tuple for custom RPC requests
-    - result_prompt: optional fallback prompt text context
-    """
+    """Execute an OMP RPC job via TurnQueue."""
     start_time = time.time()
     job = substitute_vars(job)
     name = job.get("name", "Unnamed RPC Job")
@@ -108,6 +112,7 @@ async def execute_omp_rpc_job(
                 mode=action,
                 source="cron",
                 context=job,
+                origin_job_id=job.get("id", ""),
             )
             duration = round(time.time() - start_time, 3)
             return {
@@ -157,9 +162,7 @@ async def execute_omp_rpc_job(
                 "duration_sec": duration,
             }
 
-        raise RuntimeError(
-            "No daemon_queue, session_mgr, or client available to execute OMP RPC job."
-        )
+        raise RuntimeError("No daemon_queue or session_mgr available to execute OMP RPC job.")
 
     except Exception as exc:  # noqa: BLE001
         logger.error("RPC execution error for job '%s': %s", name, exc)

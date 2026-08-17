@@ -1,4 +1,4 @@
-"""APScheduler Engine and SQLite DB Task Sync for mypai_daemon."""
+"""APScheduler Engine, Concurrency Registry, and SQLite Task Sync for mypai_daemon."""
 
 import asyncio
 import logging
@@ -19,6 +19,7 @@ from mypai_tools.persistence import (
     CronJobModel,
     get_db_session,
     get_project_db_path,
+    resolve_agent_dir,
 )
 from mypai_tools.tools import (
     extract_omp_prompt,
@@ -30,18 +31,19 @@ logger = logging.getLogger("mypai_daemon.scheduler")
 
 
 class CronScheduler:
-    """Manages AsyncIOScheduler synced with project SQLite database."""
+    """Manages AsyncIOScheduler, running_jobs concurrency registry, and SQLite sync."""
 
     def __init__(self, agent_dir: str = "", daemon_queue: Any | None = None) -> None:
-        self.agent_dir = agent_dir
+        self.agent_dir = resolve_agent_dir(agent_dir)
         self.daemon_queue = daemon_queue
-        self.db_path = get_project_db_path(agent_dir)
+        self.db_path = get_project_db_path(self.agent_dir)
         self.scheduler = AsyncIOScheduler()
         self.scheduled_job_ids: set[str] = set()
+        self.running_jobs: dict[str, asyncio.Task] = {}
         self.enabled: bool = True
 
     def enable_cron_execution(self) -> bool:
-        """Enable global cron task execution without modifying DB records."""
+        """Enable global cron task execution."""
         self.enabled = True
         if self.scheduler.running and self.scheduler.state == 2:
             self.scheduler.resume()
@@ -49,7 +51,7 @@ class CronScheduler:
         return True
 
     def disable_cron_execution(self) -> bool:
-        """Disable global cron task execution without modifying DB records."""
+        """Disable global cron task execution."""
         self.enabled = False
         if self.scheduler.running and self.scheduler.state == 1:
             self.scheduler.pause()
@@ -69,36 +71,25 @@ class CronScheduler:
         if self.scheduler.running:
             self.scheduler.shutdown(wait=False)
             logger.info("CronScheduler AsyncIOScheduler engine shutdown.")
+        for task in list(self.running_jobs.values()):
+            task.cancel()
+        self.running_jobs.clear()
 
-    async def run_job(self, job_dict: dict[str, Any]) -> dict[str, Any]:
-        """Execute a cron task using the appropriate executor engine."""
+    async def _execute_job_task(self, job_dict: dict[str, Any]) -> dict[str, Any]:
+        """Internal execution body running in background task."""
         job = substitute_vars(job_dict)
-        kind = str(job.get("kind", "omp")).lower()
-        job_id = job.get("id", "unknown")
+        kind = str(job.get("kind", "omp")).lower().strip()
+        job_id = str(job.get("id", "unknown"))
         name = job.get("name", "Unnamed Job")
 
-        if not self.enabled:
-            logger.info(
-                "Global cron execution disabled; skipping task '%s' (ID: %s).",
-                name,
-                job_id,
-            )
-            return {
-                "status": "skipped",
-                "reason": "cron_disabled",
-                "job_id": job_id,
-                "name": name,
-            }
-
-        logger.info(
-            "Executing cron task '%s' (ID: %s, kind: %s)...", name, job_id, kind
-        )
         start_time = datetime.now(timezone.utc).isoformat()
         t0 = asyncio.get_event_loop().time()
 
         res: dict[str, Any] = {"job_id": job_id, "name": name, "kind": kind}
         returncode = 0
+        http_code = 0
         output_summary = ""
+        error_summary = ""
 
         try:
             if kind == "omp":
@@ -115,49 +106,76 @@ class CronScheduler:
                         "kind": kind,
                     }
 
-                mode = job.get("result_action") or "prompt"
+                res_dict = job.get("result") if isinstance(job.get("result"), dict) else {}
+                mode = res_dict.get("action") or job.get("result_action") or "prompt"
                 if mode not in ("prompt", "steer", "followup", "abort_and_prompt"):
                     mode = "prompt"
 
                 if self.daemon_queue:
                     queued_item = await self.daemon_queue.enqueue(
-                        prompt=prompt, mode=mode, source="cron", context=job
+                        prompt=prompt,
+                        mode=mode,
+                        source="cron",
+                        context=job,
+                        origin_job_id=job_id,
                     )
                     res.update({"status": "queued", "task_id": queued_item["task_id"]})
                     output_summary = f"Queued task {queued_item['task_id']}"
                 else:
-                    res_exec = await execute_omp_rpc_job(
-                        job, daemon_queue=self.daemon_queue
-                    )
+                    res_exec = await execute_omp_rpc_job(job, daemon_queue=self.daemon_queue)
                     res.update(res_exec)
                     returncode = res_exec.get("return_code", 0)
                     output_summary = res_exec.get("output") or ""
+                    error_summary = res_exec.get("error") or ""
+
             elif kind == "http":
                 res_exec = await execute_http_job(job, daemon_queue=self.daemon_queue)
                 res.update(res_exec)
                 returncode = res_exec.get("return_code", 0)
+                http_code = res_exec.get("return_code", 0) if returncode >= 100 else 200
                 output_summary = res_exec.get("output") or ""
+                error_summary = res_exec.get("error") or ""
+
             elif kind == "shell":
                 res_exec = await execute_shell_job(job, daemon_queue=self.daemon_queue)
                 res.update(res_exec)
                 returncode = res_exec.get("return_code", 0)
                 output_summary = res_exec.get("output") or ""
+                error_summary = res_exec.get("error") or ""
+
             elif kind == "python":
                 res_exec = await execute_python_job(job, daemon_queue=self.daemon_queue)
                 res.update(res_exec)
                 returncode = res_exec.get("return_code", 0)
                 output_summary = res_exec.get("output") or ""
+                error_summary = res_exec.get("error") or ""
+
+            elif kind == "acp":
+                from mypai_tools.acp.tools import acp_task_async_fn
+
+                prompt = extract_omp_prompt(job)
+                cwd = job.get("cwd") or self.agent_dir
+                profile = job.get("agent_profile") or ""
+                res_exec = await acp_task_async_fn(
+                    cwd=cwd, prompt=prompt, agent_profile=profile, agent_dir=self.agent_dir
+                )
+                res.update(res_exec)
+                returncode = 0 if res_exec.get("status") != "error" else 1
+                output_summary = f"Dispatched ACP task {res_exec.get('task_id')}"
+                error_summary = res_exec.get("error") or ""
+
             else:
                 raise ValueError(f"Unsupported job kind '{kind}'")
 
         except Exception as exc:  # noqa: BLE001
-            logger.error("Error executing cron job %s: %s", name, exc)
+            logger.error("Error executing cron job '%s': %s", name, exc)
             returncode = 1
-            output_summary = str(exc)
-            res.update({"status": "error", "error": output_summary, "return_code": 1})
+            error_summary = str(exc)
+            res.update({"status": "error", "error": error_summary, "return_code": 1})
 
         duration = round(asyncio.get_event_loop().time() - t0, 3)
         res["duration_sec"] = duration
+        is_failure = returncode != 0 or res.get("status") == "error"
 
         # Record telemetry in SQLite DB
         session = get_db_session(self.agent_dir)
@@ -168,24 +186,25 @@ class CronScheduler:
                 if cron_clean in ("now", "@now", "@once"):
                     db_job.enabled = False
 
-                db_job.last_start = start_time
-                db_job.last_stop = datetime.now(timezone.utc).isoformat()
+                db_job.last_run_at = start_time
                 db_job.last_runtime = duration
                 db_job.last_returncode = returncode
+                db_job.last_httpcode = http_code
                 db_job.last_output = output_summary[:2048]
-                db_job.total_calls = (db_job.total_calls or 0) + 1
+                db_job.last_error = error_summary[:2048]
+                db_job.total_runs = (db_job.total_runs or 0) + 1
+                if is_failure:
+                    db_job.total_failures = (db_job.total_failures or 0) + 1
                 session.commit()
         except Exception as db_exc:  # noqa: BLE001
             session.rollback()
-            logger.warning(
-                "Failed to update DB telemetry for job %s: %s", job_id, db_exc
-            )
+            logger.warning("Failed to update DB telemetry for job '%s': %s", job_id, db_exc)
         finally:
             session.close()
 
-        # Broadcast WebSocket event for WebUI event log console
+        # Broadcast WebSocket event for WebUI
         try:
-            from mypai_tools.daemon.api.app import ws_manager
+            from mypai_tools.daemon.api.ws import ws_manager
 
             asyncio.create_task(
                 ws_manager.broadcast(
@@ -197,16 +216,50 @@ class CronScheduler:
                         "status": res.get("status", "success"),
                         "return_code": returncode,
                         "duration_sec": duration,
-                        "output_snippet": (output_summary or res.get("error") or "")[
-                            :200
-                        ],
+                        "output_snippet": (output_summary or error_summary)[:200],
                     }
                 )
             )
-        except Exception:  # noqa: BLE001, S110
+        except Exception:  # noqa: BLE001
             pass
 
         return res
+
+    async def run_job(self, job_dict: dict[str, Any]) -> dict[str, Any]:
+        """Dispatch a cron task with overlapping execution prevention."""
+        job_id = str(job_dict.get("id", "unknown"))
+        name = job_dict.get("name", "Unnamed Job")
+
+        if not self.enabled:
+            logger.info("Global cron execution disabled; skipping task '%s' (%s).", name, job_id)
+            return {"status": "skipped", "reason": "cron_disabled", "job_id": job_id, "name": name}
+
+        # Overlapping Cron Job Policy: Check running_jobs
+        if job_id in self.running_jobs:
+            existing_task = self.running_jobs[job_id]
+            if not existing_task.done():
+                logger.warning(
+                    "Job '%s' (ID: %s) is already running in background. Skipping duplicate run.",
+                    name,
+                    job_id,
+                )
+                return {
+                    "status": "skipped",
+                    "reason": "already_running",
+                    "job_id": job_id,
+                    "name": name,
+                }
+
+        # Spawn task and record in running_jobs
+        task = asyncio.create_task(self._execute_job_task(job_dict))
+        self.running_jobs[job_id] = task
+
+        def _cleanup(t: asyncio.Task) -> None:
+            if self.running_jobs.get(job_id) == t:
+                self.running_jobs.pop(job_id, None)
+
+        task.add_done_callback(_cleanup)
+        return await task
 
     def sync_jobs_from_db(self) -> None:
         """Query SQLite database for active cron jobs and sync AsyncIOScheduler."""
@@ -238,9 +291,7 @@ class CronScheduler:
                             )
                         else:
                             logger.warning(
-                                "Invalid cron expression '%s' for job '%s'",
-                                job.cron,
-                                job.name,
+                                "Invalid cron expression '%s' for job '%s'", job.cron, job.name
                             )
                             continue
 
@@ -262,9 +313,7 @@ class CronScheduler:
                         self.scheduler.remove_job(scheduled_id)
                     except Exception as exc:  # noqa: BLE001
                         logger.debug(
-                            "Ignored exception removing scheduled job '%s': %s",
-                            scheduled_id,
-                            exc,
+                            "Ignored exception removing scheduled job '%s': %s", scheduled_id, exc
                         )
                     self.scheduled_job_ids.remove(scheduled_id)
 

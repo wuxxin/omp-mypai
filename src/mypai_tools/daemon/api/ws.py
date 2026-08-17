@@ -20,16 +20,12 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info(
-            "WebSocket client connected (%d total)", len(self.active_connections)
-        )
+        logger.info("WebSocket client connected (%d total)", len(self.active_connections))
 
     def disconnect(self, websocket: WebSocket) -> None:
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-            logger.info(
-                "WebSocket client disconnected (%d total)", len(self.active_connections)
-            )
+            logger.info("WebSocket client disconnected (%d total)", len(self.active_connections))
 
     async def broadcast(self, message: dict[str, Any]) -> None:
         """Broadcast a JSON message to all active WebSocket clients."""

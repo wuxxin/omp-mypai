@@ -1,6 +1,9 @@
-"""Python Job Executor supporting in-process lambda expressions and async functions using inlined attributes."""
+"""Python Job Executor supporting in-process lambda expressions and async code."""
 
 import asyncio
+import contextlib
+import inspect
+import io
 import json
 import logging
 import time
@@ -13,11 +16,6 @@ from mypai_tools.tools import (
     substitute_vars,
 )
 
-try:
-    from omp_rpc import RpcClient
-except ImportError:
-    RpcClient = None
-
 logger = logging.getLogger("mypai_daemon.executors.python")
 
 
@@ -26,7 +24,7 @@ async def execute_python_job(
     daemon_queue: Any | None = None,
     session_mgr: Any | None = None,
 ) -> dict[str, Any]:
-    """Execute Python lambda expression or code block in-process using inlined attributes."""
+    """Execute Python lambda expression or code snippet in-process with timeout protection."""
     start_time = time.time()
     job = substitute_vars(job)
     name = job.get("name", "Unnamed Python Job")
@@ -38,17 +36,20 @@ async def execute_python_job(
     if isinstance(args_val, str) and args_val.strip().startswith(("[", "{")):
         try:
             args_val = json.loads(args_val)
-        except Exception:  # noqa: BLE001, S110
+        except Exception:  # noqa: BLE001
             pass
 
     kwargs_val = job.get("kwargs") or {}
     if isinstance(kwargs_val, str) and kwargs_val.strip().startswith("{"):
         try:
             kwargs_val = json.loads(kwargs_val)
-        except Exception:  # noqa: BLE001, S110
+        except Exception:  # noqa: BLE001
             pass
 
-    logger.info("Executing Python job '%s'...", name)
+    opts = job.get("opts") if isinstance(job.get("opts"), dict) else {}
+    timeout_sec = float(opts.get("timeout_sec") or 5.0)
+
+    logger.info("Executing Python job '%s' (timeout: %.1fs)...", name, timeout_sec)
 
     local_namespace: dict[str, Any] = {}
     global_namespace: dict[str, Any] = {
@@ -59,39 +60,41 @@ async def execute_python_job(
     }
 
     try:
-        import contextlib
-        import inspect
-        import io
 
-        stdout_buf = io.StringIO()
-        clean_code = code.strip()
-        with contextlib.redirect_stdout(stdout_buf):
-            if clean_code.startswith("lambda"):
-                fn = eval(clean_code, global_namespace, local_namespace)
-                try:
-                    sig = inspect.signature(fn)
-                    param_count = len(sig.parameters)
-                except (ValueError, TypeError):
-                    param_count = 2
+        def _run_sync_code() -> Any:
+            stdout_buf = io.StringIO()
+            clean_code = code.strip()
+            with contextlib.redirect_stdout(stdout_buf):
+                if clean_code.startswith("lambda"):
+                    fn = eval(clean_code, global_namespace, local_namespace)
+                    try:
+                        sig = inspect.signature(fn)
+                        param_count = len(sig.parameters)
+                    except (ValueError, TypeError):
+                        param_count = 2
 
-                if param_count >= 2:
-                    res = fn(args_val, kwargs_val)
-                elif param_count == 1:
-                    res = fn(args_val)
+                    if param_count >= 2:
+                        return fn(args_val, kwargs_val)
+                    if param_count == 1:
+                        return fn(args_val)
+                    return fn()
                 else:
-                    res = fn()
-            else:
-                exec(clean_code, global_namespace, local_namespace)  # noqa: S102
-                printed = stdout_buf.getvalue().strip()
-                res = (
-                    local_namespace.get("result")
-                    or global_namespace.get("result")
-                    or printed
-                    or "Execution completed."
-                )
+                    exec(clean_code, global_namespace, local_namespace)  # noqa: S102
+                    printed = stdout_buf.getvalue().strip()
+                    return (
+                        local_namespace.get("result")
+                        or global_namespace.get("result")
+                        or printed
+                        or "Execution completed."
+                    )
+
+        res = await asyncio.wait_for(
+            asyncio.get_event_loop().run_in_executor(None, _run_sync_code),
+            timeout=timeout_sec,
+        )
 
         if asyncio.iscoroutine(res):
-            res = await res
+            res = await asyncio.wait_for(res, timeout=timeout_sec)
 
         duration = round(time.time() - start_time, 3)
         res_str = json.dumps(res) if isinstance(res, (dict, list)) else str(res)

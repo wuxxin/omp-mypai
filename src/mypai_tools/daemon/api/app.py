@@ -9,21 +9,24 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import BaseModel, Field
+
 from mypai_tools.daemon.api.acp_router import router as acp_router
 from mypai_tools.daemon.api.ws import router as ws_router
 from mypai_tools.daemon.api.ws import ws_manager
 from mypai_tools.persistence import (
     CronJobModel,
+    CronJobSchema,
     export_jobs_from_db,
     get_db_session,
+    get_default_timeout_for_kind,
     import_jobs_to_db,
 )
-from pydantic import BaseModel, Field
 
 app = FastAPI(
     title="MyPAI Daemon REST API",
     description="Central coordinator, OMP RPC session manager, cron scheduler, and Signal gateway.",
-    version="1.0.0",
+    version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -32,33 +35,14 @@ app.include_router(ws_router)
 app.include_router(acp_router)
 
 
-# Pydantic Request Models
 class SessionPromptRequest(BaseModel):
     prompt: str = Field(..., description="Prompt text to submit to OMP session")
     mode: str = Field(
         "prompt", description="Turn mode: prompt, steer, followup, or abort_and_prompt"
     )
-    source: str = Field(
-        "webui", description="Event source: webui, signal, spooler, or cron"
-    )
-    context: dict[str, Any] = Field(
-        default_factory=dict, description="Optional turn context"
-    )
+    source: str = Field("webui", description="Event source: webui, signal, spooler, or cron")
+    context: dict[str, Any] = Field(default_factory=dict, description="Optional turn context")
     sender: str | None = Field(None, description="Optional sender identifier")
-
-
-class CronJobSchema(BaseModel):
-    name: str
-    description: str = ""
-    cron: str = "now"
-    kind: str = "omp"
-    action: str = "prompt"
-    args: Any = None
-    kwargs: Any = None
-    result_prompt: str = ""
-    result_error_prompt: str = ""
-    result_action: str = "ignore"
-    result_channel: str = ""
 
 
 # Session Routes
@@ -66,7 +50,7 @@ class CronJobSchema(BaseModel):
 async def session_prompt(req: SessionPromptRequest, request: Request) -> dict[str, Any]:
     queue = getattr(request.app.state, "daemon_queue", None)
     if not queue:
-        raise HTTPException(status_code=500, detail="Daemon EventQueue uninitialized.")
+        raise HTTPException(status_code=500, detail="Daemon TurnQueue uninitialized.")
 
     item = await queue.enqueue(
         prompt=req.prompt,
@@ -86,31 +70,33 @@ async def session_steer(req: SessionPromptRequest, request: Request) -> dict[str
 
 
 @app.post("/api/v1/session/followup")
-async def session_followup(
-    req: SessionPromptRequest, request: Request
-) -> dict[str, Any]:
+async def session_followup(req: SessionPromptRequest, request: Request) -> dict[str, Any]:
     req.mode = "followup"
     return await session_prompt(req, request)
 
 
 @app.post("/api/v1/session/abort_and_prompt")
-async def session_abort_and_prompt(
-    req: SessionPromptRequest, request: Request
-) -> dict[str, Any]:
+async def session_abort_and_prompt(req: SessionPromptRequest, request: Request) -> dict[str, Any]:
     req.mode = "abort_and_prompt"
     return await session_prompt(req, request)
 
 
 @app.post("/api/v1/session/abort")
 async def session_abort(request: Request) -> dict[str, Any]:
+    queue = getattr(request.app.state, "daemon_queue", None)
+    if queue:
+        queue.purge_all()
+
     session_mgr = getattr(request.app.state, "session_manager", None)
     if not session_mgr:
         raise HTTPException(status_code=500, detail="Session Manager uninitialized.")
-    if session_mgr.client and hasattr(session_mgr.client, "abort"):
+
+    if session_mgr.rpc_client and hasattr(session_mgr.rpc_client, "abort"):
         try:
-            session_mgr.client.abort()
-        except Exception:  # noqa: BLE001, S110
+            session_mgr.rpc_client.abort()
+        except Exception:  # noqa: BLE001
             pass
+
     await ws_manager.broadcast({"event": "turn_aborted"})
     return {"status": "aborted"}
 
@@ -161,9 +147,7 @@ async def session_history(request: Request) -> list[dict[str, Any]]:
 
 # Cron Routes
 @app.get("/api/v1/cron/jobs")
-async def cron_list_jobs(
-    request: Request, include_disabled: bool = True
-) -> list[dict[str, Any]]:
+async def cron_list_jobs(request: Request, include_disabled: bool = True) -> list[dict[str, Any]]:
     session = get_db_session(request.app.state.agent_dir)
     try:
         query = session.query(CronJobModel)
@@ -177,34 +161,36 @@ async def cron_list_jobs(
 @app.post("/api/v1/cron/jobs")
 async def cron_add_job(request: Request, job: CronJobSchema) -> dict[str, Any]:
     session = get_db_session(request.app.state.agent_dir)
-    job_id = str(uuid.uuid4())[:8]
+    job_id = job.id or str(uuid.uuid4())[:8]
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    args_str = (
-        json.dumps(job.args)
-        if isinstance(job.args, (dict, list))
-        else str(job.args or "")
-    )
-    kwargs_str = (
-        json.dumps(job.kwargs)
-        if isinstance(job.kwargs, (dict, list))
-        else str(job.kwargs or "")
-    )
+    opts_dict = job.opts.model_dump()
+    if opts_dict.get("timeout_sec") is None:
+        opts_dict["timeout_sec"] = get_default_timeout_for_kind(job.kind)
+
+    result_dict = job.result.model_dump()
 
     db_job = CronJobModel(
         id=job_id,
-        name=job.name,
-        description=job.description,
-        cron=job.cron,
+        name=job.name.strip(),
+        description=job.description.strip(),
+        cron=job.cron.strip(),
         kind=job.kind,
-        action=job.action,
-        args=args_str,
-        kwargs=kwargs_str,
-        result_prompt=job.result_prompt,
-        result_error_prompt=job.result_error_prompt,
-        result_action=job.result_action,
-        result_channel=job.result_channel,
-        enabled=True,
+        action=job.action.strip(),
+        enabled=job.enabled,
+        args=json.dumps(job.args),
+        kwargs=json.dumps(job.kwargs),
+        opts=json.dumps(opts_dict),
+        result=json.dumps(result_dict),
+        total_runs=0,
+        total_failures=0,
+        next_run_at="",
+        last_run_at="",
+        last_runtime=0.0,
+        last_returncode=0,
+        last_httpcode=0,
+        last_output="",
+        last_error="",
         created_at=now_iso,
         updated_at=now_iso,
     )
@@ -228,9 +214,7 @@ async def cron_add_job(request: Request, job: CronJobSchema) -> dict[str, Any]:
 
 
 @app.put("/api/v1/cron/jobs/{job_id}")
-async def cron_modify_job(
-    request: Request, job_id: str, updates: dict[str, Any]
-) -> dict[str, Any]:
+async def cron_modify_job(request: Request, job_id: str, updates: dict[str, Any]) -> dict[str, Any]:
     session = get_db_session(request.app.state.agent_dir)
     try:
         db_job = (
@@ -240,9 +224,13 @@ async def cron_modify_job(
         )
         if not db_job:
             raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
+
         for k, v in updates.items():
-            if hasattr(db_job, k):
+            if k in ("args", "kwargs", "opts", "result") and isinstance(v, (dict, list)):
+                setattr(db_job, k, json.dumps(v))
+            elif hasattr(db_job, k):
                 setattr(db_job, k, v)
+
         db_job.updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         session.commit()
         return {"status": "modified", "job": db_job.to_dict()}
@@ -329,15 +317,15 @@ async def cron_status(request: Request) -> dict[str, Any]:
         disabled_count = len(all_jobs) - enabled_count
         scheduler = getattr(request.app.state, "scheduler", None)
         is_running = bool(
-            scheduler
-            and getattr(scheduler, "scheduler", None)
-            and scheduler.scheduler.running
+            scheduler and getattr(scheduler, "scheduler", None) and scheduler.scheduler.running
         )
         exec_enabled = bool(scheduler and scheduler.is_cron_execution_enabled())
         return {
-            "status": "active"
-            if (is_running and exec_enabled)
-            else ("disabled" if not exec_enabled else "idle"),
+            "status": (
+                "active"
+                if (is_running and exec_enabled)
+                else ("disabled" if not exec_enabled else "idle")
+            ),
             "cron_execution_enabled": exec_enabled,
             "total_jobs": len(all_jobs),
             "enabled_jobs": enabled_count,
@@ -357,9 +345,7 @@ async def cron_export_jobs(request: Request) -> list[dict[str, Any]]:
 
 
 @app.post("/api/v1/cron/import")
-async def cron_import_jobs(
-    request: Request, jobs: list[dict[str, Any]]
-) -> dict[str, Any]:
+async def cron_import_jobs(request: Request, jobs: list[dict[str, Any]]) -> dict[str, Any]:
     session = get_db_session(request.app.state.agent_dir)
     try:
         imported, updated = import_jobs_to_db(session, jobs)
@@ -390,9 +376,7 @@ async def signal_webhook(request: Request) -> dict[str, Any]:
 
     if queue and sender:
         prompt_text = f"📬 NEW Signal message received from {sender}. Use 'chat_mcp.get_next_unread_message' to read."
-        await queue.enqueue(
-            prompt=prompt_text, mode="prompt", source="signal", sender=sender
-        )
+        await queue.enqueue(prompt=prompt_text, mode="prompt", source="signal", sender=sender)
         await ws_manager.broadcast({"event": "signal_webhook", "sender": sender})
         return {"status": "acknowledged", "sender": sender}
 
@@ -403,9 +387,7 @@ async def signal_webhook(request: Request) -> dict[str, Any]:
 @app.get("/ui", response_class=HTMLResponse)
 @app.get("/", response_class=HTMLResponse)
 async def serve_webui() -> Any:
-    webui_path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "webui", "index.html"
-    )
+    webui_path = os.path.join(os.path.dirname(__file__), "..", "..", "webui", "index.html")
     if os.path.isfile(webui_path):
         return FileResponse(webui_path, media_type="text/html")
     return HTMLResponse(content="<h1>MyPAI Daemon WebUI (Index File Missing)</h1>")
