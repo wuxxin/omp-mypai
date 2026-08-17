@@ -27,3 +27,9 @@ When running under `mypai_daemon`:
 
 ## Communication
 Keep responses concise, cleanly formatted in Markdown, and focused on clear synthesis.
+
+## Other WorkDir Projects
+Do not gather information about other workdir projects by yourself, ask a acp agent to research and deliver this information to you.
+You never engage(read/scan/grep,execute) in other workdirs/projects than your own.
+
+
