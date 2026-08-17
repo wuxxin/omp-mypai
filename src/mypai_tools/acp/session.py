@@ -11,7 +11,11 @@ logger = logging.getLogger("mypai_daemon.acp.session")
 
 
 class AcpClientSession:
-    """Manages an active omp --mode acp worker process over stdio JSON-RPC streams."""
+    """Manages an active omp --mode acp worker process over stdio JSON-RPC streams.
+
+    ACP workers never inherit the daemon's profile; they execute against the main/default
+    Oh-My-Pi profile by default so that they control external Oh-My-Pi worker instances.
+    """
 
     def __init__(
         self,
@@ -21,19 +25,24 @@ class AcpClientSession:
     ) -> None:
         self.cwd = os.path.abspath(os.path.expanduser(cwd))
         self.extra_args = extra_args or []
-        self.profile = profile or os.getenv("OMP_PROFILE", "mypai")
+        self.profile = profile
         self.process: subprocess.Popen[bytes] | None = None
         self.session_id: str = ""
         self.start_time: float = time.time()
         self._request_counter = 0
 
     def start(self) -> "AcpClientSession":
-        """Spawn the underlying `omp --mode acp` subprocess in the target profile."""
+        """Spawn the underlying `omp --mode acp` subprocess using the main profile by default."""
         cmd = ["omp", "--mode", "acp"]
         if self.profile and "--profile" not in self.extra_args:
             cmd.extend(["--profile", self.profile])
         cmd.extend(self.extra_args)
-        logger.info("Spawning ACP worker process in '%s' (profile: %s): %s", self.cwd, self.profile, cmd)
+        logger.info(
+            "Spawning ACP worker process in '%s' (profile: %s): %s",
+            self.cwd,
+            self.profile or "default (main)",
+            cmd,
+        )
 
         self.process = subprocess.Popen(
             cmd,

@@ -14,11 +14,15 @@ logger = logging.getLogger("mypai_daemon.acp.manager")
 
 
 class AcpDelegationManager:
-    """Manages worker pool of AcpClientSession instances across target workspace directories."""
+    """Manages worker pool of AcpClientSession instances across target workspace directories.
+
+    ACP workers never inherit the daemon's profile; they execute against the main/default
+    Oh-My-Pi profile by default so that they control external Oh-My-Pi worker instances.
+    """
 
     def __init__(self, agent_dir: str = "", profile: str = "") -> None:
         self.agent_dir = agent_dir
-        self.profile = profile or os.getenv("OMP_PROFILE", "mypai")
+        self.profile = profile
         self.sessions: dict[str, AcpClientSession] = {}
         self.tasks: dict[str, dict[str, Any]] = {}
         self._lock = asyncio.Lock()
@@ -31,7 +35,11 @@ class AcpDelegationManager:
         if session and session.is_alive():
             return session
 
-        logger.info("Initializing ACP worker session in '%s' (profile: %s)...", abs_cwd, self.profile)
+        logger.info(
+            "Initializing ACP worker session in '%s' (profile: %s)...",
+            abs_cwd,
+            self.profile or "default (main)",
+        )
         new_session = AcpClientSession(cwd=abs_cwd, profile=self.profile)
         try:
             new_session.start()

@@ -10,6 +10,7 @@ The ACP task delegation system enables the primary `mypai_daemon` agent (`omp --
 
 - **Zero Synchronous RPC / ACP Calls**: All ACP task dispatches are purely asynchronous (`acp_task_async`), returning a `task_id` immediately.
 - **Background Execution**: Worker processes execute concurrently in the Background Execution Plane.
+- **Main Profile Default (No Profile Inheritance)**: ACP workers never inherit the `mypai` profile. While internal subagents within the `mypai` harness run in the `mypai` profile, ACP workers intentionally execute against the main/default Oh-My-Pi profile (`~/.omp/agent/`, `oh-my-pi`) by default. This allows the `mypai` agent to control external Oh-My-Pi instances and base tools across workspaces.
 - **Completion Ingestion**: When an async ACP subagent finishes, its results are logged in the ACP task store and, if a result action is configured, enqueued into the **Turn Queue** with `is_result_call=True`.
 
 ---
