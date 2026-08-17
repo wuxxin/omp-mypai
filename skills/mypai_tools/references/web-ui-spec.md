@@ -4,6 +4,8 @@
 
 `mypai_daemon` embeds a responsive, dark-mode Single-Page Application (SPA) served directly by FastAPI at `/` or `/ui`. Built with Vanilla HTML, modern CSS tokens, and JavaScript, it requires zero build steps and communicates via HTTP REST (`/api/v1`) and WebSockets (`/api/v1/ws`).
 
+![myPAI WebUI Architecture & Live Console State Flow](webui-architecture.svg)
+
 ---
 
 ## 1. Screen Wireframe Layout

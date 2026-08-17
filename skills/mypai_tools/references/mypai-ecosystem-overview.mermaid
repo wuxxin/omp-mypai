@@ -1,0 +1,54 @@
+flowchart TD
+    %% Host & Model Infrastructure
+    subgraph HostEnv ["Host Environment & Inference Runtime"]
+        BWRAP["Bubblewrap Sandbox / Host Linux OS<br/>(Isolation & Security Boundary)"]
+        LLM["Local LLM Inference Engine<br/>(llama.cpp / qwen3-32b via models.yml)"]
+    end
+
+    %% OMP Dual-Profile Framework
+    subgraph OmpFramework ["Oh-My-Pi Multi-Profile Framework"]
+        BASE_PROFILE["Base Oh-My-Pi Profile (~/.omp/agent/)<br/>(bankId: oh-my-pi • Core tools & skills)"]
+        MYPAI_PROFILE["MyPai Profile (~/.omp/profiles/mypai/agent/)<br/>(bankId: mypai • Memory banks & developer profile)"]
+    end
+
+    %% Persistent Daemon Coordinator
+    subgraph DaemonCore ["myPAI Daemon Coordinator (Port 52080)"]
+        RPC_SESS["OMPSessionManager<br/>(Persistent RpcClient Driver)"]
+        TURN_Q["TurnQueue Priority Engine<br/>(Single Ingress Queue Arbiter)"]
+        SCHED["CronScheduler Core<br/>(Parallel Background Plane)"]
+        ACP_MGR["AcpDelegationManager<br/>(Subagent Process Pool)"]
+        SQLITE_DB[(SQLite WAL Database<br/>agent-{basedir}-{hash}.db)]
+    end
+
+    %% Human & External Interaction Interfaces
+    subgraph Interfaces ["User & External Interaction Channels"]
+        WEBUI["WebUI Console<br/>(SPA Dashboard & Streaming Console)"]
+        SIGNAL["Signal Messaging Gateway<br/>(Mobile / Remote Ingress)"]
+        SPOOLER["Input Spooler<br/>(Audio STT & Inbox Watcher)"]
+    end
+
+    %% External Workspaces & Subagents
+    subgraph Workspaces ["Multi-Workspace Subagent Execution"]
+        WORKER_LOCAL["Default ACP Worker<br/>(CWD: $MYPAI_AGENT_DIR)"]
+        WORKER_EXT["External ACP Workers<br/>(CWD: /path/to/other/repo)"]
+    end
+
+    %% Connections
+    BWRAP --> DaemonCore
+    LLM <-->|"Token Generation"| RPC_SESS
+    LLM <-->|"Token Generation"| Workspaces
+    
+    BASE_PROFILE -->|"Base Tools"| Workspaces
+    MYPAI_PROFILE -->|"Agent Persona & Banks"| RPC_SESS
+    
+    Interfaces -->|"Single Ingress Turns"| TURN_Q
+    TURN_Q -->|"Serialized Turns"| RPC_SESS
+    RPC_SESS <-->|"Host Tools / Sync"| SQLITE_DB
+    SCHED <-->|"Sync Jobs / Telemetry"| SQLITE_DB
+    
+    ACP_MGR -->|"Manage Workers"| Workspaces
+    Workspaces -->|"Async Completion Callback (P2)"| TURN_Q
+    
+    RPC_SESS -->|"WebSocket Stream"| WEBUI
+    SCHED -->|"WebSocket Stream"| WEBUI
+    ACP_MGR -->|"WebSocket Stream"| WEBUI

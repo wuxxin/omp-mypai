@@ -1,0 +1,48 @@
+flowchart TD
+    %% Multi-Workspace Isolation Layer
+    subgraph Workspaces ["Multi-Workspace Path Partitioning"]
+        WS_MAIN["Workspace 1: mypai Root<br/>(/home/.../mypai)"]
+        WS_SUB["Workspace 2: Submodule / Other<br/>(/home/.../other-repo)"]
+        HASH_ENGINE["resolve_agent_dir() &amp; get_agent_dir_info()<br/>(Computes basedir + SHA-256 shorthash)"]
+    end
+
+    %% Profile & Database Directory Isolation
+    subgraph DataStorage ["SQLite Profile Storage Hierarchy"]
+        DATA_DIR["Profile Data Directory<br/>(~/.omp/profiles/mypai/data/omp-mypai/daemon/)"]
+        DB_MAIN[(agent-mypai-a1b2c3d4.db<br/>• WAL Journal Mode<br/>• 30s Busy Timeout)]
+        DB_SUB[(agent-other-e5f6g7h8.db<br/>• WAL Journal Mode<br/>• 30s Busy Timeout)]
+    end
+
+    %% Database Schemas & Models
+    subgraph Tables ["Database Tables & Object Relational Models"]
+        T_CRON["cron_jobs Table<br/>(id, name, cron, enabled, kind, action, args, kwargs, opts, result, last_run, call_count)"]
+        T_SETTINGS["settings Table<br/>(key, value • session_uuid, acp_execution_state)"]
+        T_HISTORY["turn_history Table<br/>(task_id, mode, source, prompt, output, error, duration_sec, completed_at)"]
+    end
+
+    %% Daemon Consumers & Concurrency Safety
+    subgraph Consumers ["Daemon Engine Consumers (SQLAlchemy Sessions)"]
+        SCHED["CronScheduler<br/>(Job Sync & Execution Telemetry)"]
+        SESS_MGR["OMPSessionManager<br/>(Session UUID Persistence)"]
+        ACP_STATE["AcpState Controller<br/>(Execution State Toggle)"]
+        QUEUE["TurnQueue<br/>(Completed Turn Audit Log)"]
+    end
+
+    %% Partitioning Flow
+    WS_MAIN --> HASH_ENGINE
+    WS_SUB --> HASH_ENGINE
+    HASH_ENGINE -->|"Generate DB Path 1"| DB_MAIN
+    HASH_ENGINE -->|"Generate DB Path 2"| DB_SUB
+    
+    DB_MAIN --- DATA_DIR
+    DB_SUB --- DATA_DIR
+    
+    DB_MAIN --> T_CRON
+    DB_MAIN --> T_SETTINGS
+    DB_MAIN --> T_HISTORY
+
+    %% Consumer Access Flow
+    SCHED <-->|"Sync & Update Stats"| T_CRON
+    SESS_MGR <-->|"Get/Set session_uuid"| T_SETTINGS
+    ACP_STATE <-->|"Get/Set acp_state"| T_SETTINGS
+    QUEUE -->|"Record Completed Turn"| T_HISTORY

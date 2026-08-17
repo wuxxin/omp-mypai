@@ -7,6 +7,8 @@ The **Input Spooler Daemon** (`mypai_tools.input_spooler`) is an independent, pe
 > [!IMPORTANT]
 > **Asynchronous Sidecar Architecture**: `input_spooler` runs continuously in the background as an asynchronous sidecar daemon (`python3 -m mypai_tools.input_spooler daemon`). It connects to `mypai_daemon` over HTTP REST (`POST http://127.0.0.1:52080/api/v1/session/prompt`) rather than invoking OMP RPC sockets directly.
 
+![myPAI Input Spooler & Signal Subsystem](input-spooler-signal-architecture.svg)
+
 ---
 
 ## 1. Primary Responsibilities & Functional Features

@@ -1,0 +1,54 @@
+flowchart TD
+    %% Audio & Local Ingress Plane
+    subgraph AudioIngress ["Input Spooler Subsystem (Audio STT & Hindsight)"]
+        INBOX["Local Inbox Directory<br/>(~/.omp/spooler/inbox/*.wav)"]
+        WATCHER["Inbox Directory Watcher<br/>(Monitors new audio/text recordings)"]
+        STT["Whisper Speech-to-Text Engine<br/>(Transcribes audio to text prompt)"]
+        HINDSIGHT["Hindsight Memory Injection<br/>(Extracts context & attaches memory tags)"]
+    end
+
+    %% Signal Remote Ingress Plane
+    subgraph SignalIngress ["Signal Gateway Subsystem (Remote Messaging)"]
+        MOBILE["Signal Mobile Client<br/>(User Phone / Remote Device)"]
+        SIGNAL_API["signal-cli-rest-api Container<br/>(Daemon Webhook Target)"]
+        SIGNAL_CLIENT["SignalClient Subsystem<br/>(POST /api/v1/signal/webhook)"]
+        WHITELIST{"Sender Whitelist Filter<br/>(SIGNAL_ALLOWED_SENDER)"}
+        DROP["Drop Unauthorized Message<br/>(Log security warning)"]
+    end
+
+    %% TurnQueue Ingestion & Daemon Arbiter
+    subgraph QueueArbiter ["myPAI TurnQueue Plane (Single Ingress Rule)"]
+        TURN_Q["TurnQueue Ingestion<br/>(Unified FIFO Priority State Machine)"]
+        NOTIFY["Signal Notification Turn<br/>('📬 NEW Signal message received...')"]
+        AUDIO_TURN["Transcribed Audio Turn<br/>(Prompt: 'Voice note: ...')"]
+        MCP["chat_mcp Host Tools<br/>(get_next_unread_message, send_message)"]
+    end
+
+    %% Execution & Response Flow
+    subgraph MainAgent ["Main Agent RPC Execution"]
+        OMP["omp --mode rpc Agent<br/>(Processes turn & reads message via MCP)"]
+    end
+
+    %% Audio Flow
+    INBOX -->|"New File Detected"| WATCHER
+    WATCHER -->|"Audio Payload"| STT
+    STT -->|"Text Transcript"| HINDSIGHT
+    HINDSIGHT -->|"Formulate Audio Turn"| AUDIO_TURN
+    AUDIO_TURN -->|"Enqueue (source='spooler')"| TURN_Q
+
+    %% Signal Flow
+    MOBILE -->|"Inbound Encrypted Message"| SIGNAL_API
+    SIGNAL_API -->|"HTTP Webhook"| SIGNAL_CLIENT
+    SIGNAL_CLIENT -->|"Validate Sender"| WHITELIST
+    WHITELIST -->|"Unauthorized"| DROP
+    WHITELIST -->|"Authorized"| NOTIFY
+    NOTIFY -->|"Enqueue (source='signal')"| TURN_Q
+
+    %% Agent Read & Reply Flow
+    TURN_Q -->|"Execute Turn"| OMP
+    OMP -->|"Invoke MCP Read"| MCP
+    MCP <-->|"Fetch & Mark Read"| SIGNAL_CLIENT
+    OMP -->|"Invoke MCP Reply"| MCP
+    MCP -->|"Outbound Message"| SIGNAL_CLIENT
+    SIGNAL_CLIENT -->|"Dispatch"| SIGNAL_API
+    SIGNAL_API -->|"Encrypted Delivery"| MOBILE

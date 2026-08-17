@@ -1,0 +1,48 @@
+flowchart TD
+    %% Browser SPA Container
+    subgraph BrowserUI ["WebUI Browser Single-Page Application (index.html)"]
+        
+        %% Top Line Status Bar
+        subgraph TopLine ["Header Status Strip & Glowing Indicator Engine"]
+            HEADER_INFO["myPAI Console: ● Connected"]
+            PILL_MAIN["Main Agent: [IDLE / ACTIVE / STREAMING]<br/>(Grey IDLE • Green ACTIVE • Red Pulse STREAMING)"]
+            PILL_TEAM["Team: ● Connected | Agents: [N Active] - [N Streaming]"]
+            BTN_REFRESH["Refresh (Flashes on Auto-Sync)"]
+        end
+
+        %% Center Interaction & Viewport
+        subgraph CenterArea ["Central Workspace Viewport"]
+            CONSOLE["RPC Live Console (#log-console)<br/>(Real-time Token Stream & Auto-scroll)"]
+            VIEWER_OVERLAY["Task Output Overlay<br/>(Rendered above Live Console • Press Escape to restore)"]
+            
+            subgraph PromptArea ["Prompt Input Control"]
+                INPUT_BOX["Turn Textarea (#prompt-input)<br/>('Type a prompt, CTRL-Enter to submit')"]
+                SUBMIT_GRP["[Submit Prompt (Ctrl+Enter)] [Quick Steer (Alt+Enter)] [Abort (Ctrl+Esc)] [? Help]"]
+            end
+        end
+
+        %% 3-Tab Sidebars
+        subgraph Sidebars ["3-Tab Navigation Sidebars (Ctrl+Alt+1/2/3)"]
+            TAB_SESS["Tab 1: Session Stats & History<br/>(Model, Context usage, Tokens, Last Turn)"]
+            TAB_CRON["Tab 2: Cron Jobs (2-Row Cards)<br/>(Title + Toggle • Schedule + Kind + Calls + Run)"]
+            TAB_TEAM["Tab 3: Team Sidecar<br/>(Worker Processes • Active Tasks • Finished Tasks [View])"]
+        end
+    end
+
+    %% Daemon Backend Real-time Pipeline
+    subgraph DaemonBackend ["myPAI Daemon Backend (Port 52080)"]
+        WS_PIPE["WebSocket Server (/api/v1/ws)<br/>(turn_started, message_update, turn_completed, acp_*)"]
+        REST_API["REST Control Endpoints<br/>(/prompt, /steer, /followup, /abort, /cron/*, /acp/*)"]
+    end
+
+    %% Flow Connections
+    SUBMIT_GRP -->|"POST /prompt, /steer, /followup"| REST_API
+    SUBMIT_GRP -->|"POST /session/abort"| REST_API
+    
+    WS_PIPE -->|"Stream Token Chunks"| CONSOLE
+    WS_PIPE -->|"Update Glowing Badges"| PILL_MAIN
+    WS_PIPE -->|"Update Worker Counts"| PILL_TEAM
+    WS_PIPE -->|"Auto-Sync Telemetry"| Sidebars
+    
+    TAB_TEAM -->|"Click [View]"| VIEWER_OVERLAY
+    VIEWER_OVERLAY -->|"Press Escape"| CONSOLE

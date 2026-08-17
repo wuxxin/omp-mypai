@@ -4,13 +4,15 @@
 
 The **MyPAI Daemon** (`mypai_tools.daemon`) is the central background coordinator, RPC session manager, and turn serialization gateway for **MyPAI**. Running a **FastAPI** REST/WebSocket server and **APScheduler** engine on port `52080`, it maintains an active `omp --mode rpc` session in the target workspace.
 
-It coordinates incoming requests from WebUI, Signal webhooks, Input Spooler sidecars, cron schedules, and ACP subagent workers via a decoupled **2-Tier Execution Architecture** (see [daemon-architecture.svg](daemon-architecture.svg) and [daemon-architecture.mermaid](daemon-architecture.mermaid)).
+It coordinates incoming requests from WebUI, Signal webhooks, Input Spooler sidecars, cron schedules, and ACP subagent workers via a decoupled **2-Tier Execution Architecture** (see [mypai-ecosystem-overview.svg](mypai-ecosystem-overview.svg), [daemon-architecture.svg](daemon-architecture.svg), and [daemon-architecture.mermaid](daemon-architecture.mermaid)).
 
-![myPAI Daemon 2-Tier System Architecture](daemon-architecture.svg)
+![myPAI Ecosystem 10,000-ft Overview](mypai-ecosystem-overview.svg)
 
 ---
 
 ### 1. 2-Tier Execution Architecture & Single Ingress Rule
+
+![myPAI Daemon 2-Tier System Architecture](daemon-architecture.svg)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -104,7 +106,17 @@ When resolving the next action to execute on the persistent `omp_rpc` session:
 
 ---
 
-## 6. Signal Whitelist Filtering (`mypai_tools.signal_client`)
+## 6. Persistence & Multi-Workspace Storage Model
+
+![myPAI Persistence & Storage Architecture](persistence-storage-architecture.svg)
+
+- Databases are dynamically partitioned per workspace at `~/.omp/profiles/<profile>/data/omp-mypai/daemon/agent-<basedir>-<hash>.db`.
+- SQLite configured with WAL mode (`PRAGMA journal_mode=WAL`) and 30-second busy timeout (`timeout=30.0`).
+- Manages `cron_jobs`, `settings` (`session_uuid`, `acp_execution_state`), and `turn_history` audit records.
+
+---
+
+## 7. Signal Whitelist Filtering (`mypai_tools.signal_client`)
 
 - **`SIGNAL_ACCOUNT`**: Local account phone number.
 - **`SIGNAL_ALLOWED_SENDER`**: Whitelisted sender phone number. Messages from other senders are dropped immediately.

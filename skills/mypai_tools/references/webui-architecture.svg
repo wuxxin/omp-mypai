@@ -1,0 +1,232 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 840" width="1200" height="840">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');
+
+      .bg-paper { fill: #faf7f2; }
+      .zone-bg { fill: rgba(45, 49, 66, 0.02); stroke: rgba(45, 49, 66, 0.12); stroke-width: 0.8; }
+      .zone-eyebrow { font-family: 'Geist Mono', monospace; font-size: 8px; fill: #4f5d75; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; }
+      .title-main { font-family: 'Instrument Serif', serif; font-size: 26px; fill: #1c1917; }
+      .subtitle { font-family: 'Geist', sans-serif; font-size: 11px; fill: #4f5d75; }
+      .header-tag { font-family: 'Geist Mono', monospace; font-size: 8px; fill: #eb6c36; letter-spacing: 0.14em; font-weight: 600; }
+
+      .node-name { font-family: 'Geist', sans-serif; font-size: 12px; font-weight: 600; fill: #1c1917; }
+      .node-name-focal { font-family: 'Geist', sans-serif; font-size: 13px; font-weight: 700; fill: #eb6c36; }
+      .node-sub { font-family: 'Geist Mono', monospace; font-size: 8.5px; fill: #4f5d75; }
+      .node-body { font-family: 'Geist', sans-serif; font-size: 9.5px; fill: #334155; }
+      .tag-text { font-family: 'Geist Mono', monospace; font-size: 7px; letter-spacing: 0.08em; font-weight: 600; }
+      
+      .conn-label { font-family: 'Geist Mono', monospace; font-size: 7.5px; letter-spacing: 0.08em; font-weight: 600; }
+      .legend-text { font-family: 'Geist Mono', monospace; font-size: 8.5px; fill: #4f5d75; }
+    </style>
+
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+    </marker>
+    <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+    </marker>
+    <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="840" class="bg-paper"/>
+
+  <!-- ==================== HEADER ==================== -->
+  <text x="40" y="28" class="header-tag">SUBLEVEL ARCHITECTURE: WEBUI REACTIVE ENGINE</text>
+  <text x="40" y="56" class="title-main">myPAI WebUI Architecture &amp; Console State Flow</text>
+  <text x="40" y="76" class="subtitle">Glowing header state engine, keyboard shortcuts, 3-tab sidecars, and live console task output overlay</text>
+
+  <!-- ==================== ZONES ==================== -->
+  <!-- Zone 1: Header Telemetry & Shortcuts -->
+  <rect x="40" y="96" width="260" height="664" rx="8" class="zone-bg"/>
+  <rect x="52" y="100" width="220" height="12" rx="2" fill="#faf7f2"/>
+  <text x="56" y="109" class="zone-eyebrow">1. HEADER &amp; KEYBOARD ENGINE</text>
+
+  <!-- Zone 2: Live Viewport & Overlays (Focal) -->
+  <rect x="324" y="96" width="472" height="664" rx="8" class="zone-bg" stroke="rgba(235, 108, 54, 0.25)" stroke-width="1"/>
+  <rect x="336" y="100" width="340" height="12" rx="2" fill="#faf7f2"/>
+  <text x="340" y="109" class="zone-eyebrow" fill="#eb6c36">2. VIEWPORT &amp; LIVE TASK OVERLAY</text>
+
+  <!-- Zone 3: 3-Tab Sidecars & WebSocket -->
+  <rect x="820" y="96" width="340" height="664" rx="8" class="zone-bg"/>
+  <rect x="832" y="100" width="260" height="12" rx="2" fill="#faf7f2"/>
+  <text x="836" y="109" class="zone-eyebrow">3. SIDECARS &amp; WEBSOCKET SYNC</text>
+
+  <!-- ==================== CONNECTORS ==================== -->
+  <!-- Prompt Submit -> Backend API -->
+  <path d="M 560 672 L 560 708 A 8 8 0 0 0 568 716 L 982 716 A 8 8 0 0 0 990 708 L 990 680" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+  <rect x="740" y="706" width="84" height="12" rx="2" fill="#faf7f2"/>
+  <text x="782" y="715" class="conn-label" fill="#2e5aa8" text-anchor="middle">POST PROMPT</text>
+
+  <!-- WebSocket Token Chunks -> Console -->
+  <path d="M 844 612 L 772 612" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="780" y="598" width="56" height="12" rx="2" fill="#faf7f2"/>
+  <text x="808" y="607" class="conn-label" fill="#eb6c36" text-anchor="middle">STREAM</text>
+
+  <!-- Team View Button -> Overlay -->
+  <path d="M 844 480 L 772 480" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+  <rect x="780" y="466" width="56" height="12" rx="2" fill="#faf7f2"/>
+  <text x="808" y="475" class="conn-label" fill="#eb6c36" text-anchor="middle">VIEW TASK</text>
+
+  <!-- Escape Key -> Restore Live Console -->
+  <path d="M 560 396 L 560 424" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <rect x="510" y="402" width="100" height="12" rx="2" fill="#faf7f2"/>
+  <text x="560" y="411" class="conn-label" fill="#4f5d75" text-anchor="middle">ESCAPE (RESTORE)</text>
+
+  <!-- ==================== NODES ==================== -->
+
+  <!-- ZONE 1 NODES: Header Telemetry & Shortcuts -->
+  <!-- Top Line Header Status -->
+  <rect x="64" y="128" width="212" height="116" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1.2"/>
+  <text x="76" y="146" class="tag-text" fill="#1c1917">HEADER BAR</text>
+  <text x="170" y="156" class="node-name" text-anchor="middle">myPAI Top Status Strip</text>
+  <text x="170" y="174" class="node-sub" text-anchor="middle">myPAI Console: ● Connected</text>
+  <text x="170" y="190" class="node-body" text-anchor="middle">Main Agent: [STATUS PILL]</text>
+  <text x="170" y="206" class="node-sub" text-anchor="middle">Team: ● Connected</text>
+  <text x="170" y="222" class="node-body" text-anchor="middle">Agents: [N Active] - [N Streaming]</text>
+  <text x="170" y="236" class="node-sub" text-anchor="middle">Auto-flashing Refresh Indicator</text>
+
+  <!-- Glowing Status Pills Spec -->
+  <rect x="64" y="260" width="212" height="136" rx="6" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+  <text x="76" y="278" class="tag-text" fill="#eb6c36">GLOW SYSTEM</text>
+  <text x="170" y="288" class="node-name-focal" text-anchor="middle">Glowing Status Pill Engine</text>
+  
+  <rect x="76" y="304" width="188" height="24" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="84" y="320" class="node-sub" font-weight="600" fill="#94a3b8">IDLE (Grey #94a3b8)</text>
+  <text x="210" y="320" class="node-body">Agent standby</text>
+
+  <rect x="76" y="332" width="188" height="24" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="84" y="348" class="node-sub" font-weight="600" fill="#10b981">ACTIVE (Green #10b981)</text>
+  <text x="220" y="348" class="node-body">Turn busy</text>
+
+  <rect x="76" y="360" width="188" height="24" rx="4" fill="#ffffff" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="84" y="376" class="node-sub" font-weight="600" fill="#ff8080">STREAMING (Red Pulse)</text>
+  <text x="224" y="376" class="node-body">On-air glow</text>
+
+  <!-- Keyboard Shortcuts Engine -->
+  <rect x="64" y="412" width="212" height="188" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <text x="76" y="430" class="tag-text" fill="#4f5d75">SHORTCUTS</text>
+  <text x="170" y="440" class="node-name" text-anchor="middle">Keyboard Navigation Engine</text>
+  <text x="170" y="460" class="node-sub" text-anchor="middle">/ → Focus Prompt Textarea</text>
+  <text x="170" y="478" class="node-sub" text-anchor="middle">Ctrl+B → Toggle Active Sidebar</text>
+  <text x="170" y="496" class="node-sub" fill="#eb6c36" text-anchor="middle">Ctrl+Alt+1 → Switch to Sessions</text>
+  <text x="170" y="514" class="node-sub" fill="#eb6c36" text-anchor="middle">Ctrl+Alt+2 → Switch to Cron Jobs</text>
+  <text x="170" y="532" class="node-sub" fill="#eb6c36" text-anchor="middle">Ctrl+Alt+3 → Switch to Team</text>
+  <text x="170" y="550" class="node-sub" text-anchor="middle">Ctrl+Enter → Submit Prompt Turn</text>
+  <text x="170" y="568" class="node-sub" text-anchor="middle">Alt+Enter → Submit Quick Steer</text>
+  <text x="170" y="586" class="node-sub" fill="#eb6c36" text-anchor="middle">Ctrl+Esc / Esc → Abort / Close Viewer</text>
+
+  <!-- ZONE 2 NODES: Central Viewport & Live Overlays (Focal Box) -->
+  <!-- RPC Live Console -->
+  <rect x="348" y="128" width="424" height="268" rx="6" fill="#ffffff" stroke="#1c1917" stroke-width="1.2"/>
+  <rect x="360" y="136" width="68" height="12" rx="2" fill="transparent" stroke="#1c1917" stroke-width="0.8"/>
+  <text x="394" y="145" class="tag-text" fill="#1c1917" text-anchor="middle">CONSOLE</text>
+  <text x="560" y="156" class="node-name" text-anchor="middle">RPC Live Output Console (#log-console)</text>
+  <text x="560" y="176" class="node-sub" text-anchor="middle">Realtime Streaming Buffer • Auto-scroll Engine • Monospace ANSI</text>
+  
+  <!-- Console Simulation Inner Box -->
+  <rect x="360" y="190" width="400" height="192" rx="4" fill="#2d3142"/>
+  <text x="372" y="210" font-family="'Geist Mono', monospace" font-size="9" fill="#94a3b8">23:28:40 [INFO] Daemon connected. Session: mypai_daemon - running</text>
+  <text x="372" y="230" font-family="'Geist Mono', monospace" font-size="9" fill="#10b981">23:29:05 [TURN] Started task evt_8a9b1c2d (mode: prompt)</text>
+  <text x="372" y="250" font-family="'Geist Mono', monospace" font-size="9" fill="#faf7f2">&gt; Analyzing project structure and updating implementation plan...</text>
+  <text x="372" y="270" font-family="'Geist Mono', monospace" font-size="9" fill="#faf7f2">&gt; Running test suite across 111 unit test specifications...</text>
+  <text x="372" y="290" font-family="'Geist Mono', monospace" font-size="9" fill="#ff8080">&gt; [STREAMING ON-AIR] All 111 tests passed in 5.25s (100% success)</text>
+  <text x="372" y="310" font-family="'Geist Mono', monospace" font-size="9" fill="#10b981">23:29:10 [DONE] Turn completed. Duration: 4.82s</text>
+  <text x="372" y="330" font-family="'Geist Mono', monospace" font-size="9" fill="#eb6c36">&gt; [ACP CALLBACK] Subagent task-93468959 finished successfully.</text>
+  <text x="372" y="350" font-family="'Geist Mono', monospace" font-size="9" fill="#94a3b8">23:29:15 [IDLE] Awaiting next queued turn...</text>
+
+  <!-- Live Task Output Viewer Overlay (Focal) -->
+  <rect x="348" y="412" width="424" height="144" rx="6" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+  <rect x="360" y="420" width="76" height="12" rx="2" fill="transparent" stroke="#eb6c36" stroke-width="0.8"/>
+  <text x="398" y="429" class="tag-text" fill="#eb6c36" text-anchor="middle">OVERLAY</text>
+  <text x="560" y="438" class="node-name-focal" text-anchor="middle">Task Output Viewer Overlay (Live Console Hook)</text>
+  <text x="560" y="458" class="node-sub" text-anchor="middle">Triggered by clicking [View] on any Finished Task in Team Sidecar</text>
+  <text x="560" y="476" class="node-body" text-anchor="middle">• Overlays formatted task output cleanly inside #log-console viewport.</text>
+  <text x="560" y="494" class="node-body" text-anchor="middle">• Preserves underlying live console streaming buffer in memory.</text>
+  <text x="560" y="512" class="node-sub" fill="#eb6c36" text-anchor="middle">• Pressing Escape or [Back (Esc)] restores live streaming log instantly.</text>
+  <text x="560" y="530" class="node-body" text-anchor="middle">• No page scrolling or window height expansion required.</text>
+
+  <!-- Prompt Input Control -->
+  <rect x="348" y="572" width="424" height="168" rx="6" fill="#ffffff" stroke="#2e5aa8" stroke-width="1.2"/>
+  <text x="360" y="592" class="node-name">Turn Input &amp; Action Submission Group</text>
+  
+  <!-- Input box mock -->
+  <rect x="360" y="604" width="400" height="48" rx="4" fill="#faf7f2" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="372" y="632" font-family="'Geist', sans-serif" font-size="11" fill="#7a8399">Type a prompt, CTRL-Enter to submit</text>
+
+  <!-- Buttons row mock -->
+  <rect x="360" y="660" width="108" height="28" rx="4" fill="#2e5aa8"/>
+  <text x="414" y="677" class="node-sub" fill="#faf7f2" text-anchor="middle">Submit (Ctrl+Enter)</text>
+
+  <rect x="476" y="660" width="96" height="28" rx="4" fill="#ffffff" stroke="#2e5aa8" stroke-width="1"/>
+  <text x="524" y="677" class="node-sub" fill="#2e5aa8" text-anchor="middle">Steer (Alt+Enter)</text>
+
+  <rect x="580" y="660" width="88" height="28" rx="4" fill="#ffffff" stroke="#eb6c36" stroke-width="1"/>
+  <text x="624" y="677" class="node-sub" fill="#eb6c36" text-anchor="middle">Abort Turn</text>
+
+  <rect x="676" y="660" width="84" height="28" rx="4" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+  <text x="718" y="677" class="node-sub" fill="#4f5d75" text-anchor="middle">? Help</text>
+
+  <text x="560" y="718" class="node-sub" text-anchor="middle">Clean layout • Fits entire viewport without vertical bouncing</text>
+
+  <!-- ZONE 3 NODES: 3-Tab Sidecars & WebSocket -->
+  <!-- Tab 1: Sessions -->
+  <rect x="844" y="128" width="292" height="116" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <text x="990" y="148" class="node-name" text-anchor="middle">Tab 1: Sessions &amp; Telemetry (Ctrl+Alt+1)</text>
+  <text x="990" y="168" class="node-sub" text-anchor="middle">Model: llama.cpp/qwen3 (models.yml)</text>
+  <text x="990" y="186" class="node-body" text-anchor="middle">Context Window Usage &amp; Tokens</text>
+  <text x="990" y="202" class="node-sub" text-anchor="middle">Turn State: Inactive / Active / Aborted</text>
+  <text x="990" y="218" class="node-body" text-anchor="middle">Last Turn: ID, Duration, Snippet</text>
+  <text x="990" y="232" class="node-sub" text-anchor="middle">Queue Depth Indicator (N Queued)</text>
+
+  <!-- Tab 2: Cron Jobs 2-Row Cards -->
+  <rect x="844" y="256" width="292" height="144" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+  <text x="990" y="276" class="node-name" text-anchor="middle">Tab 2: Cron Jobs 2-Row Cards (Ctrl+Alt+2)</text>
+  <text x="990" y="294" class="node-sub" text-anchor="middle">No descriptions • Clean Full-width Cards</text>
+  
+  <!-- Row 1 Mock -->
+  <rect x="856" y="306" width="268" height="36" rx="4" fill="#faf7f2" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="864" y="322" class="node-sub" font-weight="600">● Periodic Work Sweep</text>
+  <text x="1080" y="322" class="node-sub" fill="#eb6c36">[Disable]</text>
+  <text x="864" y="336" class="node-body">*/30 * * * * • omp • Calls: 14</text>
+  <text x="1086" y="336" class="node-sub" fill="#2e5aa8">[Run]</text>
+
+  <text x="990" y="364" class="node-sub" text-anchor="middle">Global Enable / Disable Switch</text>
+  <text x="990" y="380" class="node-body" text-anchor="middle">Import / Export Jobs (JSON &amp; YAML)</text>
+
+  <!-- Tab 3: Team Sidecar -->
+  <rect x="844" y="412" width="292" height="152" rx="6" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+  <text x="990" y="432" class="node-name-focal" text-anchor="middle">Tab 3: Team External Agents (Ctrl+Alt+3)</text>
+  <text x="990" y="450" class="node-sub" text-anchor="middle">Workers: 1 Active (Workspace Root)</text>
+  <text x="990" y="468" class="node-body" text-anchor="middle">Running Tasks: Active external tasks table</text>
+  <text x="990" y="486" class="node-sub" text-anchor="middle">Finished Tasks: Last 5 completed tasks</text>
+  <text x="990" y="504" class="node-body" text-anchor="middle">Task Title • Duration • Status Badge</text>
+  <text x="990" y="522" class="node-sub" fill="#eb6c36" text-anchor="middle">[View] Output button opens in Live Console</text>
+  <text x="990" y="538" class="node-body" text-anchor="middle">Escape restores previous console text</text>
+
+  <!-- WebSocket Pipeline -->
+  <rect x="844" y="576" width="292" height="104" rx="6" fill="#ffffff" stroke="#2e5aa8" stroke-width="1.2"/>
+  <text x="990" y="596" class="node-name" text-anchor="middle">WebSocket Event Dispatcher (/ws)</text>
+  <text x="990" y="616" class="node-sub" fill="#2e5aa8" text-anchor="middle">turn_queued • turn_started • message_update</text>
+  <text x="990" y="632" class="node-sub" fill="#eb6c36" text-anchor="middle">turn_completed • turn_aborted • acp_task_*</text>
+  <text x="990" y="648" class="node-body" text-anchor="middle">Zero-polling real-time reactive sync</text>
+  <text x="990" y="664" class="node-sub" text-anchor="middle">Header badge state dynamically bound</text>
+
+  <!-- ==================== LEGEND STRIP ==================== -->
+  <line x1="40" y1="784" x2="1160" y2="784" stroke="rgba(45, 49, 66, 0.12)" stroke-width="0.8"/>
+  <text x="40" y="804" class="zone-eyebrow">LEGEND</text>
+  
+  <rect x="120" y="796" width="16" height="10" rx="2" fill="rgba(235, 108, 54, 0.08)" stroke="#eb6c36" stroke-width="1"/>
+  <text x="144" y="805" class="legend-text">Focal / Live Task Viewer / Team</text>
+
+  <rect x="420" y="796" width="16" height="10" rx="2" fill="#ffffff" stroke="#1c1917" stroke-width="1"/>
+  <text x="444" y="805" class="legend-text">Core Console &amp; Header Strip</text>
+
+  <line x1="720" y1="801" x2="744" y2="801" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+  <text x="752" y="805" class="legend-text">HTTP Submit / WebSocket Stream</text>
+
+  <line x1="940" y1="801" x2="964" y2="801" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <text x="972" y="805" class="legend-text">Escape Key Restoration</text>
+</svg>
