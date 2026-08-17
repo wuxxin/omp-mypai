@@ -1,7 +1,7 @@
 # omp-mypai Agent Plugin
 
 Personal Artificial Intelligence (PAI) agent plugin based on **Oh-my-PI** and **Hindsight**,
-adding Cron, Signal Chat, Inbound Spooler, and WebUI tools.
+adding Host-Native Cron, Signal Chat, Inbound Spooler, and WebUI tools.
 
 ---
 
@@ -36,10 +36,10 @@ The plugin environment launcher configuration is defined in [omp.env](../../omp.
   LAUNCHER_SIDECARS="mypai_daemon input_spooler"
 
   LAUNCHER_SIDECAR_MYPAI_DAEMON_CMD="python3"
-  LAUNCHER_SIDECAR_MYPAI_DAEMON_ARGS="-m mypai_tools.daemon serve --project-dir $MYPAI_PROJECT_DIR --session-name $MYPAI_SESSION_NAME"
+  LAUNCHER_SIDECAR_MYPAI_DAEMON_ARGS="-m mypai_tools.daemon serve --agent-dir $MYPAI_AGENT_DIR"
 
   LAUNCHER_SIDECAR_INPUT_SPOOLER_CMD="python3"
-  LAUNCHER_SIDECAR_INPUT_SPOOLER_ARGS="-m mypai_tools.input_spooler daemon --project-dir $MYPAI_PROJECT_DIR"
+  LAUNCHER_SIDECAR_INPUT_SPOOLER_ARGS="-m mypai_tools.input_spooler daemon --agent-dir $MYPAI_AGENT_DIR"
   ```
 
 
@@ -48,23 +48,21 @@ The plugin environment launcher configuration is defined in [omp.env](../../omp.
 MCP servers are declared in the OMP-native [`.mcp.json`](.mcp.json):
 
 - **`signal_chat`**: Signal messaging interface (`mypai_tools.chat_mcp`).
-- **`cron`**: Task & cron job scheduler backed by SQLite and `mypai_daemon` REST API (`mypai_tools.cron_mcp`).
 
 Agent Skills ([agentskills.io](https://agentskills.io/specification)):
 
-- **`mypai_tools`**: [SKILL.md](skills/mypai_tools/SKILL.md) — Complete agent guide for `mypai_tools` MCP servers, `mypai_daemon`, and references.
+- **`mypai_tools`**: [SKILL.md](skills/mypai_tools/SKILL.md) — Complete agent guide for `mypai_tools` Host Tools (cron), MCP servers, `mypai_daemon`, and references.
 
 
 ## Background Daemons & Services
 
 Each daemon maintains detailed architectural specifications under `skills/mypai_tools/references/`:
 
-- **mypai_daemon** (`python3 -m mypai_tools.daemon serve --project-dir "$MYPAI_PROJECT_DIR" --session-name "$MYPAI_SESSION_NAME"`)
-  - **Spec**: [daemon-spec.md](skills/mypai_tools/references/daemon-spec.md) | [daemon-api-spec.md](skills/mypai_tools/references/daemon-api-spec.md) | [acp-delegation-spec.md](skills/mypai_tools/references/acp-delegation-spec.md) | [web-ui-spec.md](skills/mypai_tools/references/web-ui-spec.md)
-  - **Function**: Central coordinator, fixed OMP RPC session manager (`MYPAI_SESSION_NAME`), MPSC turn serializer (`prompt`, `steer`, `followup`, `abort_and_prompt`), FastAPI REST server (Port 52080), Signal webhook whitelist filter, and embedded Glassmorphism SPA WebUI.
+- **mypai_daemon** (`python3 -m mypai_tools.daemon serve --agent-dir "$MYPAI_AGENT_DIR"`)
+  - **Spec**: [daemon-spec.md](skills/mypai_tools/references/daemon-spec.md) | [daemon-api-spec.md](skills/mypai_tools/references/daemon-api-spec.md) | [acp-tool-spec.md](skills/mypai_tools/references/acp-tool-spec.md) | [web-ui-spec.md](skills/mypai_tools/references/web-ui-spec.md) | [cron-spec.md](skills/mypai_tools/references/cron-spec.md)
+  - **Function**: Central coordinator, 2-Tier execution architecture, fixed OMP RPC session manager, Turn Queue priority-flush serializer (`prompt`, `steer`, `followup`, `abort_and_prompt`), native Host Tools (`cron`, `acp`), FastAPI REST server (Port 52080), Signal webhook whitelist filter, and 3-tab WebUI console.
 
 
-- **input_spooler** (`python3 -m mypai_tools.input_spooler daemon --project-dir "$MYPAI_PROJECT_DIR"`)
+- **input_spooler** (`python3 -m mypai_tools.input_spooler daemon --agent-dir "$MYPAI_AGENT_DIR"`)
   - **Spec**: [input_spooler.md](skills/mypai_tools/references/input_spooler.md)
   - **Function**: Asynchronous sidecar daemon watching inbox folder (`~/Recordings/Inbox`), SHA256 hashing, sidecar parsing, STT transcription, Hindsight memory bank retention, and `mypai_daemon` REST notification.
-

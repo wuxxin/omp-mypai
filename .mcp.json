@@ -5,11 +5,6 @@
       "type": "stdio",
       "command": "./.venv/bin/python3",
       "args": ["-m", "mypai_tools.chat_mcp"]
-    },
-    "cron": {
-      "type": "stdio",
-      "command": "./.venv/bin/python3",
-      "args": ["-m", "mypai_tools.cron_mcp"]
     }
   }
 }

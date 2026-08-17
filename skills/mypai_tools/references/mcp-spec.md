@@ -2,15 +2,16 @@
 
 ## Executive Summary
 
-`mypai_tools` exposes three FastMCP tool servers that allow AI agents to schedule automated background tasks, send/receive Signal messages, and process speech STT/TTS. 
+`mypai_tools` configures FastMCP tool servers for external protocol integrations that benefit from stdio isolation:
 
-1. **`chat-channel`** (`mypai_tools.chat_mcp`): Signal messaging tools delegating to `mypai_tools.signal_client.SignalClient`.
-2. **`cron-scheduler`** (`mypai_tools.cron_mcp`): Cron task management tools issuing REST requests to `mypai_daemon` (`/api/v1/cron/...`).
-3. **`local-speech`** (`mypai_tools.speech_mcp`): Local Whisper STT (:50090) and TTS synthesis (:50095).
+1. **`signal_chat`** (`mypai_tools.chat_mcp`): Signal messaging tools delegating to `mypai_tools.signal_client.SignalClient`.
+2. **`local-speech`** (`mypai_tools.speech_mcp`): Local Whisper STT (:50090) and TTS synthesis (:50095).
+
+*(Note: Cron management and ACP delegation are registered natively as in-process **Host Tools** in `omp_rpc` rather than external MCP subprocesses).*
 
 ---
 
-## 1. Signal Messaging MCP Server (`chat-channel`)
+## 1. Signal Messaging MCP Server (`signal_chat`)
 
 Interacts with `signal-cli-rest-api` via the shared `mypai_tools.signal_client.SignalClient` SDK.
 
@@ -26,7 +27,7 @@ Interacts with `signal-cli-rest-api` via the shared `mypai_tools.signal_client.S
   {
     "status": "success",
     "sender": "+15559992222",
-    "message": "Here is the architectural diagram and audio note",
+    "message": "Here is the architectural diagram",
     "timestamp": 1723420000000,
     "attachments": [
       {
@@ -52,28 +53,7 @@ Interacts with `signal-cli-rest-api` via the shared `mypai_tools.signal_client.S
 
 ---
 
-## 2. Cron Task Scheduler MCP Server (`cron-scheduler`)
-
-All FastMCP tools in `cron_mcp.py` execute HTTP REST calls targeting `mypai_daemon` (`http://127.0.0.1:52080/api/v1/cron/...`) to avoid database WAL locks.
-
-### Tools List & API Mapping
-
-1. **`cron_add_job(name, cron, kind='omp', action='prompt', description='', args=None, kwargs=None, result_prompt='', result_error_prompt='', result_action='ignore', result_channel='')`**: Calls `POST /api/v1/cron/jobs`.
-2. **`cron_run_once(...)`**: Calls `POST /api/v1/cron/jobs/run_once`. Queues/reschedules a one-shot job (`cron="now"`).
-3. **`cron_list_jobs(include_disabled=True)`**: Calls `GET /api/v1/cron/jobs`.
-4. **`cron_disable_job(job_id='', name='')`**: Calls `POST /api/v1/cron/jobs/{job_id_or_name}/disable`.
-5. **`cron_enable_job(job_id='', name='')`**: Calls `POST /api/v1/cron/jobs/{job_id_or_name}/enable`.
-6. **`cron_modify_job(job_id='', name='', ...)`**: Calls `PUT /api/v1/cron/jobs/{job_id_or_name}`. Supports identification by `job_id` or `name`.
-7. **`cron_remove_job(job_id='', name='')`** / **`cron_delete_job(...)`**: Calls `DELETE /api/v1/cron/jobs/{job_id_or_name}`. Supports identification by `job_id` or `name`.
-8. **`cron_import_jobs(file_path)`**: Reads YAML or JSON file and performs idempotent upsert matching by ID or Name.
-9. **`cron_export_jobs(file_path='jobs.yaml', fmt=None)`**: Exports database jobs preserving auto-generated IDs to a YAML (default target `jobs.yaml`) or JSON file.
-10. **`cron_enable_execution()`** / **`cron_enable_all_jobs()`**: Calls `POST /api/v1/cron/enable` to temporarily enable global execution.
-11. **`cron_disable_execution()`** / **`cron_disable_all_jobs()`**: Calls `POST /api/v1/cron/disable` to temporarily disable global execution.
-12. **`cron_get_status()`**: Calls `GET /api/v1/cron/status` to retrieve engine & job telemetry.
-
----
-
-## 3. Local Speech Processing MCP Server (`local-speech`)
+## 2. Local Speech Processing MCP Server (`local-speech`)
 
 - **`transcribe_audio(audio_path, language=None)`**: Transcribe audio via local Whisper STT server (`http://localhost:50090/v1/audio/transcriptions`).
 - **`synthesize_speech(text, voice=None)`**: Synthesize speech audio via local TTS server (`http://localhost:50095/v1/audio/speech`).

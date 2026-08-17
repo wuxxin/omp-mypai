@@ -5,7 +5,6 @@ jobs:
     enabled: true
     kind: omp
     action: prompt
-    args: []
     kwargs:
       prompt: |
         Audit active project todos, verify pending commitments, and reflect on progress. Use 300 words.
@@ -23,6 +22,7 @@ jobs:
       query: Periodic health reflection sweep
       reason: scheduled_health_sync
     opts:
+      timeout_sec: 300
       headers:
         Content-Type: application/json
     result:
@@ -52,8 +52,20 @@ jobs:
     args:
       - scripts/db_audit.py
       - --quick
+      - #{example_env}
+    opts:
+      timeout_sec: 30
+      env:
+        # example env injection
+        example_env: testing
+      # example custom error lambda, eg. errorlevel 1 is ok., default error on is ERROR_LEVEL > 0
+      error_on: "lambda args, kwargs: true if kwargs.get('_ERROR_LEVEL') > 2 else False"
+      # example disable lambda, disable cron task depending error level, default is empty (disabled automatic disabling)
+      disable_on: "lambda args, kwargs: true if kwargs.get('_ERROR_LEVEL') > 5 else False"
+
     result:
-      action: prompt
+      action: log
+      # log=the old ignore, the old default, just log, dont inject or append into turn
       prompt: |
         CRON: Nightly Database Audit completed successfully for #[_JOB_NAME].
         Output:
@@ -61,6 +73,8 @@ jobs:
         #[_OUTPUT]
         ```
         FYI only. Dont ask for a followup.
+      # add error_action because we want both sometimes be different, if not set defaults to action.
+      error_action: prompt
       error_prompt: |
         CRON ERROR: Shell job '#[_JOB_NAME]' failed with return code #[_RETURN_CODE].
         job_id: #[_JOB_ID]
@@ -99,3 +113,4 @@ jobs:
         ```
         INSTRUCTIONS: Do not fix this, but add TODO with information how to fix it for later.
           if a TODO for this job fixing is already existing, disable Job, update TODO that you disabled Job.
+

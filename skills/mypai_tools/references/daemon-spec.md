@@ -2,110 +2,83 @@
 
 ## Executive Summary
 
-The **MyPAI Daemon** (`mypai_tools.daemon`) is the central background coordinator, RPC session manager, and input serialization gateway for **MyPAI**. It refactors the legacy `heartbeat` process into a unified, high-performance asynchronous daemon running a **FastAPI** web server and **APScheduler** engine on port `52080`.
+The **MyPAI Daemon** (`mypai_tools.daemon`) is the central background coordinator, RPC session manager, and turn serialization gateway for **MyPAI**. Running a **FastAPI** REST/WebSocket server and **APScheduler** engine on port `52080`, it maintains an active `omp --mode rpc` session in the target workspace.
 
-It maintains a persistent `omp --mode rpc --auto-approve --continue` connection to a single active session in a workspace directory (`workdir`) and serializes all incoming prompts from Signal webhooks, Input Spooler sidecars, FastMCP toolcalls (`cron_mcp`), scheduled Cron tasks, and an embedded WebUI.
-
----
-
-## 1. System Architecture & Component Diagram
-
-<img src="daemon-architecture.svg" alt="MyPAI Daemon System Architecture" width="1024" style="max-width: 100%; height: auto;" />
-
-> 💡 *Interactive / Standalone HTML version available at [`daemon-architecture.html`](daemon-architecture.html).*
+It coordinates incoming requests from WebUI, Signal webhooks, Input Spooler sidecars, cron schedules, and ACP subagent workers via a decoupled **2-Tier Execution Architecture**.
 
 ---
 
-## 2. Core Subsystems & Mechanisms
+## 1. 2-Tier Execution Architecture
 
-### 2.1 Prioritized Event Queue & Turn Serializer (`mypai_daemon.queue`)
-* **Pattern**: Multi-Producer, Single-Consumer (MPSC) `asyncio.Queue`.
-* **Purpose**: Prevents prompt turn interleaving and RPC socket locks when multiple events arrive simultaneously.
-* **Priority Order**:
-  1. `steer` & `abort_and_prompt` (High-priority user interrupt / abort).
-  2. `webui` & `signal` (Interactive human turns).
-  3. `cron` & `spooler` (Background automated tasks).
-
-### 2.2 OMP Session Manager (`mypai_daemon.session_manager`)
-* **RPC SDK**: Wraps `omp_rpc.RpcClient`.
-* **Read-Only Profile Attribute**: Exposes `@property def profile(self) -> str:` as a read-only property returning `os.getenv("OMP_PROFILE", "mypai")`.
-* **Session UUID Persistence & Reattachment**: Reads `session_uuid` from SQLite DB `project_settings` table. Reattaches to existing session via `--profile <profile> --resume <session_uuid>` or creates a new session, storing `session_uuid` in DB.
-* **Session Title**: Automatically sets session display name to `"mypai_daemon - running"`.
-* **Process Recovery**: Monitors PID via `proc.poll()`. On crash or broken pipe, cleans up handles and automatically re-instantiates `RpcClient` with session UUID in `MYPAI_AGENT_DIR`.
-* **Session Actions Supported**: **`prompt`**, **`steer`**, **`followup`**, **`abort_and_prompt`**, and on-demand **`abort`**.
-
-### 2.4 Standardized System Trigger Headers (`mypai_tools.tools.format_system_trigger_prompt`)
-* **Pattern**: Formats automated, non-human inputs (`source="cron"`, `"spooler"`, `"executor_result"`) with a standardized system prompt header `[SYSTEM TRIGGER: TAG]` (e.g. `[SYSTEM TRIGGER: CRON (Daily Backup)]`).
-* **Human Input Preservation**: Interactive human inputs (`source="webui"`, `"signal"`, `"interactive"`, `"human"`) or prompts already starting with `[SYSTEM TRIGGER` pass through unchanged **as-is**.
-
-### 2.5 Python Executor Stdout Capture & Parameter Inspection (`mypai_tools.executors.python_executor`)
-* **In-Process Stdout Redirection**: Executes Python code blocks and lambda functions inside `contextlib.redirect_stdout(stdout_buf)` to capture `print()` output as execution output.
-* **Signature Inspection**: Uses `inspect.signature(fn)` to inspect lambda parameter counts (`fn(args, kwargs)`, `fn(args)`, `fn()`) without trapping internal `TypeError` exceptions from user code.
-
----
-
-## 3. Signal Entanglement & Whitelist Filtering (`mypai_tools.signal_client`)
-
-A shared Python SDK module `mypai_tools.signal_client.SignalClient` wraps all HTTP communication with `signal-cli-rest-api`.
-
-### 3.1 Configuration & Access Control
-- **`SIGNAL_ACCOUNT`**: Defines the local account phone number (e.g. `+15550001111`).
-- **`SIGNAL_ALLOWED_SENDER`**: Defines the **single allowed incoming sender phone number** (e.g. `+15559992222`).
-- **Strict Filtering**: `mypai_daemon` inspects the sender field of all incoming webhooks/messages. Any message from a number other than `SIGNAL_ALLOWED_SENDER` is **ignored and dropped immediately**.
-- **Default Outbound Target**: Outbound Signal replies automatically target `SIGNAL_ALLOWED_SENDER` if no recipient is explicitly specified.
-
-```python
-# mypai_tools/signal_client.py
-
-class SignalClient:
-    def __init__(
-        self,
-        api_url: str = "http://localhost:50889",
-        account: str = os.getenv("SIGNAL_ACCOUNT", ""),
-        allowed_sender: str = os.getenv("SIGNAL_ALLOWED_SENDER", ""),
-    ):
-        self.api_url = api_url
-        self.account = account
-        self.allowed_sender = allowed_sender
-
-    def fetch_next_unread_message(
-        self, sender: str | None = None, attachment_dir: str | None = None
-    ) -> dict | None:
-        """Fetch oldest unread message from SIGNAL_ALLOWED_SENDER, send read receipt (2 checkmarks) 
-        & typing indicator, and extract attachments to local disk."""
-        ...
-
-    def send_read_receipt(self, recipient: str, timestamps: list[int]) -> dict:
-        """Send POST /v1/receipts/<account> to show two white checkmarks 🗸🗸."""
-        ...
-
-    def send_typing_indicator(self, recipient: str) -> dict:
-        """Send POST /v1/typing-indicator/<account> to show 'Typing...' status."""
-        ...
-
-    def send_message(
-        self, recipient: str, text: str, attachments: list[str] | None = None
-    ) -> dict:
-        """Encode local file attachments to base64 and dispatch outbound message via POST /v2/send."""
-        ...
-
-    def list_chats(self) -> dict:
-        """Fetch registered contacts and group IDs via GET /v1/contacts."""
-        ...
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           2-TIER EXECUTION PLANE                                │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ 1. BACKGROUND EXECUTION PLANE (Parallel & Non-Blocking)                         │
+│    • Shell Jobs, Python Jobs, HTTP Jobs                                         │
+│    • ACP Worker Subprocesses (e.g. `omp --mode acp`)                            │
+│    • Guarded by `running_jobs: dict[str, asyncio.Task]`                         │
+│    • Concurrently executes non-OMP tasks; skips overlapping duplicate runs      │
+│    • On completion with non-log action: Enqueues into Turn Queue                │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ 2. TURN QUEUE PLANE (Strictly Serialized for OMP RPC Session)                   │
+│    • Human turns (Web UI / API)                                                 │
+│    • Scheduled OMP cron turns                                                   │
+│    • Signal webhook notifications                                               │
+│    • Background Executor Results (`is_result_call=True`)                        │
+│    • Resolved by strict priority-flush state machine before OMP dispatch        │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. Sub-Specification Cross-Reference Matrix
+## 2. Turn Queue Priority-Flush State Machine
 
-For specific subsystem implementation details, schemas, and usage guides, refer to these reference documents:
+When resolving the next action to execute on the persistent `omp_rpc` session:
 
-| Component / Subsystem | Detailed Reference Document | Purpose |
-| :--- | :--- | :--- |
-| **REST & WebSocket API** | [daemon-api-spec.md](daemon-api-spec.md) | Endpoint specifications (`/api/v1/...`) supporting `prompt`, `steer`, `followup`, `abort_and_prompt`, global cron toggles, & WebSocket stream (`/api/v1/ws`) |
-| **Embedded WebUI** | [web-ui-spec.md](web-ui-spec.md) | Single-Page Application design, WebSocket transcript stream, prompt/steer input box, sidebar cron telemetry, & cron dashboard |
-| **Cron Task Scheduler** | [cron-spec.md](cron-spec.md) | Cron expression syntax, `@now` triggers, job engines (`omp`, `http`, `shell`, `python`), telemetry macros, & SQLite schema |
-| **FastMCP Tool Servers** | [mcp-spec.md](mcp-spec.md) | FastMCP tool signatures & return schemas for `chat-channel`, `cron-scheduler`, and `local-speech` |
-| **Input Spooler Sidecar** | [input_spooler.md](input_spooler.md) | Inbox directory watcher, STT pipeline, Hindsight memory retention, & `mypai_daemon` REST notifications |
-| **Pytest Architecture** | [daemon-testing.md](daemon-testing.md) | Hermetic test suite structure, fixtures (`FakeRpcClient`, `in_memory_db`), and test coverage matrix |
-| **CLI Command Usage** | [daemon-cli-usage.md](daemon-cli-usage.md) | Mandatory CLI subcommands (`serve`, `once`, `import`, `export`) and flags (`--project-dir`, `--verbose`) |
+1. **Rule 1 (Abort Priority & Queue Flush)**:
+   - If any `abort` or `abort_and_prompt` event exists in the Turn Queue:
+   - **Immediately drop/purge all pending items from the Turn Queue.**
+   - Dispatch the abort or abort_and_prompt action to `omp_rpc`.
+2. **Rule 2 (Steer Priority)**:
+   - If any `steer` items are in the queue:
+   - Pop the oldest (FIFO) `steer` item and dispatch immediately to `omp_rpc.steer()`.
+3. **Rule 3 (Followup Priority)**:
+   - If any `followup` items are in the queue:
+   - Pop the oldest (FIFO) `followup` item and dispatch to `omp_rpc.follow_up()`.
+4. **Rule 4 (Prompt Idle Priority)**:
+   - Check if the OMP RPC turn is currently running / busy.
+   - If **idle**: Pop the oldest (FIFO) `prompt` (or result prompt) and dispatch to `omp_rpc.prompt()`.
+   - If **busy**: Wait until the active turn concludes.
+
+---
+
+## 3. Concurrency & Overlapping Job Prevention
+
+- **`running_jobs` Registry**: `mypai_daemon.scheduler` maintains a dictionary mapping `job_id -> asyncio.Task`.
+- **Policy**: When a cron trigger fires for a job currently in `running_jobs`:
+  - The trigger is **skipped** (not queued).
+  - A notice is logged and recorded in telemetry.
+- **Lineage & Loop Safety**:
+  - Executor results with `result.action` $\neq$ `log` enqueue with `is_result_call=True` and `origin_job_id=job_id`.
+  - Result turns cannot trigger downstream cron jobs or recurse into event loops.
+  - OMP-kind cron tasks restrict `result.action` to `log`.
+
+---
+
+## 4. OMP Session Manager (`mypai_daemon.session_manager`)
+
+* **RPC SDK**: Wraps `omp_rpc.RpcClient`.
+* **Profile Property**: Read-only property returning `os.getenv("OMP_PROFILE", "mypai")`.
+* **Session UUID Persistence**: Reattaches to existing session via `--profile <profile> --resume <session_uuid>` or initializes a new session, persisting `session_uuid` in DB.
+* **Session Title**: Automatically set to `"mypai_daemon - running"`.
+* **Native Host Tools**: Directly registers Cron Host Tools and ACP Host Tools via `rpc_client.set_custom_tools()`.
+* **Zero Synchronous RPC / ACP Calls**: All RPC interactions and worker tasks are purely asynchronous.
+
+---
+
+## 5. Signal Whitelist Filtering (`mypai_tools.signal_client`)
+
+- **`SIGNAL_ACCOUNT`**: Local account phone number.
+- **`SIGNAL_ALLOWED_SENDER`**: Whitelisted sender phone number. Messages from other senders are dropped immediately.
+- Enqueues notification turn: `"📬 NEW Signal message received from {sender}. Use 'chat_mcp.get_next_unread_message' to read."`
