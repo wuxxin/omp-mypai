@@ -1,56 +1,73 @@
 flowchart TD
     %% Ingress & Producers Layer
-    subgraph Producers ["Multiproducer Inputs & Ingress"]
-        REST["REST API Server<br/>(FastAPI / Uvicorn)"]
-        WEBUI["WebUI / WebSocket<br/>(/api/v1/ws)"]
-        SIGNAL["Signal Webhook & Gateway<br/>(SignalClient)"]
-        CRON["Cron Scheduler<br/>(APScheduler Engine)"]
-        SPOOLER["Input Spooler<br/>(File Ingestion & STT)"]
-        EXEC_RES["Job Executors<br/>(Python, Shell, HTTP, RPC)"]
+    subgraph IngressLayer ["Ingress & Event Producers"]
+        WEBUI["WebUI Console & REST API<br/>(Port 52080 / ws://api/v1/ws)"]
+        SIGNAL["Signal Webhook Gateway<br/>(SignalClient & Whitelist Filter)"]
+        SPOOLER["Input Spooler Daemon<br/>(Inbox Watcher, STT, Hindsight)"]
     end
 
-    %% Priority Event Queue Layer
-    subgraph QueueLayer ["EventQueue (MPSC Priority Queue)"]
-        P0["Priority 0: High-Priority Interrupts<br/>(steer, abort, abort_retry, abort_and_prompt, ui_interaction)"]
-        P1["Priority 1: Interactive Human Inputs<br/>(webui, signal)"]
-        P2["Priority 2: Automated Background Tasks<br/>(cron, spooler, executor_result)"]
-        HISTORY["Execution History & Telemetry<br/>(last 100 turns)"]
+    %% Tier 1: Parallel Background Execution Plane
+    subgraph Tier1 ["Tier 1: Parallel Background Execution Plane"]
+        SCHEDULER["CronScheduler Engine<br/>(APScheduler Core)"]
+        REGISTRY["running_jobs Concurrency Registry<br/>(Active Tasks & Duplicate Run Prevention)"]
+        
+        subgraph Executors ["Parallel Job Executors"]
+            EXEC_SHELL["Shell Executor<br/>(env injection, timeout)"]
+            EXEC_HTTP["HTTP Executor<br/>(verbs, headers, timeout)"]
+            EXEC_PY["Python Executor<br/>(in-process lambda/code)"]
+            EXEC_ACP["ACP Subagents<br/>(pure async workers)"]
+        end
+        
+        RESULT_EVAL["Result & Error Evaluation<br/>(Macro Expansion & Lineage Tagging)"]
     end
 
-    %% Worker Loop Layer
-    subgraph WorkerLayer ["Asynchronous Queue Worker Loop"]
-        WORKER["queue_worker_loop<br/>(Async Coroutine)"]
-        INTERRUPT_DISPATCH["P0 Immediate Interrupt Dispatcher"]
+    %% Tier 2: Serialized OMP Turn Queue Plane
+    subgraph Tier2 ["Tier 2: Serialized OMP RPC Turn Queue Plane"]
+        TURN_QUEUE["TurnQueue (Priority-Flush State Machine)<br/>(Rule 1: Abort Purge | Rule 2: Steer | Rule 3: Followup | Rule 4: Idle Prompt)"]
+        WORKER_LOOP["queue_worker_loop<br/>(Async Worker Coroutine)"]
     end
 
-    %% Session Manager & Core RPC Layer
-    subgraph SessionLayer ["OMPSessionManager & Persistent Connection"]
-        SESS_MGR["OMPSessionManager<br/>(Session UUID Persistence in SQLite)"]
-        CLIENT["RpcClient Subprocess<br/>(omp --mode rpc --profile mypai)"]
-        LISTENERS["RPC Event Listeners<br/>(on_turn_end, on_turn_start, on_agent_end)"]
-        EVENT_SIGNAL["_turn_done_event<br/>(asyncio.Event Signal)"]
-        ACP_TOOLS["ACP Host Tools & Headless UI"]
+    %% Execution & Persistent Session Layer
+    subgraph SessionLayer ["Persistent OMP RPC Session & Host Tools"]
+        SESS_MGR["OMPSessionManager<br/>(UUID Reattachment & Telemetry)"]
+        RPC_CLIENT["RpcClient Subprocess<br/>(omp --mode rpc --profile mypai)"]
+        
+        subgraph HostTools ["Native Host Tools (In-Process)"]
+            CRON_TOOLS["Cron Host Tools<br/>(add_job, run_once, list_jobs, etc.)"]
+            ACP_TOOLS["ACP Host Tools<br/>(acp_task_async, status, result, steer)"]
+        end
     end
 
-    %% Data Flow & Interconnections
-    REST -->|"POST /session/prompt, steer, abort"| QueueLayer
-    WEBUI -->|"User Prompts & Steer Commands"| QueueLayer
-    SIGNAL -->|"Incoming Messages"| QueueLayer
-    CRON -->|"Scheduled OMP Tasks"| QueueLayer
-    SPOOLER -->|"Ingested Content Prompts"| QueueLayer
-    EXEC_RES -->|"result_action Dispatches"| QueueLayer
+    %% Persistence & Telemetry Layer
+    subgraph StorageLayer ["Persistence & Telemetry"]
+        SQLITE["SQLite Database (WAL Mode)<br/>(agent-{basedir}-{hash}.db)"]
+        WS_STREAM["WebSocket Broadcast Stream<br/>(turn_started, turn_completed, etc.)"]
+    end
 
-    QueueLayer -->|get_next| WORKER
-
-    WORKER -->|"P1/P2 Non-blocking Turn Dispatch"| SESS_MGR
-    WORKER -->|"P0 Immediate Interrupts (steer/abort)"| INTERRUPT_DISPATCH
-    INTERRUPT_DISPATCH -->|"Direct RPC Call (Bypasses Lock)"| CLIENT
-
-    SESS_MGR -->|"Persistent RPC Connection"| CLIENT
-    CLIENT -->|"Live Streaming & Turn Events"| LISTENERS
-    LISTENERS -->|"Set Signal"| EVENT_SIGNAL
-    LISTENERS -->|"Broadcast Events"| WEBUI
-    EVENT_SIGNAL -->|"Unblocks await execute_turn"| WORKER
-    CLIENT -->|"Register Tools"| ACP_TOOLS
-
-    REST -.->"Direct Inspection Calls<br/>(get_state, get_stats)"| SESS_MGR
+    %% Ingress Flow
+    WEBUI -->|"Turns: prompt, steer, followup, abort"| TURN_QUEUE
+    SIGNAL -->|"Verified Inbound Messages"| TURN_QUEUE
+    SPOOLER -->|"Transcribed Audio Prompts"| TURN_QUEUE
+    
+    %% Tier 1 Execution Flow
+    SQLITE <-->|"Sync Jobs & Telemetry"| SCHEDULER
+    SCHEDULER -->|"Check Job ID"| REGISTRY
+    REGISTRY -->|"Spawn Async Task"| Executors
+    Executors -->|"Output / Error / Exitcode"| RESULT_EVAL
+    RESULT_EVAL -->|"is_result_call=True (mode != log)"| TURN_QUEUE
+    
+    %% Tier 2 Serialization Flow
+    TURN_QUEUE -->|"get_next(is_session_busy)"| WORKER_LOOP
+    WORKER_LOOP -->|"Execute Serialized Turn"| SESS_MGR
+    SESS_MGR -->|"Manage Connection"| RPC_CLIENT
+    
+    %% Host Tools & Subprocess Binding
+    RPC_CLIENT -->|"Register Host Tools"| HostTools
+    CRON_TOOLS <-->|"Direct DB Queries"| SQLITE
+    ACP_TOOLS <-->|"Delegate Async Tasks"| EXEC_ACP
+    
+    %% Streaming & Telemetry
+    RPC_CLIENT -->|"Stream Chunks & Events"| SESS_MGR
+    SESS_MGR -->|"Broadcast"| WS_STREAM
+    WS_STREAM -->|"Live Updates"| WEBUI
+    WORKER_LOOP -->|"Record History"| SQLITE
