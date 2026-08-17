@@ -2,6 +2,7 @@
 
 import pytest
 from conftest import FakeRpcClient
+
 from mypai_tools.daemon.session_manager import OMPSessionManager
 
 

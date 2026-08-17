@@ -1,10 +1,10 @@
-"""Unit tests for refactored MYPAI_AGENT_DIR database path, session UUID reattachment, cron_mcp HTTP-only policy, and session stats endpoint."""
+"""Unit tests for refactored MYPAI_AGENT_DIR database path, session UUID reattachment, and session stats endpoint."""
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from mypai_tools import cron_mcp
+
 from mypai_tools.daemon.session_manager import OMPSessionManager, format_human_uptime
 from mypai_tools.persistence import (
     get_agent_dir_info,
@@ -90,7 +90,6 @@ async def test_session_manager_session_uuid_persistence(tmp_path: Path) -> None:
         client2 = mgr2.ensure_connected()
         assert client2 is fake_rpc
         assert mgr2.session_uuid == "saved-uuid-9999"
-        # Check that --resume saved-uuid-9999 argument was passed
         mock_client_cls.assert_called_with(
             extra_args=[
                 "--auto-approve",
@@ -113,22 +112,3 @@ def test_session_stats_api_endpoint(test_client) -> None:
     assert "cost" in data
     assert "user_messages" in data
     assert "assistant_messages" in data
-
-
-def test_cron_mcp_no_database_fallback(tmp_path: Path) -> None:
-    """Test that cron_mcp tools return explicit MYPAI_AGENT_URL errors when daemon is offline without touching DB."""
-    str(tmp_path)
-    with patch(
-        "mypai_tools.cron_mcp._daemon_http_request",
-        return_value={"status": "error", "error": "MYPAI_AGENT_URL unreachable"},
-    ):
-        res_add = cron_mcp.cron_add_job(
-            name="Offline Task",
-            cron="0 * * * *",
-        )
-        assert res_add["status"] == "error"
-        assert "MYPAI_AGENT_URL unreachable" in res_add["error"]
-
-        res_list = cron_mcp.cron_list_jobs()
-        assert isinstance(res_list, dict)
-        assert res_list["status"] == "error"

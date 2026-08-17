@@ -1,6 +1,7 @@
 """Tests for mypai_daemon.scheduler CronScheduler."""
 
 import pytest
+
 from mypai_tools.daemon.scheduler import CronScheduler
 from mypai_tools.tools import normalize_cron_expression
 

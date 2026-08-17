@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from mypai_tools.input_spooler import InputSpooler
 
 

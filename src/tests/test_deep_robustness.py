@@ -5,7 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-from mypai_tools.daemon.queue import EventQueue
+
+from mypai_tools.daemon.queue import TurnQueue
 from mypai_tools.daemon.scheduler import CronScheduler
 from mypai_tools.executors.python_executor import execute_python_job
 from mypai_tools.executors.shell_executor import execute_shell_job
@@ -15,7 +16,7 @@ from mypai_tools.persistence import CronJobModel, get_db_session
 # 1. Multi-Producer Concurrent Queue Stress Test
 @pytest.mark.asyncio
 async def test_queue_concurrent_multi_producers() -> None:
-    queue = EventQueue()
+    queue = TurnQueue()
 
     async def producer(source: str, count: int, mode: str = "prompt") -> None:
         for i in range(count):
@@ -38,7 +39,7 @@ async def test_queue_concurrent_multi_producers() -> None:
     # Pop all items and verify steer priority items come out first
     steer_count = 0
     for _ in range(5):
-        item = await queue.get_next()
+        item = await queue.get_next(is_session_busy=True)
         if item["mode"] == "steer":
             steer_count += 1
     assert steer_count == 5
@@ -87,7 +88,7 @@ async def test_scheduler_telemetry_and_oneshot(tmp_path: Path) -> None:
     updated_job = session2.query(CronJobModel).filter_by(id="oneshot_1").first()
     assert updated_job is not None
     assert updated_job.enabled is False
-    assert updated_job.total_calls == 1
+    assert updated_job.total_runs == 1
     assert updated_job.last_returncode == 0
     assert "telemetry_test" in (updated_job.last_output or "")
     session2.close()
@@ -134,7 +135,7 @@ def test_api_uninitialized_queue_error(test_client) -> None:
             json={"prompt": "Test prompt"},
         )
         assert res.status_code == 500
-        assert "EventQueue uninitialized" in res.json()["detail"]
+        assert "TurnQueue uninitialized" in res.json()["detail"]
     finally:
         test_client.app.state.daemon_queue = original_queue
 

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from conftest import FakeRpcClient
+
 from mypai_tools.daemon.session_manager import OMPSessionManager
 from mypai_tools.signal_client import SignalClient
 
@@ -60,9 +61,7 @@ async def test_session_manager_missing_session_strict_resume(tmp_path) -> None:
 
     mock_rpc_cls = MagicMock()
     first_client_mock = MagicMock()
-    first_client_mock.start.side_effect = RuntimeError(
-        "RPC process exited with code 1."
-    )
+    first_client_mock.start.side_effect = RuntimeError("RPC process exited with code 1.")
     mock_rpc_cls.return_value = first_client_mock
 
     with patch("mypai_tools.daemon.session_manager.RpcClient", mock_rpc_cls):

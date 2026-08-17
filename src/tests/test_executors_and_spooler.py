@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from conftest import FakeRpcClient
+
 from mypai_tools.executors.http_executor import execute_http_job
 from mypai_tools.executors.omp_rpc_executor import execute_omp_rpc_job
 from mypai_tools.executors.python_executor import execute_python_job
@@ -136,9 +137,7 @@ async def test_spooler_transcribe_audio(tmp_path) -> None:
     audio_file = tmp_path / "voice_memo.mp3"
     audio_file.write_bytes(b"FakeAudioData")
 
-    mock_resp = make_mock_response(
-        status_code=200, json_val={"text": "Transcribed voice audio."}
-    )
+    mock_resp = make_mock_response(status_code=200, json_val={"text": "Transcribed voice audio."})
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_resp
@@ -151,9 +150,7 @@ async def test_spooler_transcribe_audio(tmp_path) -> None:
 async def test_spooler_retain_hindsight(tmp_path) -> None:
     spooler = InputSpooler(inbox=tmp_path, bank_id="test_bank")
 
-    mock_resp_success = make_mock_response(
-        status_code=200, json_val={"status": "retained"}
-    )
+    mock_resp_success = make_mock_response(status_code=200, json_val={"status": "retained"})
 
     # Primary /retain endpoint success
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:

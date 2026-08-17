@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import yaml
 from conftest import FakeRpcClient
+
 from mypai_tools.executors.http_executor import execute_http_job
 from mypai_tools.executors.omp_rpc_executor import execute_omp_rpc_job
 from mypai_tools.executors.python_executor import execute_python_job
@@ -121,6 +122,8 @@ async def test_example_job_3_shell_success_and_failure() -> None:
     job_success = dict(job)
     job_success["action"] = "python3"
     job_success["args"] = ["-c", "print('DB Audit OK')"]
+    job_success["result"] = dict(job.get("result", {}))
+    job_success["result"]["action"] = "prompt"
 
     res_success = await execute_shell_job(job_success, daemon_queue=mock_queue)
     await asyncio.sleep(0.01)
@@ -134,24 +137,24 @@ async def test_example_job_3_shell_success_and_failure() -> None:
         in dispatched_prompt
     )
 
-    # Failure outcome: override command to exit 1 with stderr
+    # Failure outcome: override command to exit 3 with stderr (exceeding error_on threshold of 2)
     job_fail = dict(job)
     job_fail["action"] = "python3"
     job_fail["args"] = [
         "-c",
-        "import sys; sys.stderr.write('Table corruption detected'); sys.exit(1)",
+        "import sys; sys.stderr.write('Table corruption detected'); sys.exit(3)",
     ]
     mock_queue.reset_mock()
 
     res_fail = await execute_shell_job(job_fail, daemon_queue=mock_queue)
     await asyncio.sleep(0.01)
     assert res_fail["status"] == "error"
-    assert res_fail["return_code"] == 1
+    assert res_fail["return_code"] == 3
     assert "Table corruption detected" in res_fail["error"]
     assert mock_queue.enqueue.called
     dispatched_err_prompt = mock_queue.enqueue.call_args[1]["prompt"]
     assert (
-        "CRON ERROR: Shell job 'Nightly Database Backup & Audit' failed with return code 1"
+        "CRON ERROR: Shell job 'Nightly Database Backup & Audit' failed with return code 3"
         in dispatched_err_prompt
     )
 

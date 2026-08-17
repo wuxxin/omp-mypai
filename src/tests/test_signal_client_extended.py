@@ -12,9 +12,7 @@ def test_signal_client_send_read_receipt_and_typing() -> None:
         allowed_sender="+15559992222",
     )
 
-    with patch.object(
-        client, "_http_request", return_value={"status": "ok"}
-    ) as mock_req:
+    with patch.object(client, "_http_request", return_value={"status": "ok"}) as mock_req:
         res_receipt = client.send_read_receipt("+15559992222", [1723420000000])
         assert res_receipt == {"status": "ok"}
         mock_req.assert_called_with(
@@ -43,9 +41,7 @@ def test_signal_client_send_message() -> None:
         allowed_sender="+15559992222",
     )
 
-    with patch.object(
-        client, "_http_request", return_value={"status": "sent"}
-    ) as mock_req:
+    with patch.object(client, "_http_request", return_value={"status": "sent"}) as mock_req:
         res = client.send_message(recipient="+15559992222", text="Hello back!")
         assert res == {"status": "sent"}
         mock_req.assert_called_once_with(

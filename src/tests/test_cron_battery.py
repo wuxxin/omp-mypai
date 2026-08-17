@@ -1,6 +1,7 @@
 """Test battery for mypai_daemon CronScheduler, executors, prompt resolution, and outcome handling."""
 
 import pytest
+
 from mypai_tools.daemon.queue import EventQueue
 from mypai_tools.daemon.scheduler import CronScheduler
 from mypai_tools.executors.http_executor import execute_http_job
@@ -225,56 +226,61 @@ async def test_python_executor_outcomes() -> None:
 
 
 @pytest.mark.asyncio
-async def test_http_executor_outcomes(mocker) -> None:
+async def test_http_executor_outcomes() -> None:
     """Test HTTP job executor success and failure outcomes with result_error_prompt."""
-    mock_dispatch = mocker.patch(
-        "mypai_tools.executors.http_executor.dispatch_result_to_omp"
-    )
+    from unittest.mock import AsyncMock, MagicMock, patch
 
-    mock_resp_success = mocker.Mock()
+    mock_resp_success = MagicMock()
     mock_resp_success.status_code = 200
     mock_resp_success.json.return_value = {"status": "ok"}
     mock_resp_success.text = '{"status": "ok"}'
 
-    mock_resp_fail = mocker.Mock()
+    mock_resp_fail = MagicMock()
     mock_resp_fail.status_code = 400
     mock_resp_fail.json.side_effect = ValueError("Not JSON")
     mock_resp_fail.text = "Bad Request"
 
-    mock_client = mocker.AsyncMock()
+    mock_client = AsyncMock()
     mock_client.request.side_effect = [mock_resp_success, mock_resp_fail]
     mock_client.__aenter__.return_value = mock_client
 
-    mocker.patch("httpx.AsyncClient", return_value=mock_client)
+    with (
+        patch("mypai_tools.executors.http_executor.dispatch_result_to_omp") as mock_dispatch,
+        patch("httpx.AsyncClient", return_value=mock_client),
+    ):
+        job_success = {
+            "name": "HTTP Success",
+            "kind": "http",
+            "action": "GET",
+            "args": ["http://api.local/test"],
+            "result_prompt": "HTTP_OK: #[_OUTPUT]",
+            "result_action": "prompt",
+        }
+        res_s = await execute_http_job(job_success)
+        assert res_s["status"] == "success"
+        assert res_s["output"] == '{"status": "ok"}'
+        mock_dispatch.assert_called_with(
+            "prompt",
+            'HTTP_OK: {"status": "ok"}',
+            daemon_queue=None,
+            session_mgr=None,
+            job_id="",
+        )
 
-    job_success = {
-        "name": "HTTP Success",
-        "kind": "http",
-        "action": "GET",
-        "args": ["http://api.local/test"],
-        "result_prompt": "HTTP_OK: #[_OUTPUT]",
-        "result_action": "prompt",
-    }
-    res_s = await execute_http_job(job_success)
-    assert res_s["status"] == "success"
-    assert res_s["output"] == '{"status": "ok"}'
-    mock_dispatch.assert_called_with(
-        "prompt",
-        'HTTP_OK: {"status": "ok"}',
-        daemon_queue=None,
-        session_mgr=None,
-    )
-
-    job_fail = {
-        "name": "HTTP Failure",
-        "kind": "http",
-        "action": "GET",
-        "args": ["http://api.local/fail"],
-        "result_error_prompt": "HTTP_FAIL_CODE: #[_HTTP_CODE]",
-        "result_action": "steer",
-    }
-    res_f = await execute_http_job(job_fail)
-    assert res_f["status"] == "error"
-    mock_dispatch.assert_called_with(
-        "steer", "HTTP_FAIL_CODE: 400", daemon_queue=None, session_mgr=None
-    )
+        job_fail = {
+            "name": "HTTP Failure",
+            "kind": "http",
+            "action": "GET",
+            "args": ["http://api.local/fail"],
+            "result_error_prompt": "HTTP_FAIL_CODE: #[_HTTP_CODE]",
+            "result_action": "steer",
+        }
+        res_f = await execute_http_job(job_fail)
+        assert res_f["status"] == "error"
+        mock_dispatch.assert_called_with(
+            "steer",
+            "HTTP_FAIL_CODE: 400",
+            daemon_queue=None,
+            session_mgr=None,
+            job_id="",
+        )

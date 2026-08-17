@@ -24,21 +24,15 @@ def test_chat_mcp_get_next_unread_message() -> None:
 
 def test_chat_mcp_send_signal_message() -> None:
     expected = {"status": "sent"}
-    with patch.object(
-        chat_mcp.client, "send_message", return_value=expected
-    ) as mock_send:
+    with patch.object(chat_mcp.client, "send_message", return_value=expected) as mock_send:
         res = chat_mcp.send_signal_message(recipient="+15559992222", message="Hi")
         assert res == expected
-        mock_send.assert_called_once_with(
-            recipient="+15559992222", text="Hi", attachments=None
-        )
+        mock_send.assert_called_once_with(recipient="+15559992222", text="Hi", attachments=None)
 
 
 def test_chat_mcp_list_signal_chats() -> None:
     expected = {"chats": [{"number": "+15559992222", "name": "Alice"}]}
-    with patch.object(
-        chat_mcp.client, "list_chats", return_value=expected
-    ) as mock_list:
+    with patch.object(chat_mcp.client, "list_chats", return_value=expected) as mock_list:
         res = chat_mcp.list_signal_chats()
         assert res == expected
         mock_list.assert_called_once()

@@ -1,11 +1,11 @@
-"""Unit tests for the 8 subagent-parity ACP host tools."""
+"""Unit tests for the ACP host tools."""
 
 import pytest
+
 from mypai_tools.acp.state import get_acp_state
 from mypai_tools.acp.tools import (
     acp_inspect_session,
     acp_list_agents,
-    acp_task,
     acp_task_async,
     acp_task_cancel,
     acp_task_result,
@@ -15,24 +15,20 @@ from mypai_tools.acp.tools import (
 )
 
 
-def test_get_acp_host_tools_returns_all_8() -> None:
-    """Verify get_acp_host_tools returns 8 functions."""
+def test_get_acp_host_tools_returns_all() -> None:
+    """Verify get_acp_host_tools returns 7 async functions."""
     tools = get_acp_host_tools()
-    assert len(tools) == 8
+    assert len(tools) == 7
 
 
 @pytest.mark.asyncio
 async def test_acp_tools_blocked_when_suspended(
     tmp_path: pytest.TempPathFactory,
 ) -> None:
-    """Verify all 8 host tools return suspension error when state is 'suspended'."""
+    """Verify host tools return suspension error when state is 'suspended'."""
     agent_dir = str(tmp_path)
     state = get_acp_state(agent_dir)
     state.suspend()
-
-    res_task = await acp_task(cwd=agent_dir, prompt="test", agent_dir=agent_dir)
-    assert res_task["status"] == "error"
-    assert "suspended" in res_task["error"]
 
     res_async = await acp_task_async(cwd=agent_dir, prompt="test", agent_dir=agent_dir)
     assert res_async["status"] == "error"

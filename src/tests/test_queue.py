@@ -1,53 +1,61 @@
-"""Tests for mypai_daemon.queue EventQueue."""
+"""Tests for mypai_daemon.queue TurnQueue."""
 
 import pytest
-from mypai_tools.daemon.queue import EventQueue
+
+from mypai_tools.daemon.queue import TurnQueue
 
 
 @pytest.mark.asyncio
 async def test_queue_enqueue_and_priority() -> None:
-    queue = EventQueue()
+    queue = TurnQueue()
 
-    # Enqueue items with different priorities
+    # Enqueue items with different modes
     await queue.enqueue(prompt="Normal webui prompt", mode="prompt", source="webui")
-    await queue.enqueue(prompt="Background cron job", mode="prompt", source="cron")
+    await queue.enqueue(prompt="Followup turn", mode="followup", source="webui")
     await queue.enqueue(prompt="High priority steer", mode="steer", source="webui")
-    await queue.enqueue(prompt="Abort active turn", mode="abort", source="webui")
-    await queue.enqueue(prompt="UI response", mode="ui_interaction", source="webui")
 
-    assert queue.depth() == 5
+    assert queue.depth() == 3
 
-    # Priority 0 items (steer, abort, ui_interaction) should come out first
-    p0_modes = set()
-    for _ in range(3):
-        item = await queue.get_next()
-        p0_modes.add(item["mode"])
-        assert item["priority"] == 0
+    # Steer item should come out first
+    item1 = await queue.get_next(is_session_busy=True)
+    assert item1["mode"] == "steer"
+    assert item1["prompt"] == "High priority steer"
 
-    assert p0_modes == {"steer", "abort", "ui_interaction"}
+    # Followup item should come out next
+    item2 = await queue.get_next(is_session_busy=True)
+    assert item2["mode"] == "followup"
+    assert item2["prompt"] == "Followup turn"
 
-    # Interactive turn (priority 1) should come out next
-    item4 = await queue.get_next()
-    assert item4["source"] == "webui"
-    assert item4["prompt"] == "Normal webui prompt"
-
-    # Background task (priority 2) should come out last
-    item5 = await queue.get_next()
-    assert item5["source"] == "cron"
-    assert item5["prompt"] == "Background cron job"
+    # Prompt item should come out when session is idle
+    item3 = await queue.get_next(is_session_busy=False)
+    assert item3["mode"] == "prompt"
+    assert item3["prompt"] == "Normal webui prompt"
 
     assert queue.depth() == 0
 
 
 @pytest.mark.asyncio
+async def test_queue_abort_and_purge() -> None:
+    queue = TurnQueue()
+
+    await queue.enqueue(prompt="Pending prompt 1", mode="prompt")
+    await queue.enqueue(prompt="Pending prompt 2", mode="prompt")
+    await queue.enqueue(prompt="Abort active turn", mode="abort")
+
+    # Abort item purges all pending items and returns itself
+    item = await queue.get_next(is_session_busy=True)
+    assert item["mode"] == "abort"
+    assert item["prompt"] == "Abort active turn"
+    assert queue.depth() == 0
+
+
+@pytest.mark.asyncio
 async def test_queue_history() -> None:
-    queue = EventQueue()
-    item = await queue.enqueue(
-        prompt="Test history prompt", mode="prompt", source="webui"
-    )
+    queue = TurnQueue()
+    item = await queue.enqueue(prompt="Test history prompt", mode="prompt", source="webui")
     task_id = item["task_id"]
 
-    next_item = await queue.get_next()
+    next_item = await queue.get_next(is_session_busy=False)
     assert next_item["task_id"] == task_id
 
     queue.mark_completed(task_id, {"status": "success", "output": "Done"})

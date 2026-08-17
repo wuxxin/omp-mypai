@@ -9,7 +9,8 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from mypai_tools.daemon.queue import EventQueue
+
+from mypai_tools.daemon.queue import TurnQueue
 from mypai_tools.daemon.scheduler import CronScheduler
 from mypai_tools.persistence import CronJobModel, get_db_session
 from mypai_tools.tools import (
@@ -40,7 +41,7 @@ def test_evaluate_and_dispatch_result_prompt_flat_and_nested() -> None:
     )
     assert out_flat == "Flat Success: OK"
     mock_dispatch.assert_called_with(
-        "prompt", "Flat Success: OK", daemon_queue=None, session_mgr=None
+        "prompt", "Flat Success: OK", daemon_queue=None, session_mgr=None, job_id=""
     )
 
     # 2. Nested dictionary error prompt
@@ -63,7 +64,7 @@ def test_evaluate_and_dispatch_result_prompt_flat_and_nested() -> None:
     )
     assert out_nested == "Error in Nested Job: Crash"
     mock_dispatch.assert_called_with(
-        "steer", "Error in Nested Job: Crash", daemon_queue=None, session_mgr=None
+        "steer", "Error in Nested Job: Crash", daemon_queue=None, session_mgr=None, job_id=""
     )
 
     # 3. Empty result.prompt on success returns default_output
@@ -99,22 +100,16 @@ def test_format_system_trigger_prompt_all_sources() -> None:
 
     # Human sources pass through unchanged
     for src in ("webui", "signal", "interactive", "human", ""):
-        assert (
-            format_system_trigger_prompt("Run task", source=src, context=context)
-            == "Run task"
-        )
+        assert format_system_trigger_prompt("Run task", source=src, context=context) == "Run task"
 
     # Pre-existing [SYSTEM TRIGGER header passes through unchanged
     pre_formatted = "[SYSTEM TRIGGER: CUSTOM]\nCustom task"
     assert (
-        format_system_trigger_prompt(pre_formatted, source="cron", context=context)
-        == pre_formatted
+        format_system_trigger_prompt(pre_formatted, source="cron", context=context) == pre_formatted
     )
 
     # Cron source
-    cron_fmt = format_system_trigger_prompt(
-        "Check stats", source="cron", context=context
-    )
+    cron_fmt = format_system_trigger_prompt("Check stats", source="cron", context=context)
     assert cron_fmt == "[SYSTEM TRIGGER: CRON (Daily Backup)]\nCheck stats"
 
     # Executor result source
@@ -132,7 +127,7 @@ def test_format_system_trigger_prompt_all_sources() -> None:
 async def test_scheduler_run_job_websocket_broadcast_and_oneshot(tmp_path) -> None:
     """Verify CronScheduler.run_job broadcasts WebSocket event and auto-disables one-shot jobs."""
     agent_dir = str(tmp_path)
-    queue = EventQueue()
+    queue = TurnQueue()
     scheduler = CronScheduler(agent_dir=agent_dir, daemon_queue=queue)
     now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -153,7 +148,7 @@ async def test_scheduler_run_job_websocket_broadcast_and_oneshot(tmp_path) -> No
     session.close()
 
     mock_broadcast = AsyncMock()
-    with patch("mypai_tools.daemon.api.app.ws_manager.broadcast", new=mock_broadcast):
+    with patch("mypai_tools.daemon.api.ws.ws_manager.broadcast", new=mock_broadcast):
         job_dict = {
             "id": "oneshot_1",
             "name": "One-Shot Task",
@@ -179,7 +174,7 @@ async def test_scheduler_run_job_websocket_broadcast_and_oneshot(tmp_path) -> No
     updated_job = session.query(CronJobModel).filter_by(id="oneshot_1").first()
     assert updated_job is not None
     assert updated_job.enabled is False
-    assert updated_job.total_calls == 1
+    assert updated_job.total_runs == 1
     assert updated_job.last_returncode == 0
     session.close()
 
@@ -188,13 +183,11 @@ async def test_scheduler_run_job_websocket_broadcast_and_oneshot(tmp_path) -> No
 async def test_example_jobs_scheduler_full_cycle(tmp_path) -> None:
     """Import example_jobs.yaml into CronScheduler and run full execution cycle for all 4 jobs."""
     agent_dir = str(tmp_path)
-    queue = EventQueue()
+    queue = TurnQueue()
     scheduler = CronScheduler(agent_dir=agent_dir, daemon_queue=queue)
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    yaml_path = os.path.join(
-        os.path.dirname(__file__), "../../config/example_jobs.yaml"
-    )
+    yaml_path = os.path.join(os.path.dirname(__file__), "../../config/example_jobs.yaml")
     example_jobs = load_jobs_file(yaml_path)
     assert len(example_jobs) == 4
 
@@ -232,9 +225,7 @@ async def test_example_jobs_scheduler_full_cycle(tmp_path) -> None:
     with (
         patch("httpx.AsyncClient", return_value=mock_client),
         patch("asyncio.create_subprocess_shell", return_value=mock_proc),
-        patch(
-            "mypai_tools.executors.omp_rpc_executor.execute_omp_rpc_job"
-        ) as mock_omp_exec,
+        patch("mypai_tools.executors.omp_rpc_executor.execute_omp_rpc_job") as mock_omp_exec,
     ):
         mock_omp_exec.return_value = {
             "status": "success",
@@ -255,8 +246,7 @@ async def test_example_jobs_scheduler_full_cycle(tmp_path) -> None:
     for idx in range(1, 5):
         db_j = session.query(CronJobModel).filter_by(id=f"ex_{idx}").first()
         assert db_j is not None
-        assert db_j.total_calls == 1
-        assert db_j.last_start is not None
-        assert db_j.last_stop is not None
+        assert db_j.total_runs == 1
+        assert db_j.last_run_at != ""
         assert db_j.last_returncode == 0
     session.close()
