@@ -3,9 +3,20 @@
 import asyncio
 import logging
 import uuid
+from enum import IntEnum
 from typing import Any
 
 logger = logging.getLogger("mypai_daemon.queue")
+
+
+class Priority(IntEnum):
+    """Priority levels for Turn Queue items."""
+
+    ABORT = 0
+    STEER = 1
+    SYSTEM_EVENT = 2
+    FOLLOWUP = 3
+    USER_PROMPT = 4
 
 
 class TurnQueue:
@@ -47,6 +58,7 @@ class TurnQueue:
         sender: str | None = None,
         is_result_call: bool = False,
         origin_job_id: str = "",
+        priority: int = Priority.USER_PROMPT,
     ) -> dict[str, Any]:
         """Enqueue a turn into the Turn Queue."""
         async with self._lock:
@@ -64,6 +76,7 @@ class TurnQueue:
                 "context": context or {},
                 "is_result_call": is_result_call,
                 "origin_job_id": origin_job_id,
+                "priority": priority,
                 "status": "queued",
             }
 

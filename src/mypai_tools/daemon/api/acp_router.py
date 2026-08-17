@@ -19,14 +19,40 @@ async def get_acp_status(request: Request) -> dict[str, Any]:
 
     status_data = state.get_status()
     mgr_telemetry = manager.get_task_status()
+
+    running_tasks = [t for t in manager.tasks.values() if t.get("status") == "running"]
+    finished_tasks = [
+        t for t in manager.tasks.values() if t.get("status") in ("completed", "error", "cancelled")
+    ]
+    finished_tasks.sort(
+        key=lambda x: x.get("completed_at") or x.get("created_at", ""), reverse=True
+    )
+
     status_data.update(
         {
-            "total_tasks": mgr_telemetry.get("total_tasks", 0),
+            "total_tasks": len(manager.tasks),
+            "active_tasks": len(running_tasks),
             "active_workers": mgr_telemetry.get("active_workers", 0),
             "workers": manager.list_agents().get("workers", []),
+            "running_tasks": running_tasks,
+            "finished_tasks": finished_tasks[:10],
+            "tasks": list(manager.tasks.values()),
         }
     )
     return status_data
+
+
+@router.get("/tasks/{task_id}")
+async def get_acp_task_details(task_id: str, request: Request) -> dict[str, Any]:
+    """Fetch details and output for a specific ACP task."""
+    from fastapi import HTTPException
+
+    agent_dir = getattr(request.app.state, "agent_dir", "")
+    manager = get_acp_manager(agent_dir)
+    res = manager.get_task_status(task_id=task_id)
+    if res.get("status") == "not_found":
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+    return res
 
 
 @router.post("/enable")

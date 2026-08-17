@@ -26,6 +26,16 @@ class AcpDelegationManager:
         self.sessions: dict[str, AcpClientSession] = {}
         self.tasks: dict[str, dict[str, Any]] = {}
         self._lock = asyncio.Lock()
+        self.daemon_queue: Any = None
+        self.ws_manager: Any = None
+
+    def set_daemon_queue(self, queue: Any) -> None:
+        """Attach daemon TurnQueue for automatic completion callbacks."""
+        self.daemon_queue = queue
+
+    def set_ws_manager(self, ws_mgr: Any) -> None:
+        """Attach daemon WebSocket manager for live task updates."""
+        self.ws_manager = ws_mgr
 
     def get_or_create_session(self, cwd: str) -> AcpClientSession:
         """Get existing running AcpClientSession for cwd or spawn a fresh worker process."""
@@ -72,8 +82,15 @@ class AcpDelegationManager:
             "session_id": "",
             "duration_sec": 0.0,
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "completed_at": None,
         }
         self.tasks[task_id] = task_record
+
+        if self.ws_manager:
+            try:
+                await self.ws_manager.broadcast({"event": "acp_task_started", "task": task_record})
+            except Exception as ws_exc:  # noqa: BLE001
+                logger.debug("Error broadcasting acp_task_started: %s", ws_exc)
 
         async def _background_run() -> None:
             start_t = time.time()
@@ -85,14 +102,17 @@ class AcpDelegationManager:
                 loop = asyncio.get_running_loop()
                 res = await loop.run_in_executor(None, lambda: session.prompt(full_prompt))
 
+                raw_status = res.get("status", "completed")
+                task_status = "completed" if raw_status in ("success", "completed") else "error"
                 duration = round(time.time() - start_t, 3)
                 task_record.update(
                     {
-                        "status": res.get("status", "completed"),
+                        "status": task_status,
                         "output": res.get("output", ""),
                         "error": res.get("error", ""),
                         "session_id": session.session_id,
                         "duration_sec": duration,
+                        "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     }
                 )
             except Exception as exc:  # noqa: BLE001
@@ -102,8 +122,41 @@ class AcpDelegationManager:
                         "status": "error",
                         "error": str(exc),
                         "duration_sec": duration,
+                        "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     }
                 )
+
+            if self.ws_manager:
+                try:
+                    await self.ws_manager.broadcast(
+                        {"event": "acp_task_completed", "task": task_record}
+                    )
+                except Exception as ws_exc:  # noqa: BLE001
+                    logger.debug("Error broadcasting acp_task_completed: %s", ws_exc)
+
+            if self.daemon_queue:
+                status_title = "Completed" if task_record["status"] == "completed" else "Failed"
+                cb_prompt = (
+                    f"[ACP Subagent Task {status_title}]\n"
+                    f"Task ID: {task_id}\n"
+                    f"Workspace: {cwd}\n"
+                    f"Role: {agent_profile or 'default'}\n"
+                    f"Duration: {task_record.get('duration_sec', 0.0)}s\n\n"
+                    f"Result Output:\n{task_record.get('output', '')}"
+                )
+                if task_record["status"] == "error":
+                    cb_prompt += f"\nError: {task_record.get('error', '')}"
+
+                try:
+                    await self.daemon_queue.enqueue(
+                        prompt=cb_prompt,
+                        mode="prompt",
+                        source="acp_callback",
+                        priority=2,
+                        context={"task_id": task_id, "source": "acp_callback", "cwd": cwd},
+                    )
+                except Exception as q_exc:  # noqa: BLE001
+                    logger.warning("Failed to enqueue ACP callback to TurnQueue: %s", q_exc)
 
         asyncio.create_task(_background_run())
         return {"status": "queued", "task_id": task_id}

@@ -245,6 +245,12 @@ def main() -> None:
     session_mgr = OMPSessionManager(agent_dir=args.agent_dir)
     signal_client = SignalClient()
 
+    from mypai_tools.acp.manager import get_acp_manager
+
+    acp_mgr = get_acp_manager(args.agent_dir)
+    acp_mgr.set_daemon_queue(queue)
+    acp_mgr.set_ws_manager(ws_manager)
+
     app.state.agent_dir = args.agent_dir
     app.state.profile = session_mgr.profile
     app.state.daemon_queue = queue

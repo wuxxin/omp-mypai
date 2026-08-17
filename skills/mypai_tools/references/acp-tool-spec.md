@@ -11,7 +11,7 @@ The ACP task delegation system enables the primary `mypai_daemon` agent (`omp --
 - **Zero Synchronous RPC / ACP Calls**: All ACP task dispatches are purely asynchronous (`acp_task_async`), returning a `task_id` immediately.
 - **Background Execution**: Worker processes execute concurrently in the Background Execution Plane.
 - **Main Profile Default (No Profile Inheritance)**: ACP workers never inherit the `mypai` profile. While internal subagents within the `mypai` harness run in the `mypai` profile, ACP workers intentionally execute against the main/default Oh-My-Pi profile (`~/.omp/agent/`, `oh-my-pi`) by default. This allows the `mypai` agent to control external Oh-My-Pi instances and base tools across workspaces.
-- **Completion Ingestion**: When an async ACP subagent finishes, its results are logged in the ACP task store and, if a result action is configured, enqueued into the **Turn Queue** with `is_result_call=True`.
+- **Completion Ingestion & Turn Queue Callback**: When an async ACP subagent finishes, its results are logged in the ACP task store. The delegation manager automatically enqueues a system event callback into the daemon's **Turn Queue** (`source="acp_callback"`, priority=2) so the main agent receives the completed result without manual polling.
 
 ---
 
@@ -21,7 +21,7 @@ Registered into `omp_rpc.RpcClient` via `set_custom_tools()`:
 
 | Host Tool Name | Parameter Schema | Description & Functionality |
 | :--- | :--- | :--- |
-| **`acp_task_async`** | `cwd: str, prompt: str, agent_profile: str = ""` | Dispatches asynchronous background task turn and returns `task_id` immediately. |
+| **`acp_task_async`** | `cwd: str, prompt: str, agent_profile: str = ""` | Dispatches asynchronous background task turn, notifies WebSocket clients, and returns `task_id` immediately. |
 | **`acp_task_status`** | `task_id: str = ""` | Checks status, progress, and telemetry of running or completed ACP tasks. |
 | **`acp_task_result`** | `task_id: str` | Retrieves final text output and token statistics for a completed `task_id`. |
 | **`acp_task_steer`** | `task_id: str, guidance: str` | Injects mid-turn guidance into a running ACP worker turn. |
@@ -41,7 +41,8 @@ Registered into `omp_rpc.RpcClient` via `set_custom_tools()`:
 
 ### REST API Endpoints (`mypai_tools.daemon.api.acp_router`)
 
-* **`GET /api/v1/acp/status`**: Get current state (`running` vs `suspended`), active worker child PIDs, task queue depth, and memory telemetry.
+* **`GET /api/v1/acp/status`**: Get current state (`running` vs `suspended`), active worker child PIDs, task queue depth, `running_tasks`, and recent `finished_tasks`.
+* **`GET /api/v1/acp/tasks/{task_id}`**: Fetch details and output of a specific ACP task.
 * **`POST /api/v1/acp/enable`**: Enable ACP execution state in SQLite settings and broadcast WebSocket event `acp_state_changed`.
 * **`POST /api/v1/acp/suspend`** / **`POST /api/v1/acp/disable`**: Suspend ACP execution state in SQLite settings.
 * **`POST /api/v1/acp/shutdown`**: Stop worker processes and clear pool.

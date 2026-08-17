@@ -115,9 +115,168 @@
       animation: pulse-on-air 1.2s infinite;
     }
 
+    .header-divider {
+      color: rgba(255, 255, 255, 0.2);
+      font-weight: 300;
+      margin: 0 0.15rem;
+    }
+    .header-status-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.82rem;
+    }
+    .header-label {
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 0.8rem;
+    }
+    .team-agents-summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .sub-sep {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+    .status-pill {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .status-pill.pill-idle {
+      color: #94a3b8;
+      background: rgba(148, 163, 184, 0.12);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    .status-pill.pill-active {
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.18);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+    .status-pill.pill-streaming {
+      color: #ff8080;
+      background: rgba(239, 68, 68, 0.25);
+      border: 1px solid rgba(239, 68, 68, 0.8);
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.65);
+      animation: pulse-on-air 1.2s infinite;
+    }
+
     @keyframes pulse-on-air {
       0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 16px rgba(239, 68, 68, 0.7); }
       50% { opacity: 0.75; transform: scale(0.98); box-shadow: 0 0 6px rgba(239, 68, 68, 0.35); }
+    }
+
+    .cron-job-card {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.5rem 0.65rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      transition: all 0.2s ease;
+    }
+    .cron-job-card:hover {
+      border-color: rgba(59, 130, 246, 0.3);
+      background: rgba(15, 23, 42, 0.9);
+    }
+    .cron-row-1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cron-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-weight: 600;
+      font-size: 0.82rem;
+      color: var(--text-main);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 250px;
+    }
+    .cron-dot {
+      width: 8px;
+      height: 8px;
+      min-width: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .cron-dot.enabled { background: var(--status-green); }
+    .cron-dot.disabled { background: var(--text-muted); }
+    .cron-dot.running {
+      background: var(--status-red);
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+      animation: pulse-on-air 1s infinite;
+    }
+    .cron-row-2 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+    .cron-meta-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .cron-expr {
+      font-family: 'Fira Code', monospace;
+      color: var(--accent-cyan);
+      font-size: 0.72rem;
+    }
+    .cron-kind {
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 0.08rem 0.3rem;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--accent-purple);
+    }
+
+    .team-task-item {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 0.4rem 0.55rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+    }
+    .team-task-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .team-task-title {
+      font-weight: 600;
+      color: var(--text-main);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 220px;
+    }
+    .team-task-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      font-family: 'Fira Code', monospace;
     }
 
     .tab-nav {
@@ -502,12 +661,33 @@
 
   <header>
     <div class="brand-section">
-      <span class="brand-title">myPAI Console</span>
+      <span class="brand-title">myPAI Console:</span>
       <div id="status-badge" class="connection-status">
         <div class="status-dot"></div>
         <span id="status-text">Connected</span>
       </div>
-      <div id="streaming-badge" class="streaming-badge">STREAMING</div>
+      <span class="header-divider">|</span>
+      <div class="header-status-item">
+        <span class="header-label">Main Agent:</span>
+        <span id="main-agent-badge" class="status-pill pill-idle">IDLE</span>
+      </div>
+      <span class="header-divider">|</span>
+      <div class="header-status-item">
+        <span class="header-label">Team:</span>
+        <div id="team-header-badge" class="connection-status" style="padding: 0.2rem 0.55rem; font-size: 0.78rem;">
+          <div class="status-dot"></div>
+          <span id="team-header-text">Connected</span>
+        </div>
+      </div>
+      <span class="header-divider">|</span>
+      <div class="header-status-item">
+        <span class="header-label">Agents:</span>
+        <span id="team-agents-summary" class="team-agents-summary">
+          <span id="agents-active-badge" class="status-pill pill-idle">0 Active</span>
+          <span class="sub-sep">-</span>
+          <span id="agents-streaming-badge" class="status-pill pill-idle">0 Streaming</span>
+        </span>
+      </div>
     </div>
 
     <div class="tab-nav">
@@ -706,22 +886,9 @@
             <input type="file" id="cron-file-input" accept=".json,.yaml" style="display: none;" onchange="importCronJobs(event)" />
           </div>
 
-          <!-- Cron Table takes generous full layout space -->
-          <div style="overflow-x: auto; max-height: calc(100vh - 280px); overflow-y: auto; border: 1px solid var(--card-border); border-radius: 8px; margin-top: 0.25rem;">
-            <table class="cron-table" style="margin-top: 0;">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Cron</th>
-                  <th>Kind</th>
-                  <th>Calls</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody id="cron-tbody">
-                <tr><td colspan="5" style="color: var(--text-muted); text-align: center;">Loading tasks...</td></tr>
-              </tbody>
-            </table>
+          <!-- 2-Row Cron Job List Container -->
+          <div id="cron-jobs-list" style="overflow-x: hidden; max-height: calc(100vh - 270px); overflow-y: auto; display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.25rem;">
+            <div style="color: var(--text-muted); text-align: center; padding: 1rem;">Loading scheduled jobs...</div>
           </div>
         </div>
       </div>
@@ -755,13 +922,18 @@
           </button>
 
           <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-top: 0.2rem;">Workers:</div>
-          <div id="team-workers-list" style="max-height: 160px; overflow-y: auto; font-size: 0.75rem; font-family: 'Fira Code', monospace; color: var(--text-muted); background: rgba(15, 23, 42, 0.6); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--card-border);">
+          <div id="team-workers-list" style="max-height: 80px; overflow-y: auto; font-size: 0.72rem; font-family: 'Fira Code', monospace; color: var(--text-muted); background: rgba(15, 23, 42, 0.6); padding: 0.4rem; border-radius: 6px; border: 1px solid var(--card-border);">
             No active worker processes
           </div>
 
-          <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-top: 0.2rem;">Tasks:</div>
-          <div id="team-tasks-list" style="max-height: 220px; overflow-y: auto; font-size: 0.75rem; font-family: 'Fira Code', monospace; color: var(--text-muted); background: rgba(15, 23, 42, 0.6); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--card-border);">
-            No tasks dispatched
+          <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-top: 0.2rem;">Tasks (Running):</div>
+          <div id="team-running-tasks-list" style="max-height: 110px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem;">No active running tasks</div>
+          </div>
+
+          <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-top: 0.2rem;">Finished Tasks:</div>
+          <div id="team-finished-tasks-list" style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem;">No completed tasks yet</div>
           </div>
         </div>
       </div>
@@ -772,10 +944,13 @@
     const logConsole = document.getElementById('log-console');
     const statusBadge = document.getElementById('status-badge');
     const statusText = document.getElementById('status-text');
-    const streamingBadge = document.getElementById('streaming-badge');
+    const mainAgentBadge = document.getElementById('main-agent-badge');
+    const teamHeaderBadge = document.getElementById('team-header-badge');
+    const teamHeaderText = document.getElementById('team-header-text');
+    const agentsActiveBadge = document.getElementById('agents-active-badge');
+    const agentsStreamingBadge = document.getElementById('agents-streaming-badge');
     const promptInput = document.getElementById('prompt-input');
     const modeSelect = document.getElementById('mode-select');
-    const cronTbody = document.getElementById('cron-tbody');
     const eventsCheckbox = document.getElementById('events-checkbox');
     const streamChunksCheckbox = document.getElementById('stream-chunks-checkbox');
 
@@ -790,6 +965,19 @@
     let sidebarCollapsed = localStorage.getItem('mypai_sidebar_collapsed') === 'true';
     if (sidebarCollapsed) {
       document.getElementById('main-grid').classList.add('collapsed');
+    }
+
+    // Task Output Viewer State
+    let savedConsoleHtml = null;
+    let isViewingTaskOutput = false;
+    let cachedAcpTasks = [];
+    let isMainStreaming = false;
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
     }
 
     function toggleSidebar() {
@@ -831,6 +1019,9 @@
     }
 
     function clearConsole() {
+      if (isViewingTaskOutput) {
+        closeTaskViewer();
+      }
       logConsole.innerHTML = '<div class="log-entry info">[Console Cleared]</div>';
       activeStreamEntry = null;
       activeStreamBuffer = '';
@@ -839,6 +1030,18 @@
     function appendLog(text, type = 'info') {
       if (type === 'event' && !includeEvents) return;
       if (type === 'stream' && !showStreamChunks) return;
+      if (isViewingTaskOutput && savedConsoleHtml !== null) {
+        // Append to saved background log buffer while viewer is open
+        const temp = document.createElement('div');
+        temp.innerHTML = savedConsoleHtml;
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        const timeStr = new Date().toLocaleTimeString();
+        entry.textContent = `[${timeStr}] ${text}`;
+        temp.appendChild(entry);
+        savedConsoleHtml = temp.innerHTML;
+        return;
+      }
       const entry = document.createElement('div');
       entry.className = `log-entry ${type}`;
       const timeStr = new Date().toLocaleTimeString();
@@ -854,20 +1057,72 @@
       modal.classList.toggle('active', shouldOpen);
     }
 
+    // Task Output Viewer Functions
+    function viewTaskOutput(taskId) {
+      const task = cachedAcpTasks.find(t => t.task_id === taskId);
+      if (!task) return;
+
+      if (!isViewingTaskOutput) {
+        savedConsoleHtml = logConsole.innerHTML;
+      }
+      isViewingTaskOutput = true;
+
+      const outputText = task.output || task.error || 'No output recorded for this task.';
+      const isErr = !!task.error || task.status === 'error';
+      const statusColor = isErr ? 'var(--status-red)' : 'var(--status-green)';
+      const statusBg = isErr ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)';
+
+      logConsole.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.55rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--card-border);">
+          <div style="font-size: 0.88rem; font-weight: 600; color: var(--accent-cyan); display: flex; align-items: center; gap: 0.5rem;">
+            <span>[Task Output Viewer]</span>
+            <span style="font-family: 'Fira Code', monospace; font-size: 0.78rem; color: var(--text-muted);">${escapeHtml(task.task_id)}</span>
+            <span class="badge-pill" style="background: ${statusBg}; color: ${statusColor};">${task.status || 'completed'} (${task.duration_sec || 0}s)</span>
+          </div>
+          <button onclick="closeTaskViewer()" class="btn-action" style="padding: 0.25rem 0.65rem; font-weight: 600;">Back to Live Console (Esc)</button>
+        </div>
+        <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.45rem; line-height: 1.4;">
+          <strong>Prompt:</strong> ${escapeHtml(task.prompt || '')}
+        </div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); font-family: 'Fira Code', monospace; margin-bottom: 0.6rem;">
+          Workspace: ${escapeHtml(task.cwd || '')} | Role: ${escapeHtml(task.agent_profile || 'default')}
+        </div>
+        <pre style="font-family: 'Fira Code', monospace; font-size: 0.82rem; white-space: pre-wrap; word-break: break-word; color: ${isErr ? '#fca5a5' : '#f8fafc'}; line-height: 1.45; background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--card-border);">${escapeHtml(outputText)}</pre>
+      `;
+      logConsole.scrollTop = 0;
+    }
+
+    function closeTaskViewer() {
+      if (!isViewingTaskOutput) return;
+      isViewingTaskOutput = false;
+      if (savedConsoleHtml !== null) {
+        logConsole.innerHTML = savedConsoleHtml;
+        savedConsoleHtml = null;
+        logConsole.scrollTop = logConsole.scrollHeight;
+      }
+    }
+
     // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
+      // Escape key handler: exit task viewer or close shortcuts overlay
+      if (e.key === 'Escape') {
+        if (isViewingTaskOutput) {
+          e.preventDefault();
+          closeTaskViewer();
+          return;
+        }
+        const shortcutsModal = document.getElementById('shortcuts-modal');
+        if (shortcutsModal && shortcutsModal.classList.contains('active')) {
+          e.preventDefault();
+          toggleShortcutsOverlay(false);
+          return;
+        }
+      }
+
       // Toggle shortcuts overlay: ? or Shift+/ or F1 (when not focused in promptInput)
       if (((e.key === '?' || (e.shiftKey && e.key === '/')) && document.activeElement !== promptInput) || e.key === 'F1') {
         e.preventDefault();
         toggleShortcutsOverlay();
-        return;
-      }
-
-      // Close shortcuts modal on Escape if open
-      const shortcutsModal = document.getElementById('shortcuts-modal');
-      if (e.key === 'Escape' && shortcutsModal && shortcutsModal.classList.contains('active')) {
-        e.preventDefault();
-        toggleShortcutsOverlay(false);
         return;
       }
 
@@ -973,13 +1228,15 @@
       try {
         const data = JSON.parse(event.data);
         if (data.event === 'turn_started') {
-          streamingBadge.classList.add('active');
+          isMainStreaming = true;
+          updateMainAgentBadge(true, true);
           appendLog(`[Turn Start] Task ${data.task_id} (mode: ${data.mode})`, 'info');
           if (data.prompt) appendLog(`[Task Input] ${data.prompt}`, 'input');
           activeStreamBuffer = '';
           activeStreamEntry = null;
         } else if (data.event === 'turn_completed') {
-          streamingBadge.classList.remove('active');
+          isMainStreaming = false;
+          updateMainAgentBadge(false, false);
           const res = data.result || {};
           const out = res.output || res.error || '';
           activeStreamBuffer = '';
@@ -987,13 +1244,15 @@
           appendLog(`[Turn Completed] Task ${data.task_id} (${res.duration_sec || 0}s)`, res.status === 'success' ? 'success' : 'error');
           if (out) appendLog(`[Output] ${out}`, res.status === 'success' ? 'output' : 'error');
         } else if (data.event === 'turn_aborted') {
-          streamingBadge.classList.remove('active');
+          isMainStreaming = false;
+          updateMainAgentBadge(false, false);
           appendLog('[Turn Aborted] Active turn and queue purged.', 'error');
           activeStreamBuffer = '';
           activeStreamEntry = null;
           updateSessionTelemetry();
         } else if (data.event === 'message_update') {
-          streamingBadge.classList.add('active');
+          isMainStreaming = true;
+          updateMainAgentBadge(true, true);
           if (showStreamChunks && data.text) {
             activeStreamBuffer += data.text;
             if (!activeStreamEntry) {
@@ -1006,7 +1265,12 @@
           }
         } else if (data.event === 'cron_task_completed') {
           appendLog(`[Cron Executed] '${data.name}' (${data.kind}) - ${data.status.toUpperCase()} (${data.duration_sec}s)`, data.status === 'success' ? 'success' : 'error');
-        } else if (data.event && (data.event.startsWith('rpc_') || data.event.startsWith('cron_'))) {
+        } else if (data.event === 'acp_task_started') {
+          appendLog(`[External Agent Start] Task ${data.task.task_id} in '${data.task.cwd}'`, 'info');
+        } else if (data.event === 'acp_task_completed') {
+          const t = data.task || {};
+          appendLog(`[External Agent Completed] Task ${t.task_id} (${t.duration_sec || 0}s) - ${t.status.toUpperCase()}`, t.status === 'completed' ? 'success' : 'error');
+        } else if (data.event && (data.event.startsWith('rpc_') || data.event.startsWith('cron_') || data.event.startsWith('acp_'))) {
           appendLog(`[Event] ${data.event}`, 'event');
         }
 
@@ -1017,9 +1281,24 @@
     ws.onclose = () => {
       statusText.textContent = 'Disconnected';
       statusBadge.classList.add('disconnected');
-      streamingBadge.classList.remove('active');
+      updateMainAgentBadge(false, false);
       appendLog('[WebSocket] Disconnected from daemon server.', 'error');
     };
+
+    function updateMainAgentBadge(isBusy, isStreaming) {
+      if (!mainAgentBadge) return;
+      mainAgentBadge.className = 'status-pill';
+      if (isStreaming) {
+        mainAgentBadge.classList.add('pill-streaming');
+        mainAgentBadge.textContent = 'STREAMING';
+      } else if (isBusy) {
+        mainAgentBadge.classList.add('pill-active');
+        mainAgentBadge.textContent = 'ACTIVE';
+      } else {
+        mainAgentBadge.classList.add('pill-idle');
+        mainAgentBadge.textContent = 'IDLE';
+      }
+    }
 
     // History & Stats
     let loadedHistoryIds = new Set();
@@ -1058,8 +1337,8 @@
         document.getElementById('stat-queued').textContent = qDepth;
         document.getElementById('turn-queued-count').textContent = qDepth;
 
-        const isBusy = !!data.is_busy;
-        if (isBusy) streamingBadge.classList.add('active'); else streamingBadge.classList.remove('active');
+        const isBusy = !!data.is_busy || !!data.active_call;
+        updateMainAgentBadge(isBusy, isMainStreaming);
 
         const turnBadge = document.getElementById('turn-status-badge');
         const turnStatusText = document.getElementById('turn-status-text');
@@ -1143,24 +1422,57 @@
       try {
         const res = await fetch('/api/v1/cron/jobs');
         const jobs = await res.json();
+        const container = document.getElementById('cron-jobs-list');
+        if (!container) return;
+
         if (!Array.isArray(jobs) || !jobs.length) {
-          cronTbody.innerHTML = '<tr><td colspan="5" style="color: var(--text-muted); text-align: center;">No scheduled cron jobs found.</td></tr>';
+          container.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 1rem;">No scheduled cron jobs found.</div>';
           return;
         }
-        cronTbody.innerHTML = jobs.map(j => `
-          <tr>
-            <td>
-              <div style="font-weight: 600;">${j.name}</div>
-              ${j.description ? `<div style="font-size: 0.72rem; color: var(--text-muted);">${j.description}</div>` : ''}
-            </td>
-            <td><code>${j.cron}</code></td>
-            <td><span class="badge-pill">${j.kind}</span></td>
-            <td>${j.total_runs || 0}</td>
-            <td>
-              <button onclick="runCronOnce('${j.name}', '${j.kind}', '${j.action}')" class="btn-action" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Run</button>
-            </td>
-          </tr>
-        `).join('');
+
+        container.innerHTML = jobs.map(j => {
+          const isRunning = !!j.is_running;
+          const isEnabled = j.enabled !== false;
+          let dotClass = 'disabled';
+          if (isRunning) dotClass = 'running';
+          else if (isEnabled) dotClass = 'enabled';
+
+          const toggleLabel = isEnabled ? 'Disable' : 'Enable';
+          const toggleColor = isEnabled ? 'var(--status-amber)' : 'var(--status-green)';
+
+          return `
+            <div class="cron-job-card">
+              <div class="cron-row-1">
+                <div class="cron-title-group">
+                  <span class="cron-dot ${dotClass}"></span>
+                  <span title="${escapeHtml(j.name)}">${escapeHtml(j.name)}</span>
+                </div>
+                <button onclick="toggleJobEnabled('${j.id || j.name}', ${!isEnabled})" class="btn-action" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; color: ${toggleColor};">
+                  ${toggleLabel}
+                </button>
+              </div>
+              <div class="cron-row-2">
+                <div class="cron-meta-group">
+                  <span class="cron-expr"><code>${escapeHtml(j.cron)}</code></span>
+                  <span class="cron-kind">${escapeHtml(j.kind)}</span>
+                  <span>Calls: <strong>${j.total_runs || 0}</strong></span>
+                </div>
+                <button onclick="runCronOnce('${escapeHtml(j.name)}', '${escapeHtml(j.kind)}', '${escapeHtml(j.action)}')" class="btn-action" style="padding: 0.2rem 0.55rem; font-size: 0.72rem;">
+                  Run
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {}
+    }
+
+    async function toggleJobEnabled(jobId, enable) {
+      try {
+        const endpoint = enable ? `/api/v1/cron/jobs/${jobId}/enable` : `/api/v1/cron/jobs/${jobId}/disable`;
+        await fetch(endpoint, { method: 'POST' });
+        loadCronJobs();
+        updateCronStatus();
       } catch (e) {}
     }
 
@@ -1236,33 +1548,112 @@
         const res = await fetch('/api/v1/acp/status');
         const data = await res.json();
         const stateStr = data.state || 'running';
-        document.getElementById('acp-global-badge').textContent = stateStr === 'running' ? '[Connected]' : '[Suspended]';
-        document.getElementById('acp-global-badge').style.color = stateStr === 'running' ? 'var(--status-green)' : 'var(--status-red)';
-        document.getElementById('toggle-acp-btn').textContent = stateStr === 'running' ? 'Disable External Agents' : 'Enable External Agents';
+        const isConnected = stateStr === 'running';
+
+        // Update Header Team badges
+        if (teamHeaderBadge && teamHeaderText) {
+          if (isConnected) {
+            teamHeaderBadge.classList.remove('disconnected');
+            teamHeaderText.textContent = 'Connected';
+          } else {
+            teamHeaderBadge.classList.add('disconnected');
+            teamHeaderText.textContent = 'Suspended';
+          }
+        }
+
+        document.getElementById('acp-global-badge').textContent = isConnected ? '[Connected]' : '[Suspended]';
+        document.getElementById('acp-global-badge').style.color = isConnected ? 'var(--status-green)' : 'var(--status-red)';
+        document.getElementById('toggle-acp-btn').textContent = isConnected ? 'Disable External Agents' : 'Enable External Agents';
 
         const workers = data.workers || [];
-        document.getElementById('team-workers-count').textContent = workers.length;
-        document.getElementById('team-active-tasks').textContent = data.active_workers || 0;
-        document.getElementById('team-total-tasks').textContent = data.total_tasks || 0;
+        const runningTasks = data.running_tasks || [];
+        const finishedTasks = data.finished_tasks || [];
+        cachedAcpTasks = data.tasks || [...runningTasks, ...finishedTasks];
 
+        const activeWorkersCount = runningTasks.length || (workers.filter(w => w.alive).length > 0 && runningTasks.length ? runningTasks.length : 0);
+        const streamingWorkersCount = runningTasks.length; // Active streaming tasks
+
+        // Update Agents X Active - Y Streaming badges
+        if (agentsActiveBadge) {
+          agentsActiveBadge.className = 'status-pill';
+          if (activeWorkersCount > 0) {
+            agentsActiveBadge.classList.add('pill-active');
+            agentsActiveBadge.textContent = `${activeWorkersCount} Active`;
+          } else {
+            agentsActiveBadge.classList.add('pill-idle');
+            agentsActiveBadge.textContent = '0 Active';
+          }
+        }
+
+        if (agentsStreamingBadge) {
+          agentsStreamingBadge.className = 'status-pill';
+          if (streamingWorkersCount > 0) {
+            agentsStreamingBadge.classList.add('pill-streaming');
+            agentsStreamingBadge.textContent = `${streamingWorkersCount} Streaming`;
+          } else {
+            agentsStreamingBadge.classList.add('pill-idle');
+            agentsStreamingBadge.textContent = '0 Streaming';
+          }
+        }
+
+        document.getElementById('team-workers-count').textContent = workers.length;
+        document.getElementById('team-active-tasks').textContent = runningTasks.length;
+        document.getElementById('team-total-tasks').textContent = data.total_tasks || (runningTasks.length + finishedTasks.length);
+
+        // Render Workers List
         const workersList = document.getElementById('team-workers-list');
         if (!workers.length) {
           workersList.textContent = 'No active worker processes';
         } else {
           workersList.innerHTML = workers.map(w => `
-            <div>- [PID ${w.pid || 'N/A'}] ${w.cwd} (Runtime: ${w.uptime_sec}s)</div>
+            <div>- [PID ${w.pid || 'N/A'}] ${escapeHtml(w.cwd)} (Runtime: ${w.uptime_sec}s)</div>
           `).join('');
         }
 
-        const tasksList = document.getElementById('team-tasks-list');
-        const tasks = data.tasks || [];
-        if (!tasks.length) {
-          tasksList.textContent = 'No tasks dispatched';
+        // Render Running Tasks List
+        const runningList = document.getElementById('team-running-tasks-list');
+        if (!runningTasks.length) {
+          runningList.innerHTML = '<div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem;">No active running tasks</div>';
         } else {
-          tasksList.innerHTML = tasks.map(t => `
-            <div>- [${t.task_id}] [*] ${t.prompt.slice(0, 30)} (Runtime: ${t.duration_sec}s)</div>
+          runningList.innerHTML = runningTasks.map(t => `
+            <div class="team-task-item">
+              <div class="team-task-row">
+                <span class="team-task-title" title="${escapeHtml(t.prompt)}">${escapeHtml(t.prompt)}</span>
+                <span class="status-pill pill-active" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">Running</span>
+              </div>
+              <div class="team-task-meta">
+                <span>${t.task_id}</span>
+                <span>${t.duration_sec || 0}s</span>
+              </div>
+            </div>
           `).join('');
         }
+
+        // Render Finished Tasks List (Last 5)
+        const finishedList = document.getElementById('team-finished-tasks-list');
+        const last5 = finishedTasks.slice(0, 5);
+        if (!last5.length) {
+          finishedList.innerHTML = '<div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem;">No completed tasks yet</div>';
+        } else {
+          finishedList.innerHTML = last5.map(t => {
+            const isErr = !!t.error || t.status === 'error';
+            const statusClass = isErr ? 'pill-streaming' : 'pill-active';
+            const statusText = isErr ? 'Error' : 'Done';
+            return `
+              <div class="team-task-item">
+                <div class="team-task-row">
+                  <span class="team-task-title" title="${escapeHtml(t.prompt)}">${escapeHtml(t.prompt)}</span>
+                  <button onclick="viewTaskOutput('${t.task_id}')" class="btn-action" style="padding: 0.15rem 0.45rem; font-size: 0.7rem; color: var(--accent-cyan);">View</button>
+                </div>
+                <div class="team-task-meta">
+                  <span>${t.task_id} (${t.duration_sec || 0}s)</span>
+                  <span class="status-pill ${statusClass}" style="font-size: 0.62rem; padding: 0.05rem 0.3rem;">${statusText}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
       } catch (e) {}
     }
 
