@@ -44,6 +44,7 @@ class OMPSessionManager:
         self.rpc_client: Any | None = None
         self.connection_state: str = "disconnected"
         self.active_call: dict[str, Any] | None = None
+        self.last_turn: dict[str, Any] | None = None
         self._lock = asyncio.Lock()
         self._turn_done_event = asyncio.Event()
         self.start_time = time.time()
@@ -407,10 +408,19 @@ class OMPSessionManager:
                 return_code = 1
                 error_msg = str(exc)
             finally:
+                duration = round(time.time() - start_time, 3)
+                self.last_turn = {
+                    "task_id": task_id,
+                    "mode": clean_mode,
+                    "source": source,
+                    "duration_sec": duration,
+                    "prompt_snippet": (prompt[:60] + "...") if len(prompt) > 60 else prompt,
+                    "status": "success" if return_code == 0 else "error",
+                    "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }
                 self.is_busy = False
                 self.active_call = None
 
-            duration = round(time.time() - start_time, 3)
             return {
                 "status": "success" if return_code == 0 else "error",
                 "mode": clean_mode,
@@ -548,6 +558,7 @@ class OMPSessionManager:
             "agent_dir": self.agent_dir,
             "is_busy": self.is_busy,
             "active_call": active_call_info,
+            "last_turn": self.last_turn,
             "queue_depth": queue_depth,
             "uptime_sec": uptime,
             "human_uptime": format_human_uptime(uptime),
