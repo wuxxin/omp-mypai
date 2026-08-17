@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The **Cron Task Scheduler** subsystem in `mypai_daemon` manages scheduled and background execution for **MyPAI**. Tasks are stored per workspace in SQLite databases located at `mypai_plugin_data/daemon/agent-<basedir>-<shorthash>.db` (with WAL mode and 30s busy timeout enabled).
+The **Cron Task Scheduler** subsystem in `mypai_daemon` manages scheduled and background execution for **MyPAI**. Tasks are stored per workspace in SQLite databases located in the profile data directory at `~/.omp/profiles/<profile>/data/omp-mypai/daemon/agent-<basedir>-<shorthash>.db` (or `~/.omp/data/omp-mypai/daemon/` for default profile, or `$MYPAI_PLUGIN_DATA`), with WAL mode and 30s busy timeout enabled.
 
 Cron capabilities are exposed directly to the persistent agent via **Host Tools** (`omp_rpc.host_tool`) without intermediate MCP subprocesses or HTTP loopback calls.
 

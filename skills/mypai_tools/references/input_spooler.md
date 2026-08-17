@@ -16,7 +16,7 @@ The **Input Spooler Daemon** (`mypai_tools.input_spooler`) is an independent, pe
    - Implements a 10-second file modification quiescence threshold to prevent reading partially written files.
 
 2. **Deduplication via SHA256 Hashing**:
-   - Computes SHA256 digest of ingested files and stores processed hashes in `~/.omp/spooler/processed_hashes.json`.
+   - Computes SHA256 digest of ingested files and stores processed hashes in `~/.omp/profiles/<profile>/data/omp-mypai/spooler_processed_hashes.json` (or `~/.omp/data/omp-mypai/` for default profile).
    - Prevents duplicate processing on process restarts or repeated directory scans.
 
 3. **Sidecar Metadata Parsing**:
@@ -41,7 +41,7 @@ The **Input Spooler Daemon** (`mypai_tools.input_spooler`) is an independent, pe
        "source": "spooler",
        "context": {
          "file_path": "/home/user/Recordings/Inbox/note_1.wav",
-         "hindsight_bank": "mypai-orchestrator"
+         "hindsight_bank": "mypai"
        }
      }
      ```
@@ -52,16 +52,17 @@ The **Input Spooler Daemon** (`mypai_tools.input_spooler`) is an independent, pe
 ## 2. Asynchronous Sidecar Launching & Execution
 
 ```bash
-# Asynchronous sidecar daemon mode (Continuous background execution)
-python3 -m mypai_tools.input_spooler daemon [--inbox ~/Recordings/Inbox]
+# Asynchronous sidecar daemon mode (Continuous background execution in mypai profile)
+python3 -m mypai_tools.input_spooler daemon [--inbox ~/Recordings/Inbox] [--profile mypai]
 
 # Optional flags
 python3 -m mypai_tools.input_spooler daemon \
   --inbox ~/Recordings/Inbox \
-  --stt-url http://localhost:50090/v1 \
+  --profile mypai \
+  --stt-url http://localhost:50090/v1/audio/transcriptions \
   --hindsight-url http://localhost:8888 \
   --daemon-url http://127.0.0.1:52080 \
-  --bank-id mypai-orchestrator \
+  --bank-id mypai \
   --quiescence-sec 10 \
   -v
 ```

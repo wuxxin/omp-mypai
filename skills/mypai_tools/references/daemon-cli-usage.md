@@ -17,21 +17,22 @@ SIGNAL_ALLOWED_SENDER="+15559992222"    # Whitelisted Signal sender phone number
 ```
 
 ```bash
-# Continuous background daemon server mode (default port 52080)
-python3 -m mypai_tools.daemon serve [--agent-dir /path/to/project] [--port 52080]
+# Continuous background daemon server mode (default port 52080, profile: mypai)
+python3 -m mypai_tools.daemon serve [--agent-dir /path/to/project] [--profile mypai] [--port 52080]
 
 # Execute single-pass for all active cron jobs and exit
-python3 -m mypai_tools.daemon once [--agent-dir /path/to/project]
+python3 -m mypai_tools.daemon once [--agent-dir /path/to/project] [--profile mypai]
 ```
 
 ### Mandatory Subcommands
-- `serve`: Launches continuous HTTP REST/WebSocket server and APScheduler worker daemon. Accepts `--port` (default `52080`).
+- `serve`: Launches continuous HTTP REST/WebSocket server and APScheduler worker daemon. Accepts `--port` (default `52080`) and `--profile` (default `mypai`).
 - `once`: Executes pending active cron jobs once and exits immediately.
-- `import <file_path>`: Imports cron tasks from specified YAML or JSON file into SQLite DB.
+- `import <file_path>`: Imports cron tasks from specified YAML or JSON file into SQLite DB in profile data directory.
 - `export [file_path]`: Exports registered cron tasks from SQLite DB to YAML (default target: `jobs.yaml`) or JSON file. Accepts `--format` / `-f` (`yaml`, `yml`, `json`).
 
 ### Common Flags
 - `--agent-dir`: Target workspace directory path (sets & exports `MYPAI_AGENT_DIR`). Defaults to current working directory (`$PWD`).
+- `--profile`: Target OMP profile name (sets & exports `OMP_PROFILE`, default `mypai`). Controls profile-scoped SQLite database and ACP worker subagents.
 - `--verbose` / `-v`: Enables verbose DEBUG logging.
 
 ---

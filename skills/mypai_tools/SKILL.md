@@ -11,7 +11,7 @@ description: Guide for mypai_tools host tools (cron), MCP services (signal_chat,
 
 ## 1. Cron Task Scheduler (Native Host Tools)
 
-Per-project cron entries are stored in SQLite databases located at `mypai_plugin_data/daemon/agent-<basedir>-<shorthash>.db`. Cron operations are registered as native in-process **Host Tools** in `omp_rpc`.
+Per-project cron entries are stored in SQLite databases located in the profile data directory (`~/.omp/profiles/<profile>/data/omp-mypai/daemon/agent-<basedir>-<shorthash>.db` or `$MYPAI_PLUGIN_DATA`). Cron operations are registered as native in-process **Host Tools** in `omp_rpc`.
 
 ### Host Tools List
 - **`add_job(name, cron, kind='omp', action='prompt', args=None, kwargs=None, opts=None, result=None, description='')`**: Register a recurring crontab task.
