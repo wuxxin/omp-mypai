@@ -49,6 +49,8 @@ async def test_session_manager_get_status(tmp_path) -> None:
     assert status["session_name"] == "mypai_daemon - running"
     assert status["queue_depth"] == 2
     assert status["is_busy"] is False
+    assert "model" in status
+    assert "model" in status["session_state"]
 
 
 @pytest.mark.asyncio
@@ -62,6 +64,7 @@ async def test_session_manager_abort_updates_last_turn(tmp_path) -> None:
     mgr.active_call = {
         "task_id": "task_active_99",
         "mode": "prompt",
+        "model": "qwen3",
         "source": "webui",
         "start_time": 1000.0,
         "prompt_snippet": "Analyze repo structure",
@@ -74,8 +77,10 @@ async def test_session_manager_abort_updates_last_turn(tmp_path) -> None:
     assert mgr.last_turn is not None
     assert mgr.last_turn["task_id"] == "task_active_99"
     assert mgr.last_turn["status"] == "aborted"
+    assert mgr.last_turn["model"] == "qwen3"
     assert mgr.last_turn["prompt_snippet"] == "Analyze repo structure"
 
     status = mgr.get_status()
     assert status["last_turn"]["status"] == "aborted"
     assert status["last_turn"]["task_id"] == "task_active_99"
+    assert status["last_turn"]["model"] == "qwen3"

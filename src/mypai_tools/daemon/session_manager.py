@@ -290,11 +290,15 @@ class OMPSessionManager:
 
         self._turn_done_event.set()
 
+        state_info = self.get_session_state()
+        current_model = state_info.get("model", "default")
+
         if self.active_call:
             elapsed = round(time.time() - self.active_call.get("start_time", time.time()), 3)
             self.last_turn = {
                 "task_id": self.active_call.get("task_id", "aborted"),
                 "mode": self.active_call.get("mode", "prompt"),
+                "model": self.active_call.get("model", current_model),
                 "source": self.active_call.get("source", "user"),
                 "duration_sec": elapsed,
                 "prompt_snippet": self.active_call.get("prompt_snippet", "Aborted by user"),
@@ -305,6 +309,7 @@ class OMPSessionManager:
             self.last_turn = {
                 "task_id": "aborted",
                 "mode": "abort",
+                "model": current_model,
                 "source": "webui",
                 "duration_sec": 0.0,
                 "prompt_snippet": "Turn aborted by user",
@@ -313,6 +318,8 @@ class OMPSessionManager:
             }
         else:
             self.last_turn["status"] = "aborted"
+            if "model" not in self.last_turn:
+                self.last_turn["model"] = current_model
 
         self.is_busy = False
         self.active_call = None
@@ -375,9 +382,12 @@ class OMPSessionManager:
             from datetime import datetime, timezone
 
             since_iso = datetime.now(timezone.utc).isoformat()
+            state_info = self.get_session_state()
+            current_model = state_info.get("model", "default")
             self.active_call = {
                 "task_id": task_id or f"turn-{int(start_time)}",
                 "mode": clean_mode,
+                "model": current_model,
                 "since": since_iso,
                 "start_time": start_time,
                 "prompt_snippet": prompt[:80],
@@ -446,6 +456,7 @@ class OMPSessionManager:
                 self.last_turn = {
                     "task_id": task_id,
                     "mode": clean_mode,
+                    "model": current_model,
                     "source": source,
                     "duration_sec": duration,
                     "prompt_snippet": (prompt[:60] + "...") if len(prompt) > 60 else prompt,
@@ -493,7 +504,16 @@ class OMPSessionManager:
                     state_dict["session_id"] = getattr(st, "session_id", self.session_uuid)
                     state_dict["session_name"] = getattr(st, "session_name", self.session_name)
                     state_dict["session_file"] = getattr(st, "session_file", None)
-                    state_dict["model"] = str(getattr(st, "model", "default"))
+                    m = getattr(st, "model", getattr(client, "model", "default"))
+                    if m is not None:
+                        if isinstance(m, str):
+                            state_dict["model"] = m
+                        elif hasattr(m, "id"):
+                            state_dict["model"] = str(m.id)
+                        elif hasattr(m, "name"):
+                            state_dict["model"] = str(m.name)
+                        else:
+                            state_dict["model"] = str(m)
                     state_dict["thinking_level"] = str(getattr(st, "thinking_level", "auto"))
                     state_dict["is_streaming"] = bool(getattr(st, "is_streaming", self.is_busy))
                     state_dict["steering_mode"] = str(getattr(st, "steering_mode", "one-at-a-time"))
@@ -575,18 +595,21 @@ class OMPSessionManager:
             active_call_info = {
                 "task_id": self.active_call["task_id"],
                 "mode": self.active_call["mode"],
+                "model": self.active_call.get("model", "default"),
                 "since": self.active_call["since"],
                 "duration_sec": elapsed,
                 "prompt_snippet": self.active_call["prompt_snippet"],
             }
 
         uptime = round(time.time() - self.start_time, 1)
+        sess_state = self.get_session_state()
         return {
             "status": self.connection_state,
             "connected": is_connected,
             "version": "1.0.0",
             "pid": pid,
             "profile": self.profile,
+            "model": sess_state.get("model", "default"),
             "session_name": self.session_name,
             "session_id": self.session_uuid,
             "agent_dir": self.agent_dir,
@@ -596,5 +619,5 @@ class OMPSessionManager:
             "queue_depth": queue_depth,
             "uptime_sec": uptime,
             "human_uptime": format_human_uptime(uptime),
-            "session_state": self.get_session_state(),
+            "session_state": sess_state,
         }

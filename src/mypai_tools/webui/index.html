@@ -594,6 +594,10 @@
               <div id="tel-uuid" class="stat-mono" style="font-size: 0.76rem; color: var(--accent-cyan); word-break: break-all; user-select: all;">--</div>
             </div>
             <div class="stat-row">
+              <span class="stat-label">Model:</span>
+              <span id="state-model" class="stat-mono stat-val" style="color: var(--accent-purple);">--</span>
+            </div>
+            <div class="stat-row">
               <span class="stat-label">Steering:</span>
               <span id="state-steering" class="stat-val">one-at-a-time</span>
             </div>
@@ -643,6 +647,10 @@
             <div class="stat-row">
               <span class="stat-label">Last/Current:</span>
               <span id="turn-current-id" class="stat-mono stat-val" style="color: var(--accent-purple);">--</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Model:</span>
+              <span id="turn-model" class="stat-mono stat-val" style="color: var(--accent-cyan);">--</span>
             </div>
             <div class="stat-row">
               <span class="stat-label">Runtime:</span>
@@ -1077,6 +1085,21 @@
         }
 
         const sState = data.session_state || {};
+        const modelName = data.model || sState.model || 'default';
+        const stateModel = document.getElementById('state-model');
+        if (stateModel) stateModel.textContent = modelName;
+
+        const turnModel = document.getElementById('turn-model');
+        if (turnModel) {
+          if (data.active_call && data.active_call.model) {
+            turnModel.textContent = data.active_call.model;
+          } else if (data.last_turn && data.last_turn.model) {
+            turnModel.textContent = data.last_turn.model;
+          } else {
+            turnModel.textContent = modelName;
+          }
+        }
+
         document.getElementById('state-steering').textContent = sState.steering_mode || 'one-at-a-time';
         const ctx = sState.context_usage || { tokens: 0, max_tokens: 128000, percentage: 0 };
         document.getElementById('state-context-text').textContent = `${(ctx.tokens || 0).toLocaleString()} / ${(ctx.max_tokens || 128000).toLocaleString()} (${ctx.percentage || 0}%)`;

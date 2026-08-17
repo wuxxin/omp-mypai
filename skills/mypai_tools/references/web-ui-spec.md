@@ -66,6 +66,7 @@ Harness:          [connected]
 Session:
   Name: mypai_daemon - running
   UUID: x-y-z-a-b
+  Model: qwen3
   Steering: one-at-a-time
   Runtime: 2h 13m
   Messages (U/A): 12 / 12
@@ -78,6 +79,7 @@ Turn:             [Inactive]
   Queued: 0 entries
   Status: Inactive
   Last/Current: evt_0bbd1bd8@prompt
+  Model: qwen3
   Runtime: 6s
   Messages (U/A), ToolCalls: Last turn completed OK
   Snippet: "Audit active project todos..."
