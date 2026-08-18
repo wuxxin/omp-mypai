@@ -27,7 +27,7 @@ help:
 	@echo "                      - Buildenv but install omp-rpc from a custom location"
 	@echo "  make test           - Run unit tests inside venv (builds venv if missing)"
 	@echo "  make lint           - Run ruff code linter inside venv (builds venv if missing)"
-	@echo "  make check          - Run linter and execute unit tests inside venv"
+	@echo "  make coverage       - Run pytest with coverage reporting. COV_FAIL_UNDER=$(COV_FAIL_UNDER)"
 	@echo "  make clean          - Clean up temporary test caches and Python bytecode"
 	@echo "  make cleanenv       - Remove local virtualenv ($(VENV))"
 	@echo "  make installenv     - Build independent plugin runtime venv (snapshot) into $(INSTALL_VENV)"
@@ -67,7 +67,9 @@ lint: buildenv
 	@echo "Running ruff check on omp-mypai tools in $(VENV)..."
 	$(RUFF) check src/ || true
 
-check: test lint
+coverage: buildenv
+	@echo "Runing pytest with coverage reporting. COV_FAIL_UNDER=$(COV_FAIL_UNDER)"
+	@echo "Unfinished! uv run --python $(INSTALL_PYTHON) pytest src"
 
 cleanenv:
 	@echo "Removing virtual environment $(VENV)..."
@@ -82,5 +84,4 @@ clean: cleanenv
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "mypai_tools.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	rm -f .coverage
-
 
