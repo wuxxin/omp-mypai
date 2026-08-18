@@ -23,6 +23,8 @@ default: help
 help:
 	@echo "omp-mypai Makefile Usage:"
 	@echo "  make buildenv       - Create local virtualenv ($(VENV)) and install editable dependencies"
+	@echo "  make buildenv OMP_RPC_SRC=../custom-omp-rpc"
+	@echo "                      - Buildenv but install omp-rpc from a custom location"
 	@echo "  make test           - Run unit tests inside venv (builds venv if missing)"
 	@echo "  make lint           - Run ruff code linter inside venv (builds venv if missing)"
 	@echo "  make check          - Run linter and execute unit tests inside venv"
@@ -34,10 +36,9 @@ help:
 $(VENV)/bin/pytest:
 	@echo "Building virtual environment in $(VENV)..."
 	@if [ ! -d "$(VENV)" ]; then uv venv $(VENV); fi
-	if [ -n "$(OMP_RPC_SRC)" ] && [ -e "$(OMP_RPC_SRC)" ]; then \
-		echo "Installing omp-rpc from $(OMP_RPC_SRC)..."; \
-		uv pip install --python $(PYTHON) "$(OMP_RPC_SRC)"; \
-	fi
+	echo "Installing omp-rpc from $(OMP_RPC_SRC)..."
+	uv pip install --python $(PYTHON) "$(OMP_RPC_SRC)"
+	echo "Installing plugin package and test dependencies"
 	uv pip install --python $(PYTHON) -e ./src pytest pytest-asyncio ruff
 
 buildenv: $(VENV)/bin/pytest
@@ -46,10 +47,8 @@ installenv:
 	@echo "Building independent plugin runtime environment in $(INSTALL_VENV)..."
 	rm -rf $(INSTALL_VENV)
 	uv venv $(INSTALL_VENV)
-	if [ -n "$(OMP_RPC_SRC)" ] && [ -e "$(OMP_RPC_SRC)" ]; then \
-		echo "Installing omp-rpc from $(OMP_RPC_SRC)..."; \
-		uv pip install --python $(INSTALL_PYTHON) "$(OMP_RPC_SRC)"; \
-	fi
+	echo "Installing omp-rpc from $(OMP_RPC_SRC)..."
+	uv pip install --python $(INSTALL_PYTHON) "$(OMP_RPC_SRC)"
 	@echo "Installing plugin package from src..."
 	uv pip install --python $(INSTALL_PYTHON) ./src
 	@echo "Verifying runtime env import..."

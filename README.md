@@ -7,19 +7,18 @@ adding Host-Native Cron, Signal Chat, Inbound Spooler, and WebUI tools.
 
 Repository Structure: see [AGENTS.md](AGENTS.md)
 
-
 ## Development & Testing (`Makefile`)
 
 The plugin includes a dedicated [Makefile](Makefile) for virtualenv management, testing, and linting:
 
-```bash
-make buildenv  # Create .venv and install mypai_tools & dependencies
-make test      # Run hermetic unit tests inside .venv (auto-builds .venv if missing)
-make lint      # Run ruff check inside .venv
-make check     # Run linter and execute unit tests
-make clean     # Clean up test caches and Python bytecode
-make cleanenv  # Remove .venv directory
-```
+- Create .venv and install mypai_tools & dependencies: `make buildenv`
+- Buildenv but install omp-rpc from a custom location: 
+  - `make buildenv OMP_RPC_SRC=../custom-omp-rpc`
+- Run unit tests inside .venv: `make test`
+- Run ruff check inside .venv: `make lint`
+- Run both test and linter `make check`
+- Clean up test caches and Python bytecode: `make clean`
+- Remove .venv directory: `make cleanenv`
 
 ## Sandbox Launcher & Service Configuration (`omp.env`)
 
