@@ -1,6 +1,7 @@
 .ruff_cache/
 .venv/
 
+coverage.xml
 scratch/
 
 mypai_tools.egg-info

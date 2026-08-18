@@ -69,7 +69,7 @@ lint: buildenv
 
 coverage: buildenv
 	@echo "Runing pytest with coverage reporting. COV_FAIL_UNDER=$(COV_FAIL_UNDER)"
-	@echo "Unfinished! uv run --python $(INSTALL_PYTHON) pytest src"
+	uv run --python $(INSTALL_PYTHON) pytest --junit-xml coverage.xml src
 
 cleanenv:
 	@echo "Removing virtual environment $(VENV)..."
@@ -83,5 +83,5 @@ clean: cleanenv
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "mypai_tools.egg-info" -exec rm -rf {} + 2>/dev/null || true
-	rm -f .coverage
+	rm -f .coverage .coverage.xml
 
